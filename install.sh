@@ -15,7 +15,7 @@ if [ -d "venv" ]; then
 else
     # Create a virtual environment if it doesn't exist
     echo "Creating a virtual environment..."
-    python3 -m venv venv
+    python3.12 -m venv venv
 fi
 
 # Activate the virtual environment

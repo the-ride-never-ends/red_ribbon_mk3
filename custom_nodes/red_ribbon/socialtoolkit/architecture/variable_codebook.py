@@ -4,6 +4,8 @@ import logging
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+# 
+
 
 class BusinessOwnerAssumptions(BaseModel):
     """Assumptions about the business owner"""
@@ -84,6 +86,11 @@ class VariableCodebook:
             self._load_variables()
             
         logger.info("VariableCodebook initialized with services")
+
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
 
     def control_flow(self, action: str, **kwargs) -> Dict[str, Any]:
         """

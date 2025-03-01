@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from configs import Configs
+# from configs import Configs
 
 
 class SocialtoolkitConfigs(BaseModel):
@@ -17,13 +17,13 @@ class SocialtoolkitConfigs(BaseModel):
     get_documents_from_web: bool = False
 
 
-class Socialtoolkit:
+class SocialtoolkitPipeline:
     """
     High Level Architecture for document retrieval and data extraction system
     based on mermaid chart in README.md
     """
     
-    def __init__(self, resources: Dict[str, Any], configs: Configs):
+    def __init__(self, resources: Dict[str, Any], configs):
         """
         Initialize with injected dependencies and configuration
         
@@ -46,6 +46,10 @@ class Socialtoolkit:
         
         logger.info("Socialtoolkit initialized with services")
 
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
 
     def execute(self, input_data_point: str) -> dict[str, str] | list[dict[str, str]]:
         """

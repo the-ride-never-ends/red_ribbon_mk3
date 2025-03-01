@@ -3,7 +3,9 @@ from typing import Dict, List, Any, Optional, Tuple
 import logging
 import numpy as np
 
+
 logger = logging.getLogger(__name__)
+
 
 class Top10DocumentRetrievalConfigs(BaseModel):
     """Configuration for Top-10 Document Retrieval workflow"""
@@ -13,6 +15,7 @@ class Top10DocumentRetrievalConfigs(BaseModel):
     use_filter: bool = False  # Whether to filter results
     filter_criteria: Dict[str, Any] = {}
     use_reranking: bool = False  # Whether to use reranking
+
 
 class Top10DocumentRetrieval:
     """
@@ -38,11 +41,16 @@ class Top10DocumentRetrieval:
         
         logger.info("Top10DocumentRetrieval initialized with services")
 
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
+
     def execute(self, 
-                    input_data_point: str, 
-                    documents: List[Any] = None, 
-                    document_vectors: List[Any] = None
-                   ) -> dict[str, Any]:
+                input_data_point: str, 
+                documents: List[Any] = None, 
+                document_vectors: List[Any] = None
+                ) -> dict[str, Any]:
         """
         Execute the document retrieval flow based on the mermaid chart
         

@@ -20,3 +20,7 @@ CUSTOM_SETTINGS:
   max_image_size: 2048
   default_sampler: "euler_a"
   default_scheduler: "normal"
+
+# Socialtoolkit Settings
+SOCIALTOOLKIT_SETTINGS: 
+  input_data_point: "What is the "

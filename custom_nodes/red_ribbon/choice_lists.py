@@ -12,9 +12,6 @@ class GetChoices:
         
         """
 
-
-
-
 # Create a list of available models for the API
 AVAILABLE_MODELS: list[str] = []
 ANTHROPIC_MODELS = [
@@ -40,7 +37,6 @@ AVAILABLE_MODELS.extend(OPEN_AI_MODELS)
 OPEN_AI_EMBEDDING_MODELS = [
     "text-embedding-3-small",
     "text-embedding-3-large",
-    "text-embedding-ada-002",
 ]
 TEXT_EMBEDDING_MODELS = []
 TEXT_EMBEDDING_MODELS.append(OPEN_AI_EMBEDDING_MODELS)

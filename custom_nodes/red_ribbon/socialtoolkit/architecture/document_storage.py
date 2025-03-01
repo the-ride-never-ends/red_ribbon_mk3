@@ -6,6 +6,8 @@ from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
+# from configs import Configs
+
 
 class DocumentStatus(str, Enum):
     NEW = "new"
@@ -56,6 +58,11 @@ class DocumentStorage:
         self.id_generator = resources.get("id_generator_service", self._generate_uuid)
         
         logger.info("DocumentStorage initialized with services")
+
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
 
     def execute(self, action: str, **kwargs) -> Dict[str, Any]:
         """

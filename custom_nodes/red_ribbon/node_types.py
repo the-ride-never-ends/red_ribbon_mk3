@@ -1,17 +1,17 @@
+from abc import ABC, abstractmethod
 import importlib
 import inspect
-from typing import Type
+from typing import Any, Optional, Type
+
+
+from pydantic import BaseModel
+
 
 from easy_nodes import register_type
 from easy_nodes.easy_nodes import AnythingVerifier
-try:
-    from pydantic import BaseModel
-except ImportError:
-    print("Pydantic not found. Please install it with 'pip install pydantic'")
-    BaseModel = object  # Fallback if pydantic isn't installed
 
 
-def registration_callback(register_these_classes: list[Type[BaseModel]]) -> None:
+def registration_callback(register_these_classes: list[Type]) -> None:
     for this_class in register_these_classes:
         with_its_class_name_in_all_caps: str = this_class.__qualname__.upper()
         register_type(this_class, with_its_class_name_in_all_caps, verifier=AnythingVerifier())
@@ -57,18 +57,23 @@ def register_pydantic_models(
 
     return models
 
-# Example usage:
-# if __name__ == "__main__":
-#     modules_to_scan = ["your_module.models", "another_module.types"]
-#     models = register_pydantic_models(modules_to_scan)
-#     print(f"Found {len(models)} Pydantic models")
 
+class Node(ABC):
 
+    # NOTE This is used for type hinting in the SocialToolkitNode class, 
+    # as well as an example of how each class should be constructed.
 
+    def __init__(self, resources: dict[str, Any], configs: 'BaseModel'):
+        self.configs = configs
+        self.resources = resources
 
+    @abstractmethod
+    def execute(self, action: str, *args, **kwargs) -> Optional[Any]:
+        """
+        Execute the action for the node.
+        """
 
-
-
-
-
-
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()

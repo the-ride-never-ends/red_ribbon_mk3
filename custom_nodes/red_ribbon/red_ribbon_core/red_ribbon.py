@@ -1,8 +1,7 @@
 """
-Red Ribbon - Main entrance file for core Red Ribbon functionality
+Red Ribbon Core - Main entrance file for core Red Ribbon functionality TODO
 """
 
-from . import RedRibbonNode
 
 class RedRibbonAPI:
     """API for accessing Red Ribbon functionality from other modules"""

@@ -5,6 +5,8 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+
+
 class PromptDecisionTreeConfigs(BaseModel):
     """Configuration for Prompt Decision Tree workflow"""
     max_tokens_per_prompt: int = 2000
@@ -55,6 +57,11 @@ class PromptDecisionTree:
         self.human_review_service = resources.get("human_review_service")
         
         logger.info("PromptDecisionTree initialized with services")
+
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
 
     def control_flow(self, relevant_pages: List[Any], 
                    prompt_sequence: List[str],

@@ -4,6 +4,8 @@ from enum import Enum
 import logging
 
 logger = logging.getLogger(__name__)
+# 
+
 
 class WebpageType(str, Enum):
     STATIC = "static"
@@ -28,7 +30,7 @@ class DocumentRetrievalFromWebsites:
     based on mermaid chart in README.md
     """
     
-    def __init__(self, resources: Dict[str, Any], configs: DocumentRetrievalConfigs):
+    def __init__(self, resources: Dict[str, Any] = None, configs: DocumentRetrievalConfigs = None):
         """
         Initialize with injected dependencies and configuration
         
@@ -49,6 +51,11 @@ class DocumentRetrievalFromWebsites:
         self.url_path_generator = resources.get("url_path_generator")
         
         logger.info("DocumentRetrievalFromWebsites initialized with services")
+
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
 
     def execute(self, domain_urls: List[str]) -> Dict[str, Any]:
         """

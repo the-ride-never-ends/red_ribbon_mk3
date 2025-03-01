@@ -1,14 +1,14 @@
 [project]
-name = "ComfyUI"
-version = "0.3.18"
+name = "red_ribbon_mk3"
+version = "0.1.00"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
 
 [project.urls]
-homepage = "https://www.comfy.org/"
-repository = "https://github.com/comfyanonymous/ComfyUI"
-documentation = "https://docs.comfy.org/"
+homepage = "https://github.com/kylerose1946/red_ribbon_mk3"
+repository = "https://github.com/kylerose1946/red_ribbon_mk3"
+documentation = "https://github.com/kylerose1946/red_ribbon_mk3/wiki"
 
 [tool.ruff]
 lint.select = [

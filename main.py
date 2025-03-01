@@ -84,6 +84,7 @@ def execute_prestartup_script():
                 time_before = time.perf_counter()
                 success = execute_script(script_path)
                 node_prestartup_times.append((time.perf_counter() - time_before, module_path, success))
+
     if len(node_prestartup_times) > 0:
         logging.info("\nPrestartup times for custom nodes:")
         for n in sorted(node_prestartup_times):

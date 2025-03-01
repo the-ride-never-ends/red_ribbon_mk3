@@ -2,7 +2,9 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import logging
 
+
 logger = logging.getLogger(__name__)
+
 
 class RelevanceAssessmentConfigs(BaseModel):
     """Configuration for Relevance Assessment workflow"""
@@ -35,6 +37,11 @@ class RelevanceAssessment:
         self.prompt_decision_tree = resources.get("prompt_decision_tree_service")
         
         logger.info("RelevanceAssessment initialized with services")
+
+    @property
+    def class_name(self) -> str:
+        """Get class name for this service"""
+        return self.__class__.__name__.lower()
 
     def control_flow(self, potentially_relevant_docs: List[Any], 
                    variable_definition: Dict[str, Any],

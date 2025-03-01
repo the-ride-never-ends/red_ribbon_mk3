@@ -1,11 +1,9 @@
 """
-Plug-in-Play Transformer - Main entrance file for transformer functionality
+Plug-in-Play Transformer - Build and train LLMs without knowing how to code!
 """
 
-from . import PiPTransformerNode
-
 class TransformerAPI:
-    """API for accessing Transformer functionality from other modules"""
+    """API for accessing Plug-in-Play Transformer functionality from ComfyUI"""
     
     def __init__(self, resources, configs):
         self.configs = configs
