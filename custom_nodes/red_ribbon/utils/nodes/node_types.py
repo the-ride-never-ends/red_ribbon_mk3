@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import importlib
 import inspect
-from typing import Any, Optional, Type
+from typing import Any, Optional, TypeVar
 
 
 from pydantic import BaseModel
@@ -10,8 +10,9 @@ from pydantic import BaseModel
 from easy_nodes import register_type
 from easy_nodes.easy_nodes import AnythingVerifier
 
+Class = TypeVar('Class')
 
-def registration_callback(register_these_classes: list[Type]) -> None:
+def registration_callback(register_these_classes: list[Class]) -> None:
     for this_class in register_these_classes:
         with_its_class_name_in_all_caps: str = this_class.__qualname__.upper()
         register_type(this_class, with_its_class_name_in_all_caps, verifier=AnythingVerifier())

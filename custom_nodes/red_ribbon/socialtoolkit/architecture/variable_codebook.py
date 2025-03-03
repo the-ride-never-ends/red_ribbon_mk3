@@ -3,9 +3,6 @@ from typing import Dict, List, Any, Optional, Union
 import logging
 from enum import Enum
 
-logger = logging.getLogger(__name__)
-# 
-
 
 class BusinessOwnerAssumptions(BaseModel):
     """Assumptions about the business owner"""
@@ -73,6 +70,9 @@ class VariableCodebook:
         """
         self.resources = resources
         self.configs = configs
+        self.class_configs = self.configs.variable_codebook
+        # TODO Grrr, imports still broken.
+        self.logger = logging.getLogger(self.__class__.__name__)
         
         # Extract needed services from resources
         self.storage_service = resources.get("storage_service")
@@ -82,10 +82,10 @@ class VariableCodebook:
         self.variables: Dict[str, Variable] = {}
         
         # Load variables if configured
-        if self.configs.load_from_file:
+        if self.class_configs.load_from_file:
             self._load_variables()
             
-        logger.info("VariableCodebook initialized with services")
+        self.logger.info("VariableCodebook initialized with services")
 
     @property
     def class_name(self) -> str:
@@ -103,7 +103,7 @@ class VariableCodebook:
         Returns:
             Dictionary containing operation results
         """
-        logger.info(f"Starting variable codebook operation: {action}")
+        self.logger.info(f"Starting variable codebook operation: {action}")
         
         if action == "get_variable":
             return self._get_variable(
@@ -128,7 +128,7 @@ class VariableCodebook:
                 variable=kwargs.get("variable")
             )
         else:
-            logger.error(f"Unknown action: {action}")
+            self.logger.error(f"Unknown action: {action}")
             raise ValueError(f"Unknown action: {action}")
 
     def get_prompt_sequence_for_input(self, input_data_point: str) -> List[str]:
@@ -204,7 +204,7 @@ class VariableCodebook:
                 "variable": self.variables[variable_name]
             }
         else:
-            logger.warning(f"Variable not found: {variable_name}")
+            self.logger.warning(f"Variable not found: {variable_name}")
             return {
                 "success": False,
                 "error": f"Variable not found: {variable_name}"
@@ -231,7 +231,7 @@ class VariableCodebook:
         
         # Extract the prompt sequence from the variable
         if not variable.prompt_decision_tree:
-            logger.warning(f"No prompt decision tree found for variable: {variable_name}")
+            self.logger.warning(f"No prompt decision tree found for variable: {variable_name}")
             return {
                 "success": False,
                 "error": f"No prompt decision tree found for variable: {variable_name}"
@@ -282,7 +282,7 @@ class VariableCodebook:
             Dictionary containing the operation result
         """
         if variable.item_name in self.variables:
-            logger.warning(f"Variable already exists: {variable.item_name}")
+            self.logger.warning(f"Variable already exists: {variable.item_name}")
             return {
                 "success": False,
                 "error": f"Variable already exists: {variable.item_name}"
@@ -312,7 +312,7 @@ class VariableCodebook:
             Dictionary containing the operation result
         """
         if variable_name not in self.variables:
-            logger.warning(f"Variable not found: {variable_name}")
+            self.logger.warning(f"Variable not found: {variable_name}")
             return {
                 "success": False,
                 "error": f"Variable not found: {variable_name}"
@@ -334,25 +334,25 @@ class VariableCodebook:
         """Load variables from storage"""
         try:
             if self.storage_service:
-                variables = self.storage_service.load_variables(self.configs.variables_path)
+                variables = self.storage_service.load_variables(self.class_configs.variables_path)
                 
                 if variables:
                     self.variables = {var.item_name: var for var in variables}
-                    logger.info(f"Loaded {len(self.variables)} variables from storage")
+                    self.logger.info(f"Loaded {len(self.variables)} variables from storage")
                 else:
-                    logger.warning("No variables found in storage")
+                    self.logger.warning("No variables found in storage")
                     self._load_default_variables()
             else:
-                logger.warning("No storage service available, loading default variables")
+                self.logger.warning("No storage service available, loading default variables")
                 self._load_default_variables()
         except Exception as e:
-            logger.error(f"Error loading variables: {e}")
+            self.logger.error(f"Error loading variables: {e}")
             self._load_default_variables()
             
     def _load_default_variables(self) -> None:
         """Load default variables"""
-        if not self.configs.default_assumptions_enabled:
-            logger.info("Default assumptions disabled, skipping default variable loading")
+        if not self.class_configs.default_assumptions_enabled:
+            self.logger.info("Default assumptions disabled, skipping default variable loading")
             return
             
         # Create a sample variable with assumptions and prompt decision tree
@@ -388,4 +388,4 @@ class VariableCodebook:
         # Add to variables dictionary
         self.variables[sales_tax_variable.item_name] = sales_tax_variable
         
-        logger.info("Loaded default variables")
+        self.logger.info("Loaded default variables")

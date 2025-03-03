@@ -1,6 +1,6 @@
 
 
-class GetChoices:
+class GetChoiceLists:
 
     def __init__(self, resources, configs):
         self.resources = resources

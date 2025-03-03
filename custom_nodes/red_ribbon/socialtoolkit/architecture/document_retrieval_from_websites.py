@@ -3,13 +3,11 @@ from typing import Dict, List, Any, Optional, Tuple
 from enum import Enum
 import logging
 
-logger = logging.getLogger(__name__)
-# 
-
 
 class WebpageType(str, Enum):
     STATIC = "static"
     DYNAMIC = "dynamic"
+
 
 class DocumentRetrievalConfigs(BaseModel):
     """Configuration for Document Retrieval from Websites workflow"""
@@ -40,6 +38,7 @@ class DocumentRetrievalFromWebsites:
         """
         self.resources = resources
         self.configs = configs
+        self.logger = logging.getLogger(self.class_name)
         
         # Extract needed services from resources
         self.static_webpage_parser = resources.get("static_webpage_parser")
@@ -50,7 +49,7 @@ class DocumentRetrievalFromWebsites:
         self.document_storage = resources.get("document_storage_service")
         self.url_path_generator = resources.get("url_path_generator")
         
-        logger.info("DocumentRetrievalFromWebsites initialized with services")
+        self.logger.info("DocumentRetrievalFromWebsites initialized with services")
 
     @property
     def class_name(self) -> str:
@@ -67,7 +66,7 @@ class DocumentRetrievalFromWebsites:
         Returns:
             Dictionary containing retrieved documents, metadata, and vectors
         """
-        logger.info(f"Starting document retrieval from {len(domain_urls)} domains")
+        self.logger.info(f"Starting document retrieval from {len(domain_urls)} domains")
         
         all_documents = []
         all_metadata = []
@@ -101,7 +100,7 @@ class DocumentRetrievalFromWebsites:
         # Step 5: Store documents, vectors, and metadata
         self.document_storage.store(all_documents, all_metadata, all_vectors)
         
-        logger.info(f"Retrieved and stored {len(all_documents)} documents")
+        self.logger.info(f"Retrieved and stored {len(all_documents)} documents")
         return {
             "documents": all_documents,
             "metadata": all_metadata,

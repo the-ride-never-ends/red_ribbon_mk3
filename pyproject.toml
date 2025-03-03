@@ -3,7 +3,7 @@ name = "red_ribbon_mk3"
 version = "0.1.00"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 [project.urls]
 homepage = "https://github.com/kylerose1946/red_ribbon_mk3"

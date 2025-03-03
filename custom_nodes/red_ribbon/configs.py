@@ -19,15 +19,25 @@ class Paths(BaseModel):
     LLM_OUTPUTS_DIR: Path = COMFYUI_DIR / "output" / "red_ribbon_outputs"
     LLM_MODELS_DIR: Path = COMFYUI_DIR / "models" / "llm_models"
     SOCIAL_TOOLKIT_DIR: Path = RED_RIBBON_DIR / "socialtoolkit"
+    DB_PATH: Path = RED_RIBBON_DIR / "red_ribbon.db"
 
     class Config:
         frozen = True  # Make the model immutable (read-only)
 
+class VariableCodebookConfigs(BaseModel):
+    variables_path: str = "variables.json"
+    load_from_file: bool = True
+    cache_enabled: bool = True
+    cache_ttl_seconds: int = 3600
+    default_assumptions_enabled: bool = True
 
 class Configs(BaseModel):
 
     database: DatabaseConfigs = None
     paths: Paths = Field(default_factory=Paths)
+    variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
+    
+
 
 
 # class Paths(BaseModel):
@@ -55,7 +65,7 @@ class Configs(BaseModel):
 
 # #     codebook: Optional[dict[str, Any]] = None
 # #     document_retrieval: Optional[dict[str, Any]] = None
-# #     llm_service: Optional[dict[str, Any]] = None
+# #     llm: Optional[dict[str, Any]] = None
 # #     top10_retrieval: Optional[dict[str, Any]] = None
 # #     relevance_assessment: Optional[dict[str, Any]] = None
 # #     prompt_decision_tree: Optional[dict[str, Any]] = None

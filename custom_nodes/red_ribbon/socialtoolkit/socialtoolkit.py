@@ -1,30 +1,33 @@
 """
 Socialtoolkit - Turn Law into Datasets
 """
-from dataclasses import dataclass, field
+from __future__ import annotations
+from .__version__ import __version__
+
+from dataclasses import dataclass, field, InitVar
 from functools import cached_property
 import os
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
-
+# Piece-wise Pipeline
 from .architecture.document_retrieval_from_websites import DocumentRetrievalFromWebsites
 from .architecture.document_storage import DocumentStorage
 from .architecture.top10_document_retrieval import Top10DocumentRetrieval
 from .architecture.relevance_assessment import RelevanceAssessment
-from .architecture.llm_service import LLMService
 from .architecture.variable_codebook import VariableCodebook
 from .architecture.prompt_decision_tree import PromptDecisionTree
 
-
+# Integrated Pipeline
 from .architecture.socialtoolkit_pipeline import SocialtoolkitPipeline
 
-import utils
+
 
 from ..configs import Configs
+from ..llm import Llm
+from ..utils.nodes.node_types import Node
 from ..utils.instantiate import instantiate
-from ..node_types import Node
-from .__version__ import __version__
+
 
 Class = TypeVar('Class')
 ClassInstance = TypeVar('ClassInstance')
@@ -43,7 +46,7 @@ class SocialToolkitAPI:
         _document_storage (ClassInstance): The class instance for document storage.
         _top10_document_retrieval (ClassInstance): The class instance for top 10 document retrieval.
         _relevance_assessment (ClassInstance): The class instance for relevance assessment.
-        _llm_service (ClassInstance): The class instance for the LLM service.
+        _llm (ClassInstance): The class instance for the LLM service.
         _variable_codebook (ClassInstance): The class instance for the variable codebook.
         _prompt_decision_tree (ClassInstance): The class instance for the prompt decision tree.
         _socialtoolkit_pipeline (ClassInstance): The class instance for the Socialtoolkit pipeline.
@@ -59,7 +62,7 @@ class SocialToolkitAPI:
         self._document_retrieval_from_websites: ClassInstance = self.resources.get("document_retrieval_from_websites")
         self._document_storage:                 ClassInstance = self.resources.get("document_storage")
         self._top10_document_retrieval:         ClassInstance = self.resources.get("top10_document_retrieval")
-        self._llm_service:                      ClassInstance = self.resources.get("llm_service")
+        self._llm:                              ClassInstance = self.resources.get("llm")
         self._relevance_assessment:             ClassInstance = self.resources.get("relevance_assessment")
         self._variable_codebook:                ClassInstance = self.resources.get("variable_codebook")
         self._prompt_decision_tree:             ClassInstance = self.resources.get("prompt_decision_tree")
@@ -89,10 +92,8 @@ class SocialToolkitAPI:
         return self._top10_document_retrieval.execute(action, *args, **kwargs)
 
 
-    def llm_service(self, 
-                    action: str, *args, **kwargs
-                    ) -> Optional[Any]:
-        return self._llm_service.execute(action, *args, **kwargs)
+    def llm(self, action: str, *args, **kwargs) -> Optional[Any]:
+        return self._llm.execute(action, *args, **kwargs)
 
 
     def  relevance_assessment(self,
@@ -134,7 +135,7 @@ class SocialToolkitAPI:
             >>> resources = {
                    "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
                    "document_storage": DocumentStorage,
-                   "llm_service": LLMService,
+                   "llm": Llm,
                    "socialtoolkit_pipeline": SocialtoolkitPipeline,
                    "codebook": VariableCodebook
                 }
@@ -149,20 +150,32 @@ class SocialToolkitAPI:
         """
         return self._socialtoolkit_pipeline.execute(input_data_point, *args, **kwargs)
 
+    def get_domain_urls(self, *args, **kwargs) -> list[str]:
+        """
+        Get domain URLs from a database or text file
+        # NOTE: This function is a placeholder and should be implemented in the final version
+        """
+        if kwargs['db'] not in kwargs:
+            with open("domain_urls.txt", "r") as f:
+                return ["www.dummy_url.com"]
+        else:
+            return ["www.dummy_url.com"]
 
-    def execute(self, func_name: str, *args, **kwargs) -> Any:
+    def execute(self, func_name: str, *args, **kwargs) -> Optional[Any]:
         """
         Entry point for executing functions in the SocialtoolkitAPI.
         """
         match func_name:
+            case "get_domain_urls":
+                return self.get_domain_urls(*args, **kwargs)
             case "document_retrieval_from_websites":
                 return self.document_retrieval_from_websites(*args, **kwargs)
             case "document_storage":
                 return self.document_storage(*args, **kwargs)
             case "top10_document_retrieval":
                 return self.top10_document_retrieval(*args, **kwargs)
-            case "llm_service":
-                return self.llm_service(*args, **kwargs)
+            case "llm":
+                return self.llm(*args, **kwargs)
             case "relevance_assessment":
                 return self.relevance_assessment(*args, **kwargs)
             case "variable_codebook":
@@ -175,35 +188,35 @@ class SocialToolkitAPI:
                 raise ValueError(f"Function {func_name} not found in SocialToolkitAPI")
 
 
+
 @dataclass
 class SocialToolKitResources:
     """Container for classes used to run Socialtoolkit in ComfyUI"""
 
+    _configs: InitVar
     resources: dict[str, ClassInstance] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self, configs):
         self.resources = instantiate({
             "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
             "document_storage": DocumentStorage,
-            "llm_service": LLMService,
+            "top10_document_retrieval": Top10DocumentRetrieval,
+            "llm": Llm,
+            "relevance_assessment": RelevanceAssessment,
+            "variable_codebook": VariableCodebook,
+            "prompt_decision_tree": PromptDecisionTree,
             "socialtoolkit_pipeline": SocialtoolkitPipeline,
-            "codebook": VariableCodebook
-        }, Configs(), "socialtoolkit")
+        }, configs, "socialtoolkit")
+
 
 
 # Main function that can be called when using this as a script
 def main():
     """Main function for Socialtoolkit module"""
     configs = Configs()
-    resources = {
-        "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
-        "document_storage": DocumentStorage,
-        "llm_service": LLMService,
-        "socialtoolkit_pipeline": SocialtoolkitPipeline,
-        "codebook": VariableCodebook
-    }
-    resources: dict[str, ClassInstance] = instantiate(resources, configs, "socialtoolkit")
+    resources = SocialToolKitResources(configs).resources
     api = SocialToolkitAPI(resources, configs)
+
     print("Socialtoolkit loaded successfully")
     print(f"Version: {api.version}")
     print("Running pipeline based on settings in yaml files   ")

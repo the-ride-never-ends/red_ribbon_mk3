@@ -66,9 +66,20 @@ def _get_resources_for(class_name: str, configs: Configs, name: str) -> dict[str
 
     # Get path to the class' resources folder.
     resources_folder = configs.paths.RED_RIBBON_DIR / name / "resources" / class_name
+    utils_folder = configs.paths.RED_RIBBON_DIR / "utils"
+
+    # See if we're importing a utility class.
+    if not resources_folder.exists():
+        utils_dirs = [dir.name for dir in utils_folder.iterdir() if dir.is_dir()]
+        if class_name in utils_dirs:
+            resources_folder = utils_folder / class_name / "resources"
+        else:
+            raise FileNotFoundError(f"Resources folder not found for {class_name} in {name} or utils")
 
     # Get all the functions in the class' resource folder.
     for file in resources_folder.iterdir():
+        if not file.exists():
+            continue
         if ( # Skip private and non-python files.
             file.is_file() 
             and file.suffix == ".py" 
@@ -76,11 +87,18 @@ def _get_resources_for(class_name: str, configs: Configs, name: str) -> dict[str
             and not file.name.startswith("_")
         ):
             # Load in the module, get the functions, and assign them to the dictionary.
-            module_name = f"{'.'.join(resources_folder.parts)}.{file.stem}"
+            # Construct proper module name relative to the package
+            package_parts = ["custom_nodes", "red_ribbon", name, "resources", class_name]
+            module_name = f"{'.'.join(package_parts)}.{file.stem}"
             try:
                 func_dict.update(
                     _get_public_functions_coroutines_and_classes(module_name)
                 )
+            except AssertionError as e:
+                if "no Nodes have been registered" in str(e):
+                    pass # Ignore reinitialization errors. Comfy will tell us that we haven't loaded anything anyways.
+                else:
+                    print(f"{type(e)} importing {module_name}: {e}")
             except Exception as e:
                 print(f"{type(e)} importing {module_name}: {e}")
 
@@ -117,12 +135,17 @@ def instantiate(resources: dict[str, Class], configs: Configs, name: str) -> dic
     Args:
         resources: A dictionary of classes to instantiate, with the class name as the key.
         configs: The configurations to pass to the classes.
+        name: The name of the module to load resources from.
 
     Returns:
         dict[str, Any]: A dictionary of instantiated classes.
     """
-    for class_name, class_ in resources.items():
-        resources.update(
-            class_name=_make_class_instance(class_, class_name, configs, name)
-        )
-    return resources
+    # Create a new dictionary to store instantiated classes
+    instantiated = {}
+
+    # Iterate over a copy of the resources dictionary to avoid modification during iteration
+    for class_name, class_ in resources.copy().items():
+        if class_ is not None:
+            instantiated[class_name] = _make_class_instance(class_, class_name, configs, name)
+
+    return instantiated

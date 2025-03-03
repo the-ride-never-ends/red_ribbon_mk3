@@ -6,10 +6,10 @@ import os
 from .__version__ import __version__
 
 # NOTE This only needs to be called once.
-easy_nodes.initialize_easy_nodes(default_category="Red Ribbon", auto_register=True)
+easy_nodes.initialize_easy_nodes(default_category="Red Ribbon", auto_register=False)
 
 # Import all modules - this must come after calling initialize_easy_nodes
-from . import main # noqa: E402
+from .main import *  # noqa: F403, E402
 
 # Get the combined node mappings for ComfyUI
 NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS = easy_nodes.get_node_mappings()

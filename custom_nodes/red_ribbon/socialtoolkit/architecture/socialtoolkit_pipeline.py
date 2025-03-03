@@ -2,15 +2,16 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional, Type
 import logging
 
-logger = logging.getLogger(__name__)
+import openai
+
 
 # from configs import Configs
-
+OPEN_AI_API_KEY = "sk-1234567890abcdef1234567890abcdef"
 
 class SocialtoolkitConfigs(BaseModel):
     """Configuration for High Level Architecture workflow"""
-    approved_document_sources: List[str]
-    llm_api_config: Dict[str, Any]
+    approved_document_sources: List[str] = None
+    llm_api_config: Dict[str, Any] = None
     document_retrieval_threshold: int = 10
     relevance_threshold: float = 0.7
     output_format: str = "json"
@@ -32,19 +33,25 @@ class SocialtoolkitPipeline:
             configs: Configuration for High Level Architecture
         """
         self.resources = resources
-        self.configs: SocialtoolkitConfigs = configs.socialtoolkit
-        self.llm_api = self.llm_service(resources, configs)
+        self.configs: SocialtoolkitConfigs = SocialtoolkitConfigs()
+        self.logger = logging.getLogger(self.class_name)
         
         # Extract needed services from resources
-        self.document_retrieval = resources.get("document_retrieval_service")
-        self.document_storage = resources.get("document_storage_service")
-        self.llm_service = resources.get("llm_service")
-        self.top10_retrieval = resources.get("top10_retrieval_service")
-        self.relevance_assessment = resources.get("relevance_assessment_service")
-        self.prompt_decision_tree = resources.get("prompt_decision_tree_service")
-        self.variable_codebook = resources.get("variable_codebook_service")
+        self.document_retrieval = resources.get("document_retrieval")
+        self.document_storage = resources.get("document_storage")
+        self.llm = resources.get("llm")
+        self.top10_document_retrieval = resources.get("top10_document_retrieval")
+        self.relevance_assessment = resources.get("relevance_assessment")
+        self.prompt_decision_tree = resources.get("prompt_decision_tree")
+        self.variable_codebook = resources.get("variable_codebook")
         
-        logger.info("Socialtoolkit initialized with services")
+        # Initialize services
+        if self.llm is None:
+            self.llm_api = openai.OpenAI(api_key=OPEN_AI_API_KEY)
+        else:# Default to OpenAI API
+            self.llm_api = self.llm(resources, configs)
+
+        self.logger.info("Socialtoolkit initialized with services")
 
     @property
     def class_name(self) -> str:
@@ -62,7 +69,7 @@ class SocialtoolkitPipeline:
             Dictionary containing the output data point. 
             If the request was interpreted as having more than one response, a list of dictionaries is returned.
         """
-        logger.info(f"Starting high level control flow with input: {input_data_point}")
+        self.logger.info(f"Starting high level control flow with input: {input_data_point}")
         
         if self.configs.approved_document_sources:
             # Step 1: Get domain URLs from pre-approved sources
@@ -77,20 +84,20 @@ class SocialtoolkitPipeline:
             # Step 3: Store documents in document storage
             storage_successful: bool = self.document_storage.execute(documents, metadata, vectors)
             if storage_successful:
-                logger.info("Documents stored successfully")
+                self.logger.info("Documents stored successfully")
             else:
-                logger.warning("Failed to store documents")
+                self.logger.warning("Failed to store documents")
         
         # Step 4: Retrieve documents and document vectors
         stored_docs, stored_vectors = self.document_retrieval.execute(
             input_data_point,
-            self.llm_service.execute("retrieve_documents")
+            self.llm.execute("retrieve_documents")
         )
         stored_docs: list[tuple[str, ...]]
         stored_vectors: list[dict[str, list[float]]]
         
         # Step 5: Perform top-10 document retrieval
-        potentially_relevant_docs = self.top10_retrieval.execute(
+        potentially_relevant_docs = self.top10_document_retrieval.execute(
             input_data_point, 
             stored_docs, 
             stored_vectors
@@ -98,26 +105,26 @@ class SocialtoolkitPipeline:
         potentially_relevant_docs: list[tuple[str, ...]]
         
         # Step 6: Get variable definition from codebook
-        prompt_sequence = self.variable_codebook.execute(self.llm_service, input_data_point)
+        prompt_sequence = self.variable_codebook.execute(self.llm, input_data_point)
         
         # Step 7: Perform relevance assessment
         relevant_documents = self.relevance_assessment.execute(
             potentially_relevant_docs,
             prompt_sequence,
-            self.llm_service.execute("relevance_assessment")
+            self.llm.execute("relevance_assessment")
         )
         
         # Step 8: Execute prompt decision tree
         output_data_point = self.prompt_decision_tree.execute(
             relevant_documents,
             prompt_sequence,
-            self.llm_service.execute("prompt_decision_tree")
+            self.llm.execute("prompt_decision_tree")
         )
 
         if output_data_point is None:
-            logger.warning("Failed to execute prompt decision tree")
+            self.logger.warning("Failed to execute prompt decision tree")
         else:
-            logger.info(f"Completed high level control flow with output: {output_data_point}")
+            self.logger.info(f"Completed high level control flow with output: {output_data_point}")
         
         return {"output_data_point": output_data_point}
         

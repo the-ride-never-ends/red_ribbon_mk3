@@ -43,6 +43,8 @@ playwright
 PyPDF2
 pytest-playwright
 matplotlib
+multiformats
+dependency_injector 
 
 # non essential dependencies:
 kornia>=0.7.1

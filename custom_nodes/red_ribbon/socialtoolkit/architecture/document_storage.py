@@ -76,7 +76,9 @@ class DocumentStorage:
             Dictionary containing operation results
         """
         logger.info(f"Starting document storage operation: {action}")
-        
+        if self.db_service is None: # This route should be called if the node is from ComfyUI
+            self.db_service = kwargs.get("db_service"),
+
         if action == "store":
             return self._store_documents(
                 kwargs.get("documents", []), 

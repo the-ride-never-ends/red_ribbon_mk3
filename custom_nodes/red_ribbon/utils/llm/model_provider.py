@@ -1,8 +1,8 @@
 """
-Model provider for LLMService
+Model provider for Llm
 """
 import logging
-from typing import Dict, Any, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ModelProvider:
             "llama-2-70b": {"provider": "meta", "max_tokens": 4096}
         }
     
-    def generate(self, prompt: str, model: str = "gpt-3.5-turbo", params: Dict[str, Any] = None) -> str:
+    def generate(self, prompt: str, model: str = "gpt-3.5-turbo", params: dict[str, Any] = None) -> str:
         """
         Generate a completion from the language model
         
@@ -47,7 +47,7 @@ class ModelProvider:
         
         return response
         
-    def list_available_models(self) -> List[str]:
+    def list_available_models(self) -> list[str]:
         """
         List available models
         

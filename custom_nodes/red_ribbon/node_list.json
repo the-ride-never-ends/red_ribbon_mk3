@@ -1,4 +1,13 @@
 {
-  "Rank and Sort Similar Search Results": "Rank and sort similarity search results.",
-  "Retrieve Documents from Websites": "Get documents from a list of domain URLs."
+  "Database": "Select a database type to use in the pipeline.",
+  "Get links from the file": "",
+  "Get laws from the Web.": "Get documents from a list of domain URLs.",
+  "Save the laws we find.": "Get documents and their vectors from a database.",
+  "The Question": "Input text for the pipeline.",
+  "Find the laws we want.": "Get a list of the top X documents based on a data point.",
+  "Use AI to find the laws we want.": "Determine how relevant a list of documents are to a query.",
+  "Instructions for the AI": "Load a variable codebook entry from a database.",
+  "Use AI to answer the question.": "Run an AI-powered decision tree to extract answers from a list of documents.",
+  "AI": "Load a large language model (LLM) from a local file or API.",
+  "The Answer": "Display the LLM's answer."
 }

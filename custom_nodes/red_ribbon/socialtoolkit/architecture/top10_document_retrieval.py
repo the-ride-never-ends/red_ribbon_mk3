@@ -52,7 +52,7 @@ class Top10DocumentRetrieval:
                 document_vectors: List[Any] = None
                 ) -> dict[str, Any]:
         """
-        Execute the document retrieval flow based on the mermaid chart
+        Execute the document retrieval flow.
         
         Args:
             input_data_point: The query or information request

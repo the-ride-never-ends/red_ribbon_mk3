@@ -13,6 +13,7 @@ class RelevanceAssessmentConfigs(BaseModel):
     max_citation_length: int = 500  # Maximum length of text citations
     use_hallucination_filter: bool = True  # Whether to filter for hallucinations
 
+
 class RelevanceAssessment:
     """
     Relevance Assessment system based on mermaid flowchart in README.md
