@@ -1,7 +1,11 @@
-from pydantic import BaseModel, Field
-from typing import Dict, List, Any, Optional, Union
-import logging
 from enum import Enum
+import logging
+import networkx as nx
+from pathlib import Path
+from typing import Any, Callable, Never, Optional
+
+
+from pydantic import BaseModel, Field
 
 
 class BusinessOwnerAssumptions(BaseModel):
@@ -22,21 +26,30 @@ class TaxesAssumptions(BaseModel):
     
 class OtherAssumptions(BaseModel):
     """Other assumptions"""
-    other_assumptions: List[str] = Field(default_factory=list)
+    other_assumptions: list[str] = Field(default_factory=list)
+
+
 
 class Assumptions(BaseModel):
     """Collection of all assumptions"""
+    general_assumptions: Optional[list[str]] = None
+    specific_assumptions: Optional[dict[str, str]] = None
+
+
+    aspect: Optional[str] = None
     business_owner: Optional[BusinessOwnerAssumptions] = None
     business: Optional[BusinessAssumptions] = None
     taxes: Optional[TaxesAssumptions] = None
     other: Optional[OtherAssumptions] = None
 
+
 class PromptDecisionTreeNode(BaseModel):
     """Node in the prompt decision tree"""
     prompt: str
-    depends_on: Optional[List[str]] = None
-    next_prompts: Optional[Dict[str, str]] = None
-    
+    depends_on: Optional[list[str]] = None
+    next_prompts: Optional[dict[str, str]] = None
+
+
 class Variable(BaseModel):
     """Variable definition in the codebook"""
     label: str
@@ -44,7 +57,12 @@ class Variable(BaseModel):
     description: str
     units: str
     assumptions: Optional[Assumptions] = None
-    prompt_decision_tree: Optional[List[PromptDecisionTreeNode]] = None
+    prompt_decision_tree: Optional[nx.DiGraph] = None
+
+
+class CodeBook(BaseModel):
+    variables: dict[str, Variable]
+
 
 class VariableCodebookConfigs(BaseModel):
     """Configuration for Variable Codebook"""
@@ -54,13 +72,17 @@ class VariableCodebookConfigs(BaseModel):
     cache_ttl_seconds: int = 3600
     default_assumptions_enabled: bool = True
 
+
+
+
+
 class VariableCodebook:
     """
     Variable Codebook system based on mermaid class diagram in README.md
     Manages variable definitions and their associated assumptions and prompt sequences
     """
     
-    def __init__(self, resources: Dict[str, Any], configs: VariableCodebookConfigs):
+    def __init__(self, resources: dict[str, Callable], configs: VariableCodebookConfigs):
         """
         Initialize with injected dependencies and configuration
         
@@ -70,16 +92,17 @@ class VariableCodebook:
         """
         self.resources = resources
         self.configs = configs
-        self.class_configs = self.configs.variable_codebook
-        # TODO Grrr, imports still broken.
-        self.logger = logging.getLogger(self.__class__.__name__)
-        
+
+        self._db = self.resources['db']
+        self._logger = self.resources['logger'] or logging.getLogger(self.__class__.__name__)
+        self._llm = self.resources['llm']
+
         # Extract needed services from resources
         self.storage_service = resources.get("storage_service")
         self.cache_service = resources.get("cache_service")
         
         # Initialize variables dictionary
-        self.variables: Dict[str, Variable] = {}
+        self.variables: dict[str, Variable] = {}
         
         # Load variables if configured
         if self.class_configs.load_from_file:
@@ -92,7 +115,12 @@ class VariableCodebook:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def control_flow(self, action: str, **kwargs) -> Dict[str, Any]:
+    def _log_then_raise(self, exc: Exception, msg: str) -> Never:
+        """Log a message then raise an exception associated with it."""
+        self.logger.error(msg)
+        raise exc(msg)
+
+    def control_flow(self, action: str, **kwargs) -> dict[str, Any]:
         """
         Execute variable codebook operations based on the action
         
@@ -104,34 +132,31 @@ class VariableCodebook:
             Dictionary containing operation results
         """
         self.logger.info(f"Starting variable codebook operation: {action}")
-        
-        if action == "get_variable":
-            return self._get_variable(
-                variable_name=kwargs.get("variable_name", "")
-            )
-        elif action == "get_prompt_sequence":
-            return self._get_prompt_sequence(
-                variable_name=kwargs.get("variable_name", ""),
-                input_data_point=kwargs.get("input_data_point", "")
-            )
-        elif action == "get_assumptions":
-            return self._get_assumptions(
-                variable_name=kwargs.get("variable_name", "")
-            )
-        elif action == "add_variable":
-            return self._add_variable(
-                variable=kwargs.get("variable")
-            )
-        elif action == "update_variable":
-            return self._update_variable(
-                variable_name=kwargs.get("variable_name", ""),
-                variable=kwargs.get("variable")
-            )
-        else:
-            self.logger.error(f"Unknown action: {action}")
-            raise ValueError(f"Unknown action: {action}")
 
-    def get_prompt_sequence_for_input(self, input_data_point: str) -> List[str]:
+        variable_name: str = kwargs.get("variable_name", "")
+        input_data_point: str = kwargs.get("input_data_point", "")
+        variable: Any = kwargs.get("variable")
+
+        match action:
+            case "get_variable":
+                return self._get_variable(variable_name=variable_name)
+            case "get_prompt_sequence":
+                return self._get_prompt_sequence(variable_name=variable_name, input_data_point=input_data_point)
+            case "get_assumptions":
+                self._get_assumptions(variable_name=variable_name)
+            case "add_variable":
+                return self._add_variable(variable=variable)
+            case "update_variable":
+                return self._update_variable(variable_name=variable_name, variable=variable)
+            case "add_variable":
+                return self._add_variable(variable=variable)
+            case "update_variable":
+                return self._update_variable(variable_name=variable_name, variable=variable)
+            case _:
+                self._log_then_raise(ValueError, f"Unknown action: {action}")
+
+
+    def get_prompt_sequence_for_input(self, input_data_point: str) -> list[str]:
         """
         Get prompt sequence for a given input data point
         
@@ -188,7 +213,7 @@ class VariableCodebook:
         # Default to a generic variable if no match is found
         return "generic_tax_information"
 
-    def _get_variable(self, variable_name: str) -> Dict[str, Any]:
+    def _get_variable(self, variable_name: str) -> dict[str, Any]:
         """
         Get a variable from the codebook
         
@@ -210,7 +235,7 @@ class VariableCodebook:
                 "error": f"Variable not found: {variable_name}"
             }
 
-    def _get_prompt_sequence(self, variable_name: str, input_data_point: str) -> Dict[str, Any]:
+    def _get_prompt_sequence(self, variable_name: str, input_data_point: str) -> dict[str, Any]:
         """
         Get the prompt sequence for a variable
         
@@ -246,7 +271,7 @@ class VariableCodebook:
             "variable": variable
         }
 
-    def _get_assumptions(self, variable_name: str) -> Dict[str, Any]:
+    def _get_assumptions(self, variable_name: str | Path | BaseModel) -> dict[str, Any]:
         """
         Get the assumptions for a variable
         
@@ -256,6 +281,10 @@ class VariableCodebook:
         Returns:
             Dictionary containing the assumptions
         """
+        # Load the variable if not already loaded
+        if not isinstance(variable_name, str):
+            pass
+
         # Get the variable
         variable_result = self._get_variable(variable_name)
         
@@ -271,7 +300,7 @@ class VariableCodebook:
             "variable": variable
         }
 
-    def _add_variable(self, variable: Variable) -> Dict[str, Any]:
+    def _add_variable(self, variable: Variable) -> dict[str, Any]:
         """
         Add a variable to the codebook
         
@@ -300,7 +329,7 @@ class VariableCodebook:
             "variable": variable
         }
 
-    def _update_variable(self, variable_name: str, variable: Variable) -> Dict[str, Any]:
+    def _update_variable(self, variable_name: str, variable: Variable) -> dict[str, Any]:
         """
         Update a variable in the codebook
         

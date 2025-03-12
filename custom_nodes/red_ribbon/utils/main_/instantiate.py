@@ -7,9 +7,6 @@ from pathlib import Path
 from typing import Any, Optional, TypeVar
 
 
-from ..configs import Configs
-
-
 Class = TypeVar('Class')
 ClassInstance = TypeVar('ClassInstance')
 
@@ -41,11 +38,12 @@ def _get_public_functions_coroutines_and_classes(module_name: str) -> dict[str, 
         if (
             callable(getattr(module, attr_name)) or 
             asyncio.iscoroutine(getattr(module, attr_name))
-        ) and not attr_name.startswith('_')
+        ) and not attr_name.startswith('_') # Ignore private functions
+        and not isinstance(getattr(module, attr_name), type) # Ignore types
     }
 
 
-def _get_resources_for(class_name: str, configs: Configs, name: str) -> dict[str, Any]:
+def _get_resources_for(class_name: str, configs, name: str) -> dict[str, Any]:
     """
     Get resources (public functions, coroutines, and classes) 
     for a specific module from its resources folder.
@@ -71,6 +69,7 @@ def _get_resources_for(class_name: str, configs: Configs, name: str) -> dict[str
     # See if we're importing a utility class.
     if not resources_folder.exists():
         utils_dirs = [dir.name for dir in utils_folder.iterdir() if dir.is_dir()]
+        print(f"utils_dirs: {utils_dirs}")
         if class_name in utils_dirs:
             resources_folder = utils_folder / class_name / "resources"
         else:
@@ -109,7 +108,7 @@ def _get_resources_for(class_name: str, configs: Configs, name: str) -> dict[str
     return func_dict
 
 
-def _make_class_instance(class_ : Class, class_name: str, configs: Configs, name: str) -> Any:
+def _make_class_instance(class_ : Class, class_name: str, configs, name: str) -> Any:
     """
     Instantiate a class with its resources and configurations.
     The class must have a constructor with only two values: resources(dict) and configs(Configs).
@@ -128,7 +127,7 @@ def _make_class_instance(class_ : Class, class_name: str, configs: Configs, name
     return class_(_get_resources_for(class_name, configs, name), configs)
 
 
-def instantiate(resources: dict[str, Class], configs: Configs, name: str) -> dict[str, ClassInstance]:
+def instantiate(resources: dict[str, Class], configs, name: str) -> dict[str, ClassInstance]:
     """
     Instantiate all classes in the resources dictionary with their resources and configurations.
 

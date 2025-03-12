@@ -1,8 +1,11 @@
 from pydantic import BaseModel
-from typing import Dict, List, Any, Optional, Type
+from typing import Any, Optional, Type
 import logging
 
 import openai
+
+
+
 
 
 # from configs import Configs
@@ -10,8 +13,8 @@ OPEN_AI_API_KEY = "sk-1234567890abcdef1234567890abcdef"
 
 class SocialtoolkitConfigs(BaseModel):
     """Configuration for High Level Architecture workflow"""
-    approved_document_sources: List[str] = None
-    llm_api_config: Dict[str, Any] = None
+    approved_document_sources: list[str] = None
+    llm_api_config: dict[str, Any] = None
     document_retrieval_threshold: int = 10
     relevance_threshold: float = 0.7
     output_format: str = "json"
@@ -23,8 +26,8 @@ class SocialtoolkitPipeline:
     High Level Architecture for document retrieval and data extraction system
     based on mermaid chart in README.md
     """
-    
-    def __init__(self, resources: Dict[str, Any], configs):
+
+    def __init__(self, resources: dict[str, Any], configs: SocialtoolkitConfigs):
         """
         Initialize with injected dependencies and configuration
         
@@ -33,18 +36,21 @@ class SocialtoolkitPipeline:
             configs: Configuration for High Level Architecture
         """
         self.resources = resources
-        self.configs: SocialtoolkitConfigs = SocialtoolkitConfigs()
+        self.configs: SocialtoolkitConfigs = configs
         self.logger = logging.getLogger(self.class_name)
-        
-        # Extract needed services from resources
-        self.document_retrieval = resources.get("document_retrieval")
-        self.document_storage = resources.get("document_storage")
-        self.llm = resources.get("llm")
-        self.top10_document_retrieval = resources.get("top10_document_retrieval")
-        self.relevance_assessment = resources.get("relevance_assessment")
-        self.prompt_decision_tree = resources.get("prompt_decision_tree")
-        self.variable_codebook = resources.get("variable_codebook")
-        
+
+        self.approved_document_sources: list[str] = self.configs.approved_document_sources
+
+
+        self.llm = resources["llm"]
+
+        self.document_retrieval = resources["document_retrieval"]
+        self.document_storage = resources["document_storage"]
+        self.top10_document_retrieval = resources["top10_document_retrieval"]
+        self.relevance_assessment = resources["relevance_assessment"]
+        self.prompt_decision_tree = resources["prompt_decision_tree"]
+        self.variable_codebook = resources["variable_codebook"]
+
         # Initialize services
         if self.llm is None:
             self.llm_api = openai.OpenAI(api_key=OPEN_AI_API_KEY)
@@ -128,6 +134,8 @@ class SocialtoolkitPipeline:
         
         return {"output_data_point": output_data_point}
         
-    def _get_domain_urls(self) -> List[str]:
+    def _get_domain_urls(self) -> list[str]:
         """Extract domain URLs from pre-approved document sources"""
-        return self.configs.approved_document_sources
+        # TODO
+        pass
+        

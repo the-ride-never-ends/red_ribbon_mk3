@@ -12,3 +12,4 @@ DEBUG_MODE: true  # Enable debug mode in development environment
 CUSTOM_SETTINGS:
   api_key: "your_secret_api_key_here"  # Add private API keys
   database_url: "postgresql://user:password@localhost:5432/db"
+

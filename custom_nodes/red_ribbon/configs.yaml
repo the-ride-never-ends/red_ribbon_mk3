@@ -4,6 +4,7 @@
 # API Settings
 API_URL: "http://localhost:8000"
 DEBUG_MODE: false
+DEMO_MODE: false  # Disable demo mode in production
 MAX_BATCH_SIZE: 4
 
 # Model Paths

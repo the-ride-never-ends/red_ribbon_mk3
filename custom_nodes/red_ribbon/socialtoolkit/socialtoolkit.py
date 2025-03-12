@@ -6,6 +6,7 @@ from .__version__ import __version__
 
 from dataclasses import dataclass, field, InitVar
 from functools import cached_property
+import logging
 import os
 from pathlib import Path
 from typing import Any, Optional, TypeVar
@@ -25,8 +26,10 @@ from .architecture.socialtoolkit_pipeline import SocialtoolkitPipeline
 
 from ..configs import Configs
 from ..llm import Llm
+from ..database import DatabaseAPI
+from ..logger import get_logger
 from ..utils.nodes.node_types import Node
-from ..utils.instantiate import instantiate
+from ..utils.main_.instantiate import instantiate
 
 
 Class = TypeVar('Class')
@@ -58,14 +61,18 @@ class SocialToolkitAPI:
         self.configs = configs
         self.resources = resources or {}
 
+        self._logger:                          logging.Logger  = get_logger(self.__class__.__name__)
+        self._llm:                              ClassInstance = self.resources.get("llm")
+        self._db:                               ClassInstance = self.resources.get("db")
+
         # Piece-wise Pipeline
         self._document_retrieval_from_websites: ClassInstance = self.resources.get("document_retrieval_from_websites")
         self._document_storage:                 ClassInstance = self.resources.get("document_storage")
         self._top10_document_retrieval:         ClassInstance = self.resources.get("top10_document_retrieval")
-        self._llm:                              ClassInstance = self.resources.get("llm")
         self._relevance_assessment:             ClassInstance = self.resources.get("relevance_assessment")
         self._variable_codebook:                ClassInstance = self.resources.get("variable_codebook")
         self._prompt_decision_tree:             ClassInstance = self.resources.get("prompt_decision_tree")
+
         # Full Pipeline
         self._socialtoolkit_pipeline:           ClassInstance = self.resources.get("socialtoolkit_pipeline")
 
@@ -155,6 +162,7 @@ class SocialToolkitAPI:
         Get domain URLs from a database or text file
         # NOTE: This function is a placeholder and should be implemented in the final version
         """
+
         if kwargs['db'] not in kwargs:
             with open("domain_urls.txt", "r") as f:
                 return ["www.dummy_url.com"]
@@ -193,20 +201,21 @@ class SocialToolkitAPI:
 class SocialToolKitResources:
     """Container for classes used to run Socialtoolkit in ComfyUI"""
 
-    _configs: InitVar
+    _configs: InitVar[Configs]
     resources: dict[str, ClassInstance] = field(default_factory=dict)
 
-    def __post_init__(self, configs):
+    def __post_init__(self, _configs):
         self.resources = instantiate({
             "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
             "document_storage": DocumentStorage,
             "top10_document_retrieval": Top10DocumentRetrieval,
             "llm": Llm,
+            "db": DatabaseAPI,
             "relevance_assessment": RelevanceAssessment,
             "variable_codebook": VariableCodebook,
             "prompt_decision_tree": PromptDecisionTree,
             "socialtoolkit_pipeline": SocialtoolkitPipeline,
-        }, configs, "socialtoolkit")
+        }, _configs, "socialtoolkit")
 
 
 

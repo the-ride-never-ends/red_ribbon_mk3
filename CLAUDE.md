@@ -4,6 +4,7 @@
 - Write down the results of your actions in the "Diary" section.
 - Diary is for writing the results of your actions over time. This is to keep your memory persistant over instances and to keep your context window as clear as possible.
 - If you run into problems with Python already running when trying to start ComfyUI, use the command "pkill -f main.py".
+- Your working directory for this project is `custom_nodes/red_ribbon`.
 
 ## Testing Red Ribbon Modules
 - Run all Red Ribbon tests: `pytest tests-unit/ -k "red_ribbon"`

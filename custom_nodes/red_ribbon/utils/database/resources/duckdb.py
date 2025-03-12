@@ -2,7 +2,10 @@
 A duckdb database API module.
 """
 import logging
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Callable, NamedTuple, Optional, Self, TypeVar
+
+Configs = TypeVar('Configs', dict[str, Callable], NamedTuple)
 
 
 import duckdb
@@ -13,22 +16,40 @@ class DuckDB:
     """
     A duckdb database API class
     """
-    def __init__(self, resources=None, configs=None):
-        self.db_path = ":memory:" if not configs.paths.DB_PATH else configs.paths.DB_PATH
-        self.logger = logging.getLogger(self.__class__.__name__)
+    _CONNECTION_STRING = "duckdb:///{{os.path.expanduser('~')}}/red_ribbon_data/database.duckdb"
 
-        self.connection = None
+    def __init__(self, 
+                 resources: Optional[dict[str, Callable]] = None, 
+                 configs: Configs = None
+                ):
+        self.resources = resources
+        self.configs = configs
 
-    def _enter(self) -> DuckDBPyConnection:
-        self.connection = duckdb.connect(self.db_path)
+        self._in_memory: bool = None
+        self._db_path: str = None
+        self._connection: DuckDBPyConnection = None
+        
+    def _enter(self, configs) -> Self:
+    
+        assert hasattr(configs, "database"), "configs must have a database attribute"
+        self._in_memory:                bool = configs.database.in_memory or False
+        self._db_path:                   str = ":memory:" if self._in_memory  else self._CONNECTION_STRING 
+        self._connection: DuckDBPyConnection = duckdb.connect(self._db_path)
+    
         return self
 
     def _exit(self) -> None:
-        self.connection.close()
+        if isinstance(self._connection) is not None:
+            self.connection.close()
+        self._connection = None
+
+    @classmethod
+    def _set_configs(cls, configs: Configs) -> Self:
+        return cls(configs)
 
     def _execute(self, query: str, *args, **kwargs) -> Optional[Any]:
         # Ignore args because duckdb only supports kwargs
         if args:
-            self.logger.warning("DuckDB only supports kwargs, ignoring args")
-        return self.connection.execute(query,**kwargs)
+            print("DuckDB only supports kwargs, ignoring args")
+        return self._connection.execute(query,**kwargs)
 

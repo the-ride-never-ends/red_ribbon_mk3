@@ -9,7 +9,7 @@ import os
 
 class IpfsMultiformats:
 
-    def __init__(self, resources: Any = None, metadata: Any = None):
+    def __init__(self, resources: Any = None, metadata: Any = None) -> None:
         return None
 
     # Step 1: Hash the file content with SHA-256

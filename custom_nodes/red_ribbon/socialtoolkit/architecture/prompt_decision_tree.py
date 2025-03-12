@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Callable, Optional
 import logging
 from enum import Enum
 
@@ -14,7 +14,7 @@ class PromptDecisionTreeConfigs(BaseModel):
     max_iterations: int = 5
     confidence_threshold: float = 0.7
     enable_human_review: bool = True  # Whether to enable human review for low confidence or errors
-    context_window_size: int = 8000  # Maximum context window size for LLM
+    context_window_size: int = 8192  # Maximum context window size for LLM
 
 class PromptDecisionTreeNodeType(str, Enum):
     """Types of nodes in the prompt decision tree"""
@@ -35,13 +35,15 @@ class PromptDecisionTreeNode(BaseModel):
     edges: Optional[List[PromptDecisionTreeEdge]] = None
     is_final: bool = False
 
+
+
 class PromptDecisionTree:
     """
     Prompt Decision Tree system based on mermaid flowchart in README.md
     Executes a decision tree of prompts to extract information from documents
     """
     
-    def __init__(self, resources: Dict[str, Any], configs: PromptDecisionTreeConfigs):
+    def __init__(self, resources: dict[str, Callable], configs: PromptDecisionTreeConfigs):
         """
         Initialize with injected dependencies and configuration
         
@@ -90,7 +92,7 @@ class PromptDecisionTree:
             concatenated_pages, prompt_sequence, llm_api
         )
         
-        # Step 4: Handle errors and unforeseen edgecases if needed
+        # Step 4: Handle errors and unforeseen edge-cases if needed
         if result.get("error") and self.configs.enable_human_review:
             result = self._request_human_review(result, concatenated_pages)
         

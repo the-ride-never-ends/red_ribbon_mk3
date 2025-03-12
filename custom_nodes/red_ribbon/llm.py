@@ -30,6 +30,8 @@ dependency_injector.resources.Resource
 
 class Llm:
 
+    _JSON_INSTRUCTIONS = "Return your answer in JSON format"
+
     def __init__(self, resources: dict[str, Any], configs: Configs):
         self.resources = resources
         self.configs = configs
@@ -40,6 +42,9 @@ class Llm:
         self.llm_tokenizer = resources.get("llm_tokenizer")
         self.llm_vector_maker = resources.get("llm_vector_maker")
         self.llm_vector_storage = resources.get("llm_vector_storage")
+
+        self.client = resources.get("client")
+        self.usage_tracker = resources.get("usage_tracker")
 
         self.logger.info("Llm initialized")
 
@@ -71,6 +76,7 @@ class Llm:
                 self.logger.error(f"Unknown function {func}")
                 raise ValueError(f"Unknown function {func}")
 
+
     def caching_service(self, *args, **kwargs):
         """
         """
@@ -96,3 +102,12 @@ class Llm:
         """
         pass
 
+    def _add_json_instructions_if_needed(self, system_message):
+        """Add JSON instruction to system message if needed."""
+        if self._JSON_INSTRUCTIONS.casefold() not in system_message.casefold():
+            self.logger.debug(
+                "JSON instructions not found in system message. Adding..."
+            )
+            system_message = f"{system_message} {self._JSON_INSTRUCTIONS}."
+            self.logger.debug("New system message:\n%s", system_message)
+        return system_message

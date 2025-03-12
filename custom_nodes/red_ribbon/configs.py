@@ -1,28 +1,43 @@
 """
 Configs module - Configuration constants loaded from YAML files.
 """
+import os
 from pathlib import Path
-# from typing import Any, Dict, Optional
-# import os
-# import yaml
-from pydantic import BaseModel, Field
-# from functools import lru_cache
+from typing import Any, Dict, Optional, Self
+
+
+from pydantic import BaseModel, DirectoryPath, Field, FilePath
+import yaml
+
+
+from .utils.common.get_value_from_base_model import get_value_from_base_model
+from .utils.common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
+
 
 class DatabaseConfigs(BaseModel):
     pass
 
+
 class Paths(BaseModel):
-    THIS_FILE: Path = Path(__file__).resolve()
-    RED_RIBBON_DIR: Path = THIS_FILE.parent
-    CUSTOM_NODES_DIR: Path = RED_RIBBON_DIR.parent
-    COMFYUI_DIR: Path = CUSTOM_NODES_DIR.parent
-    LLM_OUTPUTS_DIR: Path = COMFYUI_DIR / "output" / "red_ribbon_outputs"
-    LLM_MODELS_DIR: Path = COMFYUI_DIR / "models" / "llm_models"
-    SOCIAL_TOOLKIT_DIR: Path = RED_RIBBON_DIR / "socialtoolkit"
-    DB_PATH: Path = RED_RIBBON_DIR / "red_ribbon.db"
+    THIS_FILE:         DirectoryPath = Path(__file__).resolve()
+    RED_RIBBON_DIR:    DirectoryPath = THIS_FILE.parent
+    CUSTOM_NODES_DIR:  DirectoryPath = RED_RIBBON_DIR.parent
+    COMFYUI_DIR:       DirectoryPath = CUSTOM_NODES_DIR.parent
+    LLM_OUTPUTS_DIR:   DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
+    LLM_MODELS_DIR:    DirectoryPath = COMFYUI_DIR / "models" / "llm_models"
+    SOCIALTOOLKIT_DIR: DirectoryPath = RED_RIBBON_DIR / "socialtoolkit"
+    DATABASE_DIR:      DirectoryPath = RED_RIBBON_DIR / "database"
+    DB_PATH:           FilePath = RED_RIBBON_DIR / "red_ribbon.db"
+
+    def __getitem__(self, key: str) -> Optional[Any]:
+        return get_value_from_base_model(self, key)
+
+    def get(self, key: str, default: Any = None) -> Optional[Any]:
+        return get_value_with_default_from_base_model(self, key, default)
 
     class Config:
         frozen = True  # Make the model immutable (read-only)
+
 
 class VariableCodebookConfigs(BaseModel):
     variables_path: str = "variables.json"
@@ -31,12 +46,24 @@ class VariableCodebookConfigs(BaseModel):
     cache_ttl_seconds: int = 3600
     default_assumptions_enabled: bool = True
 
-class Configs(BaseModel):
+    def __getitem__(self, key: str) -> Optional[Any]:
+        return get_value_from_base_model(self, key)
 
-    database: DatabaseConfigs = None
-    paths: Paths = Field(default_factory=Paths)
+    def get(self, key: str, default: Any = None) -> Optional[Any]:
+        return get_value_with_default_from_base_model(self, key, default)
+
+
+class Configs(BaseModel):
+    database:          DatabaseConfigs = None
+    paths:             Paths = Field(default_factory=Paths)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
-    
+
+
+    def __getitem__(self, key: str) -> Optional[Any]:
+        return get_value_from_base_model(self, key)
+
+    def get(self, key: str, default: Any = None) -> Optional[Any]:
+        return get_value_with_default_from_base_model(self, key, default)
 
 
 

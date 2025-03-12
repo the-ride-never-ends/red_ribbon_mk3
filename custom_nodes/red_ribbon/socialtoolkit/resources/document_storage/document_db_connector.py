@@ -12,9 +12,10 @@ class DocumentDbConnector:
     """
     
     def __init__(self):
-        logger.info("DocumentDbConnector initialized")
+        
         self.connected = False
         self.documents = {}  # Dummy in-memory document store
+        logger.info("DocumentDbConnector initialized")
     
     def connect(self, connection_string: str) -> bool:
         """

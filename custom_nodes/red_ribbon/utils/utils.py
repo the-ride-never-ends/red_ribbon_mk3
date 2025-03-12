@@ -2,6 +2,37 @@
 Common utility functions and classes for Red Ribbon
 TODO This is currently a placeholder and will be expanded in the future
 """
+from contextlib import contextmanager
+import shutil
+import tempfile
+
+
+
+
+
+
+@contextmanager
+def tempdir():
+    """
+    Source: pytorch
+    """
+    path = tempfile.mkdtemp()
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path)
+
+
+
+
+
+
+
+
+
+
+
+
 # from . import UtilityNode, merge_node_mappings
 
 # class UtilsAPI:
