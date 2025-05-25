@@ -139,10 +139,10 @@ class AttentionVisualizationNode: # TODO
             # Return empty visualization
             return (torch.zeros(1, 3, 100, 100),)
         
-        # Extract attention patterns
+        # Extract attention patterns # TODO
         # ... implementation depends on model structure
         
-        # Create visualization
+        # Create visualization # TODO
         # ... convert attention patterns to image
         attention_image = None
         return (attention_image,)

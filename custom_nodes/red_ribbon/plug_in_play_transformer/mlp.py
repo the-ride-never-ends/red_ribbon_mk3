@@ -244,6 +244,7 @@ class MLPNode:
         return (output,)
 
 
+
 class CustomMLPFunctionNode:
     """
     Node that applies a custom mathematical function in place of the standard MLP.
@@ -307,3 +308,4 @@ class CustomMLPFunctionNode:
         except Exception as e:
             print(f"Error in custom MLP function: {str(e)}")
             return (torch.zeros_like(x).fill_(-999),)
+        

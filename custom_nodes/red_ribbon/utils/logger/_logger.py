@@ -37,16 +37,16 @@ class Logger:
         self.configs = configs
 
         self.log_dir: str | Path = self.configs.get('log_dir', Path("logs"))
-        self.logger_name = self.configs.get('name', 'default')
-        self.level = self.configs.get('level', logging.DEBUG)
+        self.logger_name:    str = self.configs.get('name', 'default')
+        self.level:          int = self.configs.get('level', logging.DEBUG)
 
-        self._setup_logger: Callable = self.resources['setup_logger']
+        self._setup_logger:       Callable = self.resources['setup_logger']
         self._setup_file_handler: Callable = self.resources['setup_file_handler']
-        self._debug: Callable = self.resources['debug']
-        self._info: Callable = self.resources['info']
-        self._warning: Callable = self.resources['warning']
-        self._error: Callable = self.resources['error']
-        self._critical: Callable = self.resources['critical']
+        self._debug:              Callable = self.resources['debug']
+        self._info:               Callable = self.resources['info']
+        self._warning:            Callable = self.resources['warning']
+        self._error:              Callable = self.resources['error']
+        self._critical:           Callable = self.resources['critical']
 
         self.logger: logging.Logger = None
         self.log_file: Path = None

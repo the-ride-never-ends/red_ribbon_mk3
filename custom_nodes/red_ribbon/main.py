@@ -19,7 +19,7 @@ import random
 import subprocess
 import sys
 import time
-from typing import Any, Callable, Generator, Type, TypeVar, Optional
+from typing import Any, Callable, Generator, Type, TypeVar, Optional, Union
 
 
 class RedRibbonError(Exception):
@@ -68,8 +68,8 @@ from tqdm import tqdm
 # Modules
 import comfy.utils
 from .socialtoolkit.socialtoolkit import SocialToolkitAPI, SocialToolKitResources
-from .red_ribbon_core.red_ribbon import RedRibbonAPI, RedRibbonResources
-from .plug_in_play_transformer.plug_in_play_transformer import TransformerAPI, TransformerResources
+from .red_ribbon_core.red_ribbon import RedRibbonAPI
+from .plug_in_play_transformer.plug_in_play_transformer import TransformerAPI
 
 
 # Utility functions
@@ -120,7 +120,7 @@ def get_implementations(impl_class: Implementations) -> Generator[ModuleType, No
             return module
 
 
-def get_resources(module_name: str) -> 'Resources' | dict[str, Class]:
+def get_resources(module_name: str) -> Union['Resources', dict[str, Class]]:
     pass
 
 
@@ -183,12 +183,12 @@ class RedRibbon:
         self.configs = configs
         self.resources = resources or {}
         self.logger = get_logger(self.__class__.__name__)
-        self.llm = self.resources["llm"] or openai.OpenAI()
+        #self.llm = self.resources["llm"] or openai.OpenAI()
 
-        self.socialtoolkit: Type[SocialToolkitAPI] = self.resources["social"]
-        self.database: Type[DatabaseAPI] = self.resources["database"]
+        #self.socialtoolkit: Type[SocialToolkitAPI] = self.resources["social"]
+        #self.database: Type[DatabaseAPI] = self.resources["database"]
         #self.rr:     Type[RedRibbonAPI]     = self.resources["rr"]
-        #self.trans:  Type[TransformerAPI]   = self.resources["trans"]
+        self.trans:  Type[TransformerAPI]   = self.resources["trans"]
         # TODO insert the class back when done debugging
         #self.utils:  Type                   = self.resources["utils"]
 
@@ -210,7 +210,7 @@ class RedRibbon:
         return missing_attributes
 
     @property
-    def version(self):
+    def VERSION(self):
         """Get the version of the Red Ribbon package"""
         from .__version__ import __version__
         return __version__
@@ -232,7 +232,7 @@ class RedRibbon:
             print(line)
         print(f"""
                                     Red Ribbon loaded successfully.
-                                    Version: {self.version}
+                                    Version: {self.VERSION}
                                     DEMO MODE is {'ON' if DEMO_MODE else 'OFF'}
                                     *****************
                                     Available Modules:
@@ -311,9 +311,9 @@ class ModuleType(str, Enum):
 configs = Configs()
 resources = Resources()
 resources = {
-    "social": SocialToolkitAPI(SocialToolKitResources(configs).resources, configs),
+    #"social": SocialToolkitAPI(SocialToolKitResources(configs).resources, configs),
     # "rr": RedRibbonAPI(rr_resources, configs),
-    # "trans": TransformerAPI(trans_resources, configs),
+    "trans": TransformerAPI(configs=configs),
     # "utils": UtilsAPI(utils_resources, configs)
 }
 # Initialize the Red Ribbon package
@@ -883,15 +883,15 @@ torch_types = {
 }
 
 
-for type_name, type_class in types.items():
-    try:
-        type_class.__qualname__ 
-    except AttributeError:  # If the class doesn't have a __qualname__ attribute, monkeypatch one in.
-         # This came up when testing TypeVar aliases.
-         type_class.__qualname__ = type_name
-         #print(f"Added __qualname__ to type {type_class.__name__}")
+# for type_name, type_class in torch_types.items():
+#     try:
+#         type_class.__qualname__ 
+#     except AttributeError:  # If the class doesn't have a __qualname__ attribute, monkeypatch one in.
+#          # This came up when testing TypeVar aliases.
+#          type_class.__qualname__ = type_name
+#          #print(f"Added __qualname__ to type {type_class.__name__}")
 
-    register_type(type_class, type_name, verifier=AnythingVerifier())
+#     register_type(type_class, type_name, verifier=AnythingVerifier())
 
 
 

@@ -58,9 +58,22 @@ class Configs(BaseModel):
     paths:             Paths = Field(default_factory=Paths)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
 
+    # Top-10 Document Retrieval
+    retrieval_count: int = 10  # Number of documents to retrieve
+    similarity_threshold: float = 0.6  # Minimum similarity score
+    ranking_method: str = "cosine_similarity"  # Options: cosine_similarity, dot_product, euclidean
+    use_filter: bool = False  # Whether to filter results
+    filter_criteria: dict[str, Any] = {}
+    use_reranking: bool = False  # Whether to use re-ranking
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        try:
+            setattr(self, key, value)
+        except AttributeError:
+            raise KeyError(f"Key '{key}' not found in Configs")
 
     def get(self, key: str, default: Any = None) -> Optional[Any]:
         return get_value_with_default_from_base_model(self, key, default)

@@ -13,9 +13,10 @@ from .main import *  # noqa: F403, E402
 
 # Get the combined node mappings for ComfyUI
 NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS = easy_nodes.get_node_mappings()
+WEB_DIRECTORY = "./js"
 
 # Export so that ComfyUI can pick them up.
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
 
 easy_nodes.save_node_list(
     os.path.join(os.path.dirname(__file__), "node_list.json")

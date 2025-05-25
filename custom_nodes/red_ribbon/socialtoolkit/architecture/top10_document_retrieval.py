@@ -19,7 +19,7 @@ class Top10DocumentRetrievalConfigs(BaseModel):
     ranking_method: str = "cosine_similarity"  # Options: cosine_similarity, dot_product, euclidean
     use_filter: bool = False  # Whether to filter results
     filter_criteria: dict[str, Any] = {}
-    use_reranking: bool = False  # Whether to use reranking
+    use_reranking: bool = False  # Whether to use re-ranking
 
 
 class Top10DocumentRetrieval:
@@ -28,7 +28,7 @@ class Top10DocumentRetrieval:
     Performs vector search to find the most relevant documents
     """
     
-    def __init__(self, resources: dict[str, Any], configs: Top10DocumentRetrievalConfigs):
+    def __init__(self, resources: dict[str, Callable] = None, configs = None):
         """
         Initialize with injected dependencies and configuration
         
@@ -38,7 +38,6 @@ class Top10DocumentRetrieval:
         """
         self.resources = resources
         self.configs = configs
-        assert self.configs.__qualname__ == "Top10DocumentRetrievalConfigs", "configs must be of type Top10DocumentRetrievalConfigs"
 
         # Attributes
         self.use_filter = self.configs.use_filter
@@ -48,23 +47,23 @@ class Top10DocumentRetrieval:
         self.retrieval_count = self.configs.retrieval_count
 
         # External dependencies
-        self.llm = self.resources["llm"]
-        self.logger: logging.Logger = self.resources["logger"]
-        self.db = self.resources["database"]
-        self.vector_db = self.resources["vector_db"]
+        # self.llm = self.resources["llm"]
+        # self.logger: logging.Logger = self.resources["logger"]
+        # self.db = self.resources["database"]
+        # self.vector_db = self.resources["vector_db"]
 
         # Extract needed services from resources
-        self.encoder_service = resources["encoder_service"]
-        self.similarity_search_service = resources["similarity_search_service"]
-        self.document_storage = resources["document_storage_service"]
+        # self.encoder_service = resources["encoder_service"]
+        # self.similarity_search_service = resources["similarity_search_service"]
+        # self.document_storage = resources["document_storage_service"]
         
         # Methods
-        self._encode_query = self.resources["_encode_query"]
-        self._similarity_search = self.resources["_similarity_search"] or None
-        self._retrieve_top_documents = self.resources["_retrieve_top_documents"]
-        self._cosine_similarity = self.resources["_cosine_similarity"] or cosine_similarity
-        self._dot_product = self.resources["_dot_product"] or dot_product
-        self._euclidean_distance = self.resources["_euclidean_distance"] or euclidean_distance
+        # self._encode_query = self.resources["_encode_query"]
+        # self._similarity_search = self.resources["_similarity_search"] or None
+        # self._retrieve_top_documents = self.resources["_retrieve_top_documents"]
+        # self._cosine_similarity = self.resources["_cosine_similarity"] or cosine_similarity
+        # self._dot_product = self.resources["_dot_product"] or dot_product
+        # self._euclidean_distance = self.resources["_euclidean_distance"] or euclidean_distance
 
 
         self.logger.info("Top10DocumentRetrieval initialized with services")

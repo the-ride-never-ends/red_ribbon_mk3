@@ -60,7 +60,8 @@ class PositionalEncodingExplorerNode:
     
     def _sinusoidal_encoding(self, embedding_dim, max_seq_len, params):
         freq = params.get("freq", 10000.0)
-        return f"""def create_sinusoidal_encoding(seq_len, d_model={embedding_dim}, max_len={max_seq_len}, freq={freq}):
+        return f"""
+def create_sinusoidal_encoding(seq_len, d_model={embedding_dim}, max_len={max_seq_len}, freq={freq}):
     # Implementation of sinusoidal positional encodings from "Attention Is All You Need"
     pe = torch.zeros(max_len, d_model)
     position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
@@ -82,7 +83,8 @@ def apply_positional_encoding(x):
     
     def _rotary_encoding(self, embedding_dim, max_seq_len, params):
         freq = params.get("freq", 10000.0)
-        return f"""def apply_rotary_position_embeddings(x, freq={freq}):
+        return f"""
+def apply_rotary_position_embeddings(x, freq={freq}):
     # Rotary Position Embedding (RoPE) implementation
     # x has shape [batch_size, seq_len, n_heads, head_dim] or [batch_size, seq_len, embedding_dim]
     
@@ -140,7 +142,8 @@ def apply_positional_encoding(x):
 """
     
     def _alibi_encoding(self, embedding_dim, max_seq_len, params):
-        return f"""def create_alibi_slopes(n_heads):
+        return f"""
+def create_alibi_slopes(n_heads):
     # Implementation of ALiBi (Attention with Linear Biases)
     # Create slopes according to the ALiBi paper
     m = torch.arange(1, n_heads + 1)
@@ -186,7 +189,8 @@ def attention_with_alibi(q, k, v):
 """
     
     def _learned_encoding(self, embedding_dim, max_seq_len, params):
-        return f"""class LearnedPositionalEncoding(nn.Module):
+        return f"""
+class LearnedPositionalEncoding(nn.Module):
     def __init__(self, max_len={max_seq_len}, d_model={embedding_dim}):
         super().__init__()
         self.pe = nn.Parameter(torch.zeros(1, max_len, d_model))

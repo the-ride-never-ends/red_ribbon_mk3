@@ -5,8 +5,10 @@ import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 
-from custom_nodes.socialtoolkit.logger.logger import Logger
-logger = Logger(logger_name=__name__)
+# from custom_nodes.red_ribbon.logger import get_logger
+# logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class QKVProjectionNode:

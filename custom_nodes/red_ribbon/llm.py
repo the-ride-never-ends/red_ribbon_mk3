@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any
+from typing import Any, Callable
 import importlib.util
 import os
 import sys
@@ -38,13 +38,13 @@ class Llm:
 
         self.logger = get_logger(self.__class__.__name__)
 
-        self.llm_model = resources.get("llm_model")
-        self.llm_tokenizer = resources.get("llm_tokenizer")
-        self.llm_vector_maker = resources.get("llm_vector_maker")
-        self.llm_vector_storage = resources.get("llm_vector_storage")
+        self.llm_model = resources["llm_model"]
+        self.llm_tokenizer = resources["llm_tokenizer"]
+        self.llm_vector_maker = resources["llm_vector_maker"]
+        self.llm_vector_storage = resources["llm_vector_storage"]
 
-        self.client = resources.get("client")
-        self.usage_tracker = resources.get("usage_tracker")
+        self.client = resources["client"]
+        self.usage_tracker = resources["usage_tracker"]
 
         self.logger.info("Llm initialized")
 

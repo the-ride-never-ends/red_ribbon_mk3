@@ -5,7 +5,7 @@ Plug-in-Play Transformer - Build and train LLMs without knowing how to code!
 class TransformerAPI:
     """API for accessing Plug-in-Play Transformer functionality from ComfyUI"""
     
-    def __init__(self, resources, configs):
+    def __init__(self, resources=None, configs=None):
         self.configs = configs
         self.resources = resources
 
@@ -51,6 +51,10 @@ from .mlp import (
 
 from .layer_normalization import LayerNormNode
 
+from .architecture_explorer import (
+    PositionalEncodingExplorerNode,
+    ModelArchitectureExplorerNode,
+)
 
 from easy_nodes.easy_nodes import AnythingVerifier
 from easy_nodes import (
@@ -387,3 +391,55 @@ def layer_norm(
     output = node.normalize(x, normalized_shape, eps)
     return output[0]
 
+
+@ComfyNode("Plug-in-Play-Transformer", 
+        color="#d30e0e", 
+        bg_color="#ff0000",
+        display_name="MLP",
+        return_names=["mlp_output"])
+def mlp_node(
+    x: Tensor,
+    expansion_factor: float = NumberInput(default=4.0, min=1.0, max=8.0, step=0.5),
+    activation_function: str = Choice(["gelu", "relu", "silu", "swish"]),
+    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+    ) -> Tensor:
+    """
+    Node that applies MLP transformation.
+
+    Inputs:
+    - x: Input tensor of shape (B, T, C)
+    - expansion_factor: Factor by which to expand the embedding dimension
+    - activation_function: Type of activation to apply
+    - dropout_rate: Dropout probability
+
+    Outputs:
+    - mlp_output: Final MLP output
+    """
+    node = MLPNode()
+    output = node.forward(x, expansion_factor, activation_function, dropout_rate)
+    return output[0]
+
+@classmethod
+def INPUT_TYPES(cls):
+    return {
+        "required": {
+            "embedding_dim": ("INT", {"default": 512, "min": 16, "max": 4096}),
+            "num_heads": ("INT", {"default": 8, "min": 1, "max": 128}),
+            "num_layers": ("INT", {"default": 12, "min": 1, "max": 1000}),
+            "attention_type": (["standard", "flash", "linear", "local", "sparse"], {"default": "standard"}),
+            "mlp_type": (["standard", "gated", "swiglu", "geglu"], {"default": "standard"}),
+            "normalization_type": (["layernorm", "rmsnorm", "scalednorm"], {"default": "layernorm"}),
+            "positional_encoding": (["sinusoidal", "learned", "rotary", "alibi"], {"default": "sinusoidal"}),
+        }
+    }
+
+RETURN_TYPES = ("STRING",)
+RETURN_NAMES = ("model_config",)
+FUNCTION = "generate_architecture"
+CATEGORY = "transformer/exploration"
+
+def generate_architecture(self, embedding_dim, num_heads, num_layers, attention_type, 
+                            mlp_type, normalization_type, positional_encoding):
+    explorer = ModelArchitectureExplorerNode()
+    arch = explorer.generate_architecture(embedding_dim, num_heads, num_layers, attention_type, mlp_type, normalization_type, positional_encoding)
+    return arch[0]

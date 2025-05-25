@@ -8,6 +8,36 @@ from typing import Any, Callable, Never, Optional
 from pydantic import BaseModel, Field
 
 
+from typing import Annotated
+from pydantic import BaseModel, PlainSerializer, PlainValidator
+
+# Define serializer/deserializer functions
+def serialize_digraph(graph: nx.DiGraph) -> dict:
+    return {
+        'nodes': [(n, dict(attr)) for n, attr in graph.nodes(data=True)],
+        'edges': [(u, v, dict(attr)) for u, v, attr in graph.edges(data=True)],
+        'graph_attrs': dict(graph.graph)
+    }
+
+def validate_digraph(v: Any) -> nx.DiGraph:
+    if isinstance(v, nx.DiGraph):
+        return v
+    if isinstance(v, dict):
+        G = nx.DiGraph(**v.get('graph_attrs', {}))
+        for node, attrs in v.get('nodes', []):
+            G.add_node(node, **attrs)
+        for u, v, attrs in v.get('edges', []):
+            G.add_edge(u, v, **attrs)
+        return G
+    raise ValueError("Must be a NetworkX DiGraph or serialized graph dict")
+
+# Create an annotated type
+DiGraph = Annotated[
+    nx.DiGraph,
+    PlainSerializer(serialize_digraph),
+    PlainValidator(validate_digraph)
+]
+
 class BusinessOwnerAssumptions(BaseModel):
     """Assumptions about the business owner"""
     has_annual_gross_income: str = "$70,000"
@@ -57,7 +87,7 @@ class Variable(BaseModel):
     description: str
     units: str
     assumptions: Optional[Assumptions] = None
-    prompt_decision_tree: Optional[nx.DiGraph] = None
+    prompt_decision_tree: Optional[DiGraph] = None
 
 
 class CodeBook(BaseModel):

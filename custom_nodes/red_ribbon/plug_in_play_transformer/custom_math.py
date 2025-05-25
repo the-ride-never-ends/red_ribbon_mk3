@@ -1,6 +1,28 @@
 import ast
+from datetime import datetime
+import os
+from pathlib import Path
+import uuid
+import asyncio
+
 from easy_nodes import Choice
 
+from datetime import datetime
+
+
+from folder_paths import output_directory
+
+def get_file_friendly_date():
+    """
+    Get a file-friendly date string.
+    """
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+def make_id():
+    """
+    Generate a unique identifier for the node.
+    """
+    return str(uuid.uuid4().hex[:16])
 
 class FunctionLibraryNode:
     """
@@ -68,6 +90,17 @@ class FunctionLibraryNode:
             return (function_library[function_type][function_name],)
         except KeyError:
             return ("# Function not found in library",)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -526,6 +559,9 @@ class MathematicalTransformerNode:
                     "multiline": True, 
                     "default": "x + residual"
                 }),
+                "write_to_file": ("BOOLEAN", {
+                    "default": True
+                }),
             }
         }
     
@@ -534,7 +570,7 @@ class MathematicalTransformerNode:
     FUNCTION = "generate_transformer"
     CATEGORY = "transformer/mathematical"
     
-    def generate_transformer(self, attention_fn, mlp_fn, layer_norm_fn, residual_fn):
+    def generate_transformer(self, attention_fn, mlp_fn, layer_norm_fn, residual_fn, write_to_file):
         # Create a transformer implementation based on mathematical expressions
         transformer_code = f"""class MathematicalTransformerBlock(nn.Module):
     def __init__(self, dim, n_heads):
@@ -619,6 +655,12 @@ class MathematicalTransformer(nn.Module):
             x = block(x)
         return x
 """
+        date = get_file_friendly_date()
+
+        if write_to_file:
+            path = os.path.join(output_directory, f"mathematical_transformer_{date}.py")
+            with open(path, "w") as f:
+                f.write(transformer_code)
         return (transformer_code,)
     
 class ExecuteArbitraryCodeNode:
@@ -660,3 +702,12 @@ class ExecuteArbitraryCodeNode:
     RETURN_NAMES = ("transformer_code",)
     FUNCTION = "generate_transformer"
     CATEGORY = "transformer/mathematical"
+
+    def generate_transformer(self, attention_fn, mlp_fn, layer_norm_fn, residual_fn):
+        math = MathematicalTransformerNode()
+        code = math.generate_transformer(attention_fn, mlp_fn, layer_norm_fn, residual_fn, False)
+        try:
+            asyncio.run(code[0])
+            return f"# Code executed successfully. Transformer class is available as 'MathematicalTransformer'."
+        except Exception as e:
+            return f"# Error in code execution: {e}"
