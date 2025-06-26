@@ -6,6 +6,7 @@
   "Apply Attention": "Node that applies attention scores to values.",
   "Layer Normalization": "Node that applies layer normalization.",
   "MLP": "Node that applies MLP transformation.",
+  "Generate Architecture": "Node that allows exploring different transformer model architectures.",
   "Database": "Select a database type to use in the pipeline.",
   "Get links from the file": "",
   "Get laws from the Web.": "Get documents from a list of domain URLs.",

@@ -42,11 +42,10 @@ from .mlp import (
     ActivationFunctionNode,
     MLP as OriginalMLP,
     MLPExpansionNode,
-    ActivationFunctionNode,
     MLPContractionNode,
     DropoutNode,
     MLPNode,
-    CustomMLPFunctionNode
+    CustomMLPFunctionNode,
 )
 
 from .layer_normalization import LayerNormNode
@@ -419,27 +418,35 @@ def mlp_node(
     output = node.forward(x, expansion_factor, activation_function, dropout_rate)
     return output[0]
 
-@classmethod
-def INPUT_TYPES(cls):
-    return {
-        "required": {
-            "embedding_dim": ("INT", {"default": 512, "min": 16, "max": 4096}),
-            "num_heads": ("INT", {"default": 8, "min": 1, "max": 128}),
-            "num_layers": ("INT", {"default": 12, "min": 1, "max": 1000}),
-            "attention_type": (["standard", "flash", "linear", "local", "sparse"], {"default": "standard"}),
-            "mlp_type": (["standard", "gated", "swiglu", "geglu"], {"default": "standard"}),
-            "normalization_type": (["layernorm", "rmsnorm", "scalednorm"], {"default": "layernorm"}),
-            "positional_encoding": (["sinusoidal", "learned", "rotary", "alibi"], {"default": "sinusoidal"}),
-        }
-    }
 
-RETURN_TYPES = ("STRING",)
-RETURN_NAMES = ("model_config",)
-FUNCTION = "generate_architecture"
-CATEGORY = "transformer/exploration"
-
-def generate_architecture(self, embedding_dim, num_heads, num_layers, attention_type, 
-                            mlp_type, normalization_type, positional_encoding):
+@ComfyNode("Plug-in-Play-Transformer", 
+        color="#d30e0e", 
+        bg_color="#ff0000",
+        display_name="Generate Architecture",
+        return_names=["model_config"])
+def generate_architecture(
+                        embedding_dim: int, #= NumberInput(default=512, min=16, max=4096, step=1),
+                        num_heads: int = NumberInput(default=8, min=1, max=128, step=1), 
+                        num_layers: int = NumberInput(default=12, min=1, max=1000000, step=1),
+                        attention_type: str = Choice(["standard", "flash", "linear", "local", "sparse"]),
+                        mlp_type:  str = Choice(["standard", "gated", "swiglu", "geglu"]),
+                        normalization_type: str = Choice(["layernorm", "rmsnorm", "scalednorm"]),
+                        positional_encoding: str = Choice(["sinusoidal", "learned", "rotary", "alibi"])
+                        ) -> str:
+    """Node that allows exploring different transformer model architectures.
+    
+    Inputs:
+      - embedding_dim: Dimension of the embeddings
+      - num_heads: Number of attention heads
+      - num_layers: Number of transformer layers
+      - attention_type: Type of attention mechanism
+      - mlp_type: Type of MLP
+      - normalization_type: Type of normalization
+      - positional_encoding: Type of positional encoding
+    
+    Outputs:
+      - model_config: Complete model configuration
+    """
     explorer = ModelArchitectureExplorerNode()
     arch = explorer.generate_architecture(embedding_dim, num_heads, num_layers, attention_type, mlp_type, normalization_type, positional_encoding)
     return arch[0]

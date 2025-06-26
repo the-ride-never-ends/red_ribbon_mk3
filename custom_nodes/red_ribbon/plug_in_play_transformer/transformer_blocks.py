@@ -3,6 +3,7 @@ from pathlib import Path
 
 import torch
 from torch import nn
+import torch.utils.checkpoint
 
 from .layer_normalization import LayerNormNode
 from .attention import CausalSelfAttentionNode
@@ -239,7 +240,7 @@ class CheckpointedTransformerNode:
                 "number_of_attention_heads": ("INT", {"default": 8, "min": 1, "max": 100}),
                 "number_of_embeddings": ("INT", {"default": 512, "min": 16, "max": 8192}),
                 "use_checkpointing": ("BOOLEAN", {"default": True}),
-                # ... other parameters
+                # ... other parameters # TODO Fix this
             }
         }
     
@@ -259,8 +260,8 @@ class CheckpointedTransformerNode:
             ])
         
         # Apply blocks with checkpointing if enabled
-        for i, block in enumerate(self.blocks):
-            if use_checkpointing and i < n_layers - 1:  # Don't checkpoint last layer
+        for idx, block in enumerate(self.blocks):
+            if use_checkpointing and idx < n_layers - 1:  # Don't checkpoint last layer
                 x = torch.utils.checkpoint.checkpoint(
                     block.forward, x, number_of_attention_heads, number_of_embeddings, **kwargs
                 )
@@ -321,7 +322,7 @@ class TransformerConfigLoaderNode:
             config.get("n_layers", 12),
             config.get("number_of_attention_heads", 12),
             config.get("number_of_embeddings", 768),
-            # ... other parameters with defaults
+            # ... other parameters with defaults # TODO Fix this
             1024,  # block_size
             0.1,   # attention_dropout_rate
             0.1,   # residual_dropout_rate

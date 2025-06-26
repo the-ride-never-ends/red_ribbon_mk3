@@ -11,6 +11,7 @@ from datetime import datetime
 
 
 from folder_paths import output_directory
+import re
 
 def get_file_friendly_date():
     """
@@ -543,6 +544,9 @@ class MathematicalTransformerNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "transformer_name": ("STRING", {
+                    "default": "MathematicalTransformer",
+                }),
                 "attention_fn": ("STRING", {
                     "multiline": True, 
                     "default": "(q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))"
@@ -570,9 +574,16 @@ class MathematicalTransformerNode:
     FUNCTION = "generate_transformer"
     CATEGORY = "transformer/mathematical"
     
-    def generate_transformer(self, attention_fn, mlp_fn, layer_norm_fn, residual_fn, write_to_file):
+    def generate_transformer(self, transformer_name, attention_fn, mlp_fn, layer_norm_fn, residual_fn, write_to_file):
+
+        # Check if the transformer name is in PascalCase
+        if not re.match(r'^[A-Z][a-zA-Z0-9]*$', transformer_name):
+            raise ValueError("Transformer name must be in PascalCase (e.g., 'MathematicalTransformer')")
+
         # Create a transformer implementation based on mathematical expressions
-        transformer_code = f"""class MathematicalTransformerBlock(nn.Module):
+        transformer_code = f"""
+class {transformer_name}Block(nn.Module):
+
     def __init__(self, dim, n_heads):
         super().__init__()
         self.dim = dim
