@@ -22,6 +22,10 @@ import time
 from typing import Any, Callable, Generator, Type, TypeVar, Optional, Union
 
 
+import importlib
+import importlib.util as importlib_util
+
+
 class RedRibbonError(Exception):
     """
     Error that occurred in the main.py file.
@@ -63,6 +67,15 @@ from pydantic import BaseModel, Field
 import openai
 from tqdm import tqdm
 
+def _load_from_file(module_name: str, file_path: str) -> Any:
+    """Load a module from a file path."""
+    spec = importlib_util.spec_from_file_location(module_name, file_path)
+    if spec is None:
+        raise ImportError(f"Could not load module '{module_name}' from '{file_path}'")
+    module = importlib_util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 
 # Import components from subdirectories
 # Modules
@@ -77,8 +90,8 @@ from .configs import Configs # TODO figure out what the hell is up with imports.
 from .database import DatabaseAPI
 from .llm import Llm
 from .logger import get_logger
-from .utils.main_.red_ribbon_banner import get_red_ribbon_banner
-from .utils.common.safe_format import safe_format
+from .utils_.main_.red_ribbon_banner import get_red_ribbon_banner
+from .utils_.common.safe_format import safe_format
 
 
 ModuleType = TypeVar('ModuleType')
@@ -185,12 +198,12 @@ class RedRibbon:
         self.logger = get_logger(self.__class__.__name__)
         #self.llm = self.resources["llm"] or openai.OpenAI()
 
-        #self.socialtoolkit: Type[SocialToolkitAPI] = self.resources["social"]
-        #self.database: Type[DatabaseAPI] = self.resources["database"]
-        #self.rr:     Type[RedRibbonAPI]     = self.resources["rr"]
-        self.trans:  Type[TransformerAPI]   = self.resources["trans"]
+        self.socialtoolkit: Type[SocialToolkitAPI] = self.resources.get("social")
+        self.database:      Type[DatabaseAPI] = self.resources.get("database")
+        self.rr:            Type[RedRibbonAPI]     = self.resources.get("rr")
+        self.trans:         Type[TransformerAPI]   = self.resources["trans"]
         # TODO insert the class back when done debugging
-        #self.utils:  Type                   = self.resources["utils"]
+        self.utils: ModuleType                   = self.resources["utils"]
 
         self._missing_attributes: list[Optional[str]] = self.check_for_missing_attributes()
         self._print_startup_message()
@@ -214,11 +227,11 @@ class RedRibbon:
         """Get the version of the Red Ribbon package"""
         from .__version__ import __version__
         return __version__
-    
+
     @property
-    def demo_mode(self):
+    def DEMO_NODE(self):
         """Get the demo mode status"""
-        
+        return 'ON' if DEMO_MODE else 'OFF'
 
     def _print_startup_message(self):
         dont_print_these_attributes = ["configs", "resources", "logger", "_missing_attributes" , "client"]
@@ -233,7 +246,7 @@ class RedRibbon:
         print(f"""
                                     Red Ribbon loaded successfully.
                                     Version: {self.VERSION}
-                                    DEMO MODE is {'ON' if DEMO_MODE else 'OFF'}
+                                    DEMO MODE is {self.DEMO_NODE}
                                     *****************
                                     Available Modules:
                                     {available_nodes}
@@ -320,7 +333,7 @@ resources = {
 red_ribbon = RedRibbon(resources, configs)
 
 
-from .utils.database.resources.duckdb import DuckDB
+from .utils_.database.resources.duckdb import DuckDB
 
 
 #####################
@@ -895,26 +908,6 @@ torch_types = {
 
 
 
-@ComfyNode(
-    category="Plug-in-Play Transformer/residual",
-    color="#1f1f1f",
-    bg_color="#454545",
-    display_name="Add Residual")
-def add_residual(
-    x: Tensor,
-    residual: Tensor,
-) -> Tensor:
-    """
-    Add a residual connection to the input tensor.
-
-    Inputs:
-      - x: Original input tensor
-      - residual: Tensor to be added as residual
-    
-    Outputs:
-      - output: Result after adding residual
-    """
-    return x + residual
 
 
 

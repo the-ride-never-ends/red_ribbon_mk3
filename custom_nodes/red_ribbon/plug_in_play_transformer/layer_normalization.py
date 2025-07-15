@@ -30,12 +30,9 @@ class LayerNormNode:
     CATEGORY = "transformer/norm"
     
     def __init__(self):
-        self.ln = None  # Will be initialized at runtime
+        self.ln: nn.LayerNorm = None  # Will be initialized at runtime
     
     def normalize(self, x: Tensor, normalized_shape: int, eps: float) -> tuple[Tensor]:
-        # Get input shape
-        B, T, C = x.shape
-        
         # Initialize layer norm if needed
         if self.ln is None or self.ln.normalized_shape[0] != normalized_shape:
             self.ln = nn.LayerNorm(normalized_shape, eps=eps)

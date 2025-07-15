@@ -138,10 +138,16 @@ class StackedTransformerBlocksNode:
     def forward(self, x, n_layers, number_of_attention_heads, number_of_embeddings, block_size, attention_dropout_rate, 
                 residual_dropout_rate, mlp_expansion_factor, activation_type):
         # Apply transformer blocks sequentially
-        for i in range(n_layers):
+        for idx in range(n_layers):
             x, = self.transformer_block.forward(
-                x, number_of_attention_heads, number_of_embeddings, block_size, attention_dropout_rate, 
-                residual_dropout_rate, mlp_expansion_factor, activation_type
+                x, 
+                number_of_attention_heads, 
+                number_of_embeddings, 
+                block_size, 
+                attention_dropout_rate, 
+                residual_dropout_rate, 
+                mlp_expansion_factor, 
+                activation_type
             )
             
         return (x,)
@@ -283,28 +289,36 @@ class TransformerConfigLoaderNode:
     Outputs:
       - output: Transformer output
     """
-    
+    _MODEL_CONFIGS = {
+        "gpt2-small": {"n_layers": 12, "number_of_attention_heads": 12, "number_of_embeddings": 768},
+        "openai-gpt": {"n_layers": 12, "number_of_attention_heads": 12, "number_of_embeddings": 768},  # 117M params
+        "gpt2-medium": {"n_layers": 24, "number_of_attention_heads": 16, "number_of_embeddings": 1024},
+        "gpt2-large": {"n_layers": 36, "number_of_attention_heads": 20, "number_of_embeddings": 1280},
+        "gpt2-xl": {"n_layers": 48, "number_of_attention_heads": 25, "number_of_embeddings": 1600},  # 1558M params
+        "gpt-mini": {"n_layers": 6, "number_of_attention_heads": 6, "number_of_embeddings": 192},
+        "gopher-44m": {"n_layers": 8, "number_of_attention_heads": 16, "number_of_embeddings": 512},
+        "gpt-micro": {"n_layers": 4, "number_of_attention_heads": 4, "number_of_embeddings": 128},
+        "gpt-nano": {"n_layers": 3, "number_of_attention_heads": 3, "number_of_embeddings": 48},
+        "custom": {},  # Placeholder for custom configurations
+    }
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "x": ("TENSOR",),
-                "config_name": (["gpt2-small", "gpt2-medium", "gpt2-large", "custom"], {"default": "gpt2-small"}),
+                "config_name": ([key for key in cls._MODEL_CONFIGS.keys()], {"default": "gpt2-small"}),
                 "custom_config_path": ("STRING", {"default": "", "required": False}),
             }
         }
-    
+
     RETURN_TYPES = ("TENSOR",)
     RETURN_NAMES = ("output",)
     FUNCTION = "forward"
     CATEGORY = "transformer/config"
-    
+
     def __init__(self):
-        self.configs = {
-            "gpt2-small": {"n_layers": 12, "number_of_attention_heads": 12, "number_of_embeddings": 768},
-            "gpt2-medium": {"n_layers": 24, "number_of_attention_heads": 16, "number_of_embeddings": 1024},
-            "gpt2-large": {"n_layers": 36, "number_of_attention_heads": 20, "number_of_embeddings": 1280},
-        }
+        self.configs = self._MODEL_CONFIGS
         self.stacked_transformer = StackedTransformerBlocksNode()
     
     def forward(self, x, config_name, custom_config_path=""):
@@ -316,18 +330,19 @@ class TransformerConfigLoaderNode:
         else:
             config = self.configs.get(config_name, self.configs["gpt2-small"])
         
-        # Apply transformer
-        output, = self.stacked_transformer.forward(
-            x,
+        args = (
+            x, 
             config.get("n_layers", 12),
             config.get("number_of_attention_heads", 12),
             config.get("number_of_embeddings", 768),
-            # ... other parameters with defaults # TODO Fix this
-            1024,  # block_size
-            0.1,   # attention_dropout_rate
-            0.1,   # residual_dropout_rate
-            4.0,   # mlp_expansion_factor
-            "gelu" # activation_type
+            config.get("block_size", 1024),  # Default block size
+            config.get("attn_pdrop", 0.1),   # Default attention dropout
+            config.get("resid_pdrop", 0.1),  # Default residual dropout
+            config.get("mlp_expansion", 4.0),# Default MLP expansion factor
+            config.get("activation", "gelu") # Default activation type
         )
-        
+
+        # Apply transformer
+        output, = self.stacked_transformer.forward(*args)
+
         return (output,)

@@ -1,0 +1,6 @@
+output_path: /home/kylerose1946/red_ribbon_mk3/output/test_image_to_gif.gif
+frame_folder: /home/kylerose1946/red_ribbon_mk3/output
+name_pattern: ""
+extension: png
+duration: 100
+loop: true

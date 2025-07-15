@@ -21,3 +21,7 @@ kornia>=0.7.1
 spandrel
 soundfile
 av
+pytest>=7.8.0
+pytest-aiohttp
+pytest-asyncio
+gguf>=0.17.1

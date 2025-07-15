@@ -2,25 +2,10 @@
 Plug-in-Play Transformer - Build and train LLMs without knowing how to code!
 """
 
-class TransformerAPI:
-    """API for accessing Plug-in-Play Transformer functionality from ComfyUI"""
-    
-    def __init__(self, resources=None, configs=None):
-        self.configs = configs
-        self.resources = resources
-
-# Main function that can be called when using this as a script
-def main():
-    print("Plug-in-Play Transformer module loaded successfully")
-    print("Available tools:")
-    print("- PiPTransformerNode: Node for ComfyUI integration")
-    print("- TransformerAPI: API for programmatic access")
-
-if __name__ == "__main__":
-    main()
 
 
-import math
+
+import logging
 import random
 
 
@@ -28,7 +13,15 @@ import torch
 from torch import Tensor, nn
 from torch.nn import Dropout
 
-from easy_nodes.easy_nodes import register_type, AnythingVerifier
+from easy_nodes.easy_nodes import AnythingVerifier
+from easy_nodes import (
+    NumberInput,
+    ComfyNode,
+    StringInput,
+    Choice,
+    register_type,
+)
+from easy_nodes.comfy_types import ImageTensor, LatentTensor
 
 # Piece-wise Attention
 from .attention import (
@@ -45,9 +38,15 @@ from .mlp import (
     MLPContractionNode,
     DropoutNode,
     MLPNode,
-    CustomMLPFunctionNode,
 )
 
+from .custom_function_node import CustomFunctionNode
+
+from .practical_implementation import (
+    VisualizeTensorNode,
+)
+
+from .add_residual import add_residual as _add_residual
 from .layer_normalization import LayerNormNode
 
 from .architecture_explorer import (
@@ -55,19 +54,10 @@ from .architecture_explorer import (
     ModelArchitectureExplorerNode,
 )
 
-from easy_nodes.easy_nodes import AnythingVerifier
-from easy_nodes import (
-    NumberInput,
-    ComfyNode,
-    StringInput,
-    Choice,
-    register_type,
-)
-from torch import nn, Tensor
 
 
-import logging
-# from custom_nodes.socialtoolkit.logger.logger import Logger
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -256,6 +246,27 @@ def forward(
     return output
 
 
+@ComfyNode(
+    category="Plug-in-Play Transformer",
+    color="#d30e0e", 
+    bg_color="#ff0000",
+    display_name="Add Residual")
+def add_residual(
+    x: Tensor,
+    residual: Tensor,
+) -> Tensor:
+    """
+    Add a residual connection to the input tensor.
+
+    Inputs:
+      - x: Original input tensor
+      - residual: Tensor to be added as residual
+    
+    Outputs:
+      - output: Result after adding residual
+    """
+    tens = _add_residual(x, residual)
+    return tens
 
 def my_is_changed_func():
     return random()
@@ -422,6 +433,64 @@ def mlp_node(
 @ComfyNode("Plug-in-Play-Transformer", 
         color="#d30e0e", 
         bg_color="#ff0000",
+        display_name="MLP (Custom Function)",
+        return_names=["mlp_output"])
+def custom_mlp_node(
+    x: Tensor,
+    expansion_factor: float = NumberInput(default=4.0, min=1.0, max=8.0, step=0.5),
+    activation_function: str = Choice(["gelu", "relu", "silu", "swish"]),
+    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+    ) -> Tensor:
+    node = CustomFunctionNode()
+    kwargs = {
+        'expansion_factor': expansion_factor,
+        'activation_function': activation_function,
+        'dropout_rate': dropout_rate,
+        'expansion_node': MLPExpansionNode(),
+        'activation_node': ActivationFunctionNode(),
+        'contraction_node': MLPContractionNode(),
+        'dropout_node': DropoutNode()
+    }
+    string = '''
+def forward(x: Tensor, expansion_factor: float, activation_type: str, dropout_rate: float) -> tuple[Tensor]:
+    # Get input dimensions to use for contraction target
+    B, T, C = x.shape
+
+    # Apply each component in sequence
+    expanded, = expansion_node.expand(x, expansion_factor)
+    activated, = activation_node.activate(expanded, activation_type)
+    contracted, = contraction_node.contract(activated, C)
+    output, = dropout_node.apply_dropout(contracted, dropout_rate)
+'''
+    output = node.apply_custom_function(x, None, string, kwargs=kwargs)
+    return output[0]
+
+
+def architecture_from_node_graph(node_graph):
+    """
+    Extracts architecture configuration from a ComfyUI node graph.
+    
+    Inputs:
+      - node_graph: The ComfyUI node graph to extract from
+    
+    Outputs:
+      - model_config: Dictionary containing the model architecture configuration
+    """
+    model_config = {}
+    
+    # Iterate through nodes and extract relevant parameters
+    for node in node_graph.nodes:
+        if node.type == "Plug-in-Play-Transformer":
+            for input_name, input_value in node.inputs.items():
+                model_config[input_name] = input_value
+    
+    return model_config
+
+
+
+@ComfyNode("Plug-in-Play-Transformer", 
+        color="#d30e0e", 
+        bg_color="#ff0000",
         display_name="Generate Architecture",
         return_names=["model_config"])
 def generate_architecture(
@@ -450,3 +519,115 @@ def generate_architecture(
     explorer = ModelArchitectureExplorerNode()
     arch = explorer.generate_architecture(embedding_dim, num_heads, num_layers, attention_type, mlp_type, normalization_type, positional_encoding)
     return arch[0]
+
+
+@ComfyNode("Plug-in-Play-Transformer", 
+        color="#d30e0e", 
+        bg_color="#ff0000",
+        display_name="Initial Tensor",
+        return_names=["Random Tensor"])
+def initial_tensor(
+    batch_size: int = NumberInput(default=1, min=1, max=64, step=1),
+    seq_len: int = NumberInput(default=16, min=1, max=1024, step=1),
+    embed_dim: int = NumberInput(default=512, min=16, max=4096, step=16)
+) -> Tensor:
+    """
+    Generate a random tensor. Useful for testing or as a starting point.
+
+    Inputs:
+      - batch_size: Size of the batch
+      - seq_len: Length of the sequence
+      - embed_dim: Embedding dimension
+
+    Outputs:
+      - Random tensor of shape (batch_size, seq_len, embed_dim)
+    """
+    return torch.randn(batch_size, seq_len, embed_dim)
+
+
+@ComfyNode("Plug-in-Play-Transformer", 
+        color="#d30e0e", 
+        bg_color="#ff0000",
+        display_name="Visualize Tensor",
+        return_names=["Image Tensor"])
+def visualize_tensor(
+    x: Tensor, 
+    cmap: str = Choice(VisualizeTensorNode.COLOR_MAPS),
+    save_as: str = Choice(['jpeg', 'png', 'tiff', 'npy']),
+    comparison_method: str = Choice(VisualizeTensorNode.COMPARISON_METHODS)
+) -> ImageTensor:
+    """
+    Visualize a tensor as an image.
+
+    Inputs:
+      - x: Input tensor
+      - cmap: Colormap to use for visualization
+      - save_as: Format to save the image
+      - comparison_method: Method to compare tensors
+    
+    Outputs:
+      - Visualized tensor as an image
+    """
+    node = VisualizeTensorNode()
+
+    vis = node.visualize(x, cmap, save_as, comparison_method)
+
+    return vis[0]
+
+
+# Literally the same as visualize_tensor, but with a different name and type-hint.
+# Since comfy nodes can't be of more than one type (???)
+@ComfyNode("Plug-in-Play-Transformer", 
+        color="#d30e0e", 
+        bg_color="#ff0000",
+        display_name="Visualize Latent",
+        return_names=["Latent Tensor"])
+def visualize_latent(
+    x: LatentTensor, 
+    cmap: str = Choice(VisualizeTensorNode.COLOR_MAPS),
+    save_as: str = Choice(['jpeg', 'png', 'tiff', 'npy']),
+    comparison_method: str = Choice(VisualizeTensorNode.COMPARISON_METHODS)
+) -> ImageTensor:
+    """
+    Visualize a tensor as an image.
+
+    Inputs:
+      - x: Input tensor
+      - cmap: Colormap to use for visualization
+      - save_as: Format to save the image
+      - comparison_method: Method to compare tensors
+    
+    Outputs:
+      - Visualized tensor as an image
+    """
+    print(f"x type: {type(x)}")
+
+    # Let's see what x really is
+    if isinstance(x, dict):
+        x = x['samples']
+    print(f"x type after dict check: {type(x)}")
+
+    node = VisualizeTensorNode()
+    vis = node.visualize(x, cmap, save_as, comparison_method)
+    return vis[0]
+
+
+
+
+class TransformerAPI:
+    """API for accessing Plug-in-Play Transformer functionality from ComfyUI"""
+    
+    def __init__(self, resources=None, configs=None):
+        self.configs = configs
+        self.resources = resources
+
+
+# Main function that can be called when using this as a script
+def main():
+    print("Plug-in-Play Transformer module loaded successfully")
+    print("Available tools:")
+    print("- PiPTransformerNode: Node for ComfyUI integration")
+    print("- TransformerAPI: API for programmatic access")
+
+if __name__ == "__main__":
+    main()

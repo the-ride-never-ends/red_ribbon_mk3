@@ -1,9 +1,11 @@
+import re
 
 
 import torch
 from torch import nn, Tensor
 from torch.functional import F
-
+import numpy as np
+from typing import Any, Optional
 
 class MLP(nn.Module):
     """
@@ -245,67 +247,4 @@ class MLPNode:
 
 
 
-class CustomMLPFunctionNode:
-    """
-    Node that applies a custom mathematical function in place of the standard MLP.
-    
-    Inputs:
-      - x: Input tensor (B, T, C)
-      - mlp_fn: String representation of a custom MLP function
-      - number_of_embeddings: Embedding dimension (for reference)
-    
-    Outputs:
-      - output: Result after applying custom MLP
-    """
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "x": ("TENSOR",),
-                "mlp_fn": ("STRING", {
-                    "multiline": True, 
-                    "default": "def mlp(x, number_of_embeddings):\n    # Default MLP implementation\n    h = F.gelu(torch.nn.Linear(number_of_embeddings, 4 * number_of_embeddings)(x))\n    return torch.nn.Linear(4 * number_of_embeddings, number_of_embeddings)(h)"
-                }),
-                "number_of_embeddings": ("INT", {"default": 512, "min": 16, "max": 8192}),
-            }
-        }
-    
-    RETURN_TYPES = ("TENSOR",)
-    RETURN_NAMES = ("output",)
-    FUNCTION = "apply_custom_mlp"
-    CATEGORY = "transformer/custom"
-    
-    def __init__(self):
-        self.fc1 = None
-        self.fc2 = None
-    
-    def apply_custom_mlp(self, x: Tensor, mlp_fn: str, number_of_embeddings: int) -> tuple[Tensor]:
-        B, T, C = x.shape
-        
-        # Initialize weights if needed
-        if self.fc1 is None or self.fc1.in_features != C:
-            self.fc1 = nn.Linear(C, 4 * C)
-            self.fc2 = nn.Linear(4 * C, C)
-        
-        # Setup execution environment
-        local_env = {
-            "x": x,
-            "number_of_embeddings": number_of_embeddings,
-            "torch": torch,
-            "nn": nn,
-            "F": F,
-            "fc1": self.fc1,
-            "fc2": self.fc2,
-        }
-        
-        try:
-            # Execute custom MLP function
-            exec(mlp_fn, globals(), local_env)
-            result = local_env["mlp"](x, number_of_embeddings)
-            
-            return (result,)
-        except Exception as e:
-            print(f"Error in custom MLP function: {str(e)}")
-            return (torch.zeros_like(x).fill_(-999),)
-        
+

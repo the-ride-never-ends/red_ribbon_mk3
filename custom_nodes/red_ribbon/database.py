@@ -5,8 +5,8 @@ from typing import Callable, TypeVar, Optional
 
 
 from .configs import Configs
-from .utils.database.resources.duckdb import DuckDB
-from .utils.main_.instantiate import instantiate
+from .utils_.database.resources.duckdb import DuckDB
+from .utils_.main_.instantiate import instantiate
 
 
 from pydantic import BaseModel, Field

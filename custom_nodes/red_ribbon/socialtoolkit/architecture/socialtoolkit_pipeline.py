@@ -41,6 +41,9 @@ class SocialtoolkitPipeline:
 
         self.approved_document_sources: list[str] = self.configs.approved_document_sources
 
+        self._web_scraper = None
+        self._omni_converter = None
+        self._db = None
 
         self.llm = resources["llm"]
 
@@ -52,6 +55,7 @@ class SocialtoolkitPipeline:
         self.variable_codebook = resources["variable_codebook"]
 
         # Initialize services
+        # TODO Get this openai shit out of here!
         if self.llm is None:
             self.llm_api = openai.OpenAI(api_key=OPEN_AI_API_KEY)
         else:# Default to OpenAI API

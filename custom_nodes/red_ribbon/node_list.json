@@ -1,5 +1,6 @@
 {
   "Causal Self Attention": "",
+  "Add Residual": "Add a residual connection to the input tensor.",
   "Project Output": "Node that applies final projection and dropout to attention output.",
   "Calculate Causal Attention Matrix": "",
   "QKV Projection": "Node that projects input embeddings into query, key, and value vectors for multi-head attention.",
@@ -7,6 +8,9 @@
   "Layer Normalization": "Node that applies layer normalization.",
   "MLP": "Node that applies MLP transformation.",
   "Generate Architecture": "Node that allows exploring different transformer model architectures.",
+  "Initial Tensor": "Generate a random tensor for testing purposes.",
+  "Visualize Tensor": "Visualize a tensor as an image.",
+  "Visualize Latent": "Visualize a tensor as an image.",
   "Database": "Select a database type to use in the pipeline.",
   "Get links from the file": "",
   "Get laws from the Web.": "Get documents from a list of domain URLs.",
@@ -17,6 +21,5 @@
   "Instructions for the AI": "Load a variable codebook entry from a database.",
   "Use AI to answer the question.": "Run an AI-powered decision tree to extract answers from a list of documents.",
   "AI": "Load a large language model (LLM) from a local file or API.",
-  "The Answer": "Display the LLM's answer.",
-  "Add Residual": "Add a residual connection to the input tensor."
+  "The Answer": "Display the LLM's answer."
 }

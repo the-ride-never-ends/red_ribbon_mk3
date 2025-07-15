@@ -28,8 +28,8 @@ from ..configs import Configs
 from ..llm import Llm
 from ..database import DatabaseAPI
 from ..logger import get_logger
-from ..utils.nodes.node_types import Node
-from ..utils.main_.instantiate import instantiate
+from ..utils_.nodes_.node_types import Node
+from ..utils_.main_.instantiate import instantiate
 
 
 Class = TypeVar('Class')

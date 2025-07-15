@@ -1,6 +1,6 @@
 import torch
 import unittest
-from .attention import (
+from ..attention import (
     QKVProjectionNode, 
     CalculateCausalAttentionMatrixNode, 
     ApplyAttentionNode, 
@@ -93,7 +93,7 @@ class TestTransformerNodes(unittest.TestCase):
                 self.attn_pdrop = self.dropout_rate
                 self.resid_pdrop = self.dropout_rate
                 
-        from .attention import CausalSelfAttentionNode
+        from ..attention import CausalSelfAttentionNode
         
         config = MockConfig()
         original_model = CausalSelfAttentionNode(config)

@@ -1,0 +1,3 @@
+PRIVATE_FOLDER_PATHS:
+  INPUT_FOLDER: "E:\\AI_TEMP\\models"
+  OUTPUT_FOLDER: "E:\\AI_TEMP\\windows_utility_programs\\gguf_tools_mk2\\output"
