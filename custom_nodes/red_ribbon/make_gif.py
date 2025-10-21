@@ -90,6 +90,7 @@ def _make_gif(
         loop: bool = True
         ) -> None:
     """Create a GIF from a folder of images.
+    # TODO Add in MP4 support in the future.
     
     Args:
         output_path (str): Path where the GIF will be saved.

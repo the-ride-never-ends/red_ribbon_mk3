@@ -8,6 +8,8 @@ import logging
 logger = logging.getLogger(__name__)
 # from configs import Configs
 
+from ..types.document import GNIS, CID
+
 
 class DocumentStatus(str, Enum):
     NEW = "new"
@@ -25,6 +27,11 @@ class SourceType(str, Enum):
     SECONDARY = "secondary"
     TERTIARY = "tertiary"
 
+class StorageType(str, Enum):
+    SQL = "sql"
+    PARQUET = "parquet"
+    CACHE = "cache"
+
 class DocumentStorageConfigs(BaseModel):
     """Configuration for Document Storage"""
     database_connection_string: str
@@ -32,11 +39,15 @@ class DocumentStorageConfigs(BaseModel):
     cache_ttl_seconds: int = 3600
     batch_size: int = 100
     vector_dim: int = 1536  # Common dimension for embeddings like OpenAI's
-    storage_type: str = "sql"  # Alternatives: "nosql", "in_memory", etc.
+    storage_type: StorageType = "sql"
+
+
+
 
 class DocumentStorage:
     """
-    Document Storage system based on mermaid ER diagram in README.md
+    Document Storage system.
+
     Manages the storage and retrieval of documents, versions, metadata, and vectors
     """
     
@@ -50,13 +61,13 @@ class DocumentStorage:
         """
         self.resources = resources
         self.configs = configs
-        
+
         # Extract needed services from resources
-        self.db_service = resources.get("database_service")
-        self.cache_service = resources.get("cache_service")
-        self.vector_store = resources.get("vector_store_service")
+        self.db = resources.get("db")
+        self.cache_service = resources["cache_service"]
+        self.vector_store = resources["vector_store_service"]
         self.id_generator = resources.get("id_generator_service", self._generate_uuid)
-        
+
         logger.info("DocumentStorage initialized with services")
 
     @property
@@ -75,38 +86,43 @@ class DocumentStorage:
         Returns:
             Dictionary containing operation results
         """
+        if not isinstance(action, str):
+            raise TypeError(f"Action must be a string, got {type(action).__name__}")
+
         logger.info(f"Starting document storage operation: {action}")
-        if self.db_service is None: # This route should be called if the node is from ComfyUI
-            self.db_service = kwargs.get("db_service"),
+        if self.db is None: # This route should be called if the node is from ComfyUI
+            self.db = kwargs.get("db"),
 
-        if action == "store":
-            return self._store_documents(
-                kwargs.get("documents", []), 
-                kwargs.get("metadata", []), 
-                kwargs.get("vectors", [])
-            )
-        elif action == "retrieve":
-            return self._retrieve_documents(
-                document_ids=kwargs.get("document_ids", []),
-                filters=kwargs.get("filters", {})
-            )
-        elif action == "update":
-            return self._update_documents(
-                kwargs.get("documents", [])
-            )
-        elif action == "delete":
-            return self._delete_documents(
-                kwargs.get("document_ids", [])
-            )
-        elif action == "get_vectors":
-            return self._get_vectors(
-                kwargs.get("document_ids", [])
-            )
-        else:
-            logger.error(f"Unknown action: {action}")
-            raise ValueError(f"Unknown action: {action}")
+        match action:
+            case "store":
+                return self.store_documents(
+                    kwargs.get("documents", []), 
+                    kwargs.get("metadata", []), 
+                    kwargs.get("vectors", [])
+                )
+            case "retrieve":
+                return self.store_documents(
+                    doc_ids=kwargs.get("doc_ids", []),
+                    filters=kwargs.get("filters", {})
+                )
+            case "update":
+                return self.update_documents(
+                    kwargs.get("documents", [])
+                )
+            case "delete":
+                return self.delete_documents(
+                    kwargs.get("doc_ids", [])
+                )
+            case "get_vectors":
+                return self.get_vectors(
+                    kwargs.get("doc_ids", [])
+                )
+            case _:
+                msg = f"Unknown action: {action}"
+                logger.error(msg)
+                raise ValueError(msg)
 
-    def store(self, documents: List[Any], metadata: List[Any], vectors: List[Any]) -> Dict[str, Any]:
+    def store(self, documents: list[Any], metadata: list[Any], vectors: list[Any]) -> Dict[str, Any]:
         """
         Store documents, metadata, and vectors
         
@@ -120,57 +136,57 @@ class DocumentStorage:
         """
         return self.control_flow("store", documents=documents, metadata=metadata, vectors=vectors)
 
-    def get_documents_and_vectors(self, document_ids: List[str] = None, 
-                                 filters: Dict[str, Any] = None) -> Tuple[List[Any], List[Any]]:
+    def get_documents_and_vectors(self, doc_ids: list[str] = None, 
+                                 filters: Dict[str, Any] = None) -> Tuple[list[Any], list[Any]]:
         """
         Retrieve documents and their vectors
         
         Args:
-            document_ids: Optional list of document IDs to retrieve
+            doc_ids: Optional list of document IDs to retrieve
             filters: Optional filters to apply
             
         Returns:
             Tuple of (documents, vectors)
         """
         result = self.control_flow(
-            "retrieve", document_ids=document_ids, filters=filters
+            "retrieve", doc_ids=doc_ids, filters=filters
         )
         documents = result.get("documents", [])
         
         vectors_result = self.control_flow(
-            "get_vectors", document_ids=[doc.get("id") for doc in documents]
+            "get_vectors", doc_ids=[doc.get("id") for doc in documents]
         )
         vectors = vectors_result.get("vectors", [])
         
         return documents, vectors
     
-    def _store_documents(self, documents: List[Any], metadata: List[Any], vectors: List[Any]) -> Dict[str, Any]:
+    def store_documents(self, documents: list[Any], metadata: list[Any], vectors: list[Any]) -> Dict[str, Any]:
         """Store documents, metadata, and vectors in the database"""
         try:
             # 1. Store source information if needed
             source_ids = self._store_sources(documents)
-            
+
             # 2. Store documents
-            document_ids = self._store_document_entries(documents, source_ids)
-            
+            doc_ids = self._store_document_entries(documents, source_ids)
+
             # 3. Create versions for documents
-            version_ids = self._create_versions(document_ids)
-            
+            version_ids = self._create_versions(doc_ids)
+
             # 4. Store metadata
-            self._store_metadata(metadata, document_ids)
-            
+            self._store_metadata(metadata, doc_ids)
+
             # 5. Store content
             content_ids = self._store_content(documents, version_ids)
-            
+
             # 6. Create version-content associations
             self._create_version_content_links(version_ids, content_ids)
-            
+
             # 7. Store vectors
             self._store_vectors(vectors, content_ids)
-            
+
             return {
                 "success": True,
-                "document_ids": document_ids,
+                "doc_ids": doc_ids,
                 "version_ids": version_ids,
                 "content_ids": content_ids
             }
@@ -181,16 +197,16 @@ class DocumentStorage:
                 "error": str(e)
             }
     
-    def _retrieve_documents(self, document_ids: List[str] = None, 
+    def store_documents(self, doc_ids: list[str] = None, 
                            filters: Dict[str, Any] = None) -> Dict[str, Any]:
         """Retrieve documents from the database"""
         try:
             documents = []
             
             # Use document IDs if provided, otherwise use filters
-            if document_ids:
-                query = f"SELECT * FROM Documents WHERE document_id IN ({','.join(['?']*len(document_ids))})"
-                documents = self.db_service.execute(query, document_ids)
+            if doc_ids:
+                query = f"SELECT * FROM Documents WHERE document_id IN ({','.join(['?']*len(doc_ids))})"
+                documents = self.db.execute(query, doc_ids)
             elif filters:
                 # Build WHERE clause based on filters
                 where_clauses = []
@@ -201,11 +217,11 @@ class DocumentStorage:
                     params.append(value)
                 
                 query = f"SELECT * FROM Documents WHERE {' AND '.join(where_clauses)}"
-                documents = self.db_service.execute(query, params)
+                documents = self.db.execute(query, params)
             else:
                 # Retrieve all documents (with limit)
                 query = f"SELECT * FROM Documents LIMIT {self.configs.batch_size}"
-                documents = self.db_service.execute(query)
+                documents = self.db.execute(query)
             
             return {
                 "success": True,
@@ -217,18 +233,42 @@ class DocumentStorage:
                 "success": False,
                 "error": str(e)
             }
-            
-    def _update_documents(self, documents: List[Any]) -> Dict[str, Any]:
-        """Update existing documents"""
-        # Implementation for updating documents
-        return {"success": True}
+
+    def update_documents(self, documents: list[Any]) -> Dict[str, Any]:
+        """
+        Update existing documents
         
-    def _delete_documents(self, document_ids: List[str]) -> Dict[str, Any]:
-        """Delete documents by ID"""
-        # Implementation for deleting documents
-        return {"success": True}
         
-    def _get_vectors(self, document_ids: List[str]) -> Dict[str, Any]:
+        
+        """
+        raise NotImplementedError("Update documents not yet implemented")
+        
+    def delete_documents(self, doc_ids: list[str]) -> Dict[str, Any]:
+        """
+        Delete documents by ID from the database.
+
+        Args:
+            doc_ids: List of IDs of documents to delete.
+
+        Returns:
+            A dictionary containing the following:
+            - result (bool): True if deletion was successful, False otherwise.
+            - deleted_count (int): Number of documents deleted.
+            - message (str): Informational message about the deletion operation.
+             If result is True, message is "Documents deleted successfully."
+             If result is False, message contains the error details.
+        
+        Raises:
+            TypeError: If doc_ids is not a list of strings.
+            ValueError: If doc_ids list is empty, or if any ID is not found in the database.
+            DatabaseError: If there is an error executing the delete operation.
+        
+        
+        
+        """
+        raise NotImplementedError("Delete documents not yet implemented")
+
+    def get_vectors(self, doc_ids: list[str]) -> Dict[str, Any]:
         """Get vectors for the specified document IDs"""
         try:
             # Get content IDs for the documents
@@ -238,16 +278,16 @@ class DocumentStorage:
                 JOIN Versions v ON vc.version_id = v.version_id
                 JOIN Documents d ON v.document_id = d.document_id
                 WHERE d.document_id IN ({}) AND v.current_version = 1
-            """.format(','.join(['?']*len(document_ids)))
+            """.format(','.join(['?']*len(doc_ids)))
             
-            content_ids_result = self.db_service.execute(content_ids_query, document_ids)
+            content_ids_result = self.db.execute(content_ids_query, doc_ids)
             content_ids = [r["content_id"] for r in content_ids_result]
             
             # Get vectors for the content
             vectors_query = f"""
                 SELECT * FROM Vectors WHERE content_id IN ({','.join(['?']*len(content_ids))})
             """
-            vectors = self.db_service.execute(vectors_query, content_ids)
+            vectors = self.db.execute(vectors_query, content_ids)
             
             return {
                 "success": True,
@@ -262,7 +302,7 @@ class DocumentStorage:
             }
     
     # Helper methods for database operations
-    def _store_sources(self, documents: List[Any]) -> Dict[str, str]:
+    def _store_sources(self, documents: list[Any]) -> Dict[str, str]:
         """Store sources and return a mapping of URL to source_id"""
         source_map = {}
         for doc in documents:
@@ -274,20 +314,20 @@ class DocumentStorage:
                 
                 # Check if source already exists
                 query = "SELECT id FROM Sources WHERE id = ?"
-                result = self.db_service.execute(query, [domain])
+                result = self.db.execute(query, [domain])
                 
                 if not result:
                     # Insert new source
                     insert_query = "INSERT INTO Sources (id) VALUES (?)"
-                    self.db_service.execute(insert_query, [domain])
+                    self.db.execute(insert_query, [domain])
                 
                 source_map[domain] = domain  # Source ID is the domain
         
         return source_map
     
-    def _store_document_entries(self, documents: List[Any], source_ids: Dict[str, str]) -> List[str]:
+    def _store_document_entries(self, documents: list[Any], source_ids: Dict[str, str]) -> list[str]:
         """Store document entries and return document IDs"""
-        document_ids = []
+        doc_ids = []
         
         for doc in documents:
             url = doc.get("url", "")
@@ -314,16 +354,16 @@ class DocumentStorage:
                 5  # Default priority
             ]
             
-            self.db_service.execute(insert_query, params)
-            document_ids.append(document_id)
+            self.db.execute(insert_query, params)
+            doc_ids.append(document_id)
         
-        return document_ids
+        return doc_ids
     
-    def _create_versions(self, document_ids: List[str]) -> List[str]:
+    def _create_versions(self, doc_ids: list[str]) -> list[str]:
         """Create initial versions for documents"""
         version_ids = []
         
-        for document_id in document_ids:
+        for document_id in doc_ids:
             version_id = self.id_generator()
             
             # Insert version
@@ -343,7 +383,7 @@ class DocumentStorage:
                 datetime.now()
             ]
             
-            self.db_service.execute(insert_query, params)
+            self.db.execute(insert_query, params)
             
             # Update document with current version ID
             update_query = """
@@ -358,18 +398,18 @@ class DocumentStorage:
                 document_id
             ]
             
-            self.db_service.execute(update_query, update_params)
+            self.db.execute(update_query, update_params)
             version_ids.append(version_id)
         
         return version_ids
     
-    def _store_metadata(self, metadata_list: List[Any], document_ids: List[str]) -> None:
+    def _store_metadata(self, metadata_list: list[Any], doc_ids: list[str]) -> None:
         """Store metadata for documents"""
         for i, metadata in enumerate(metadata_list):
-            if i >= len(document_ids):
+            if i >= len(doc_ids):
                 break
                 
-            document_id = document_ids[i]
+            document_id = doc_ids[i]
             metadata_id = self.id_generator()
             
             # Insert metadata
@@ -388,9 +428,9 @@ class DocumentStorage:
                 datetime.now()
             ]
             
-            self.db_service.execute(insert_query, params)
+            self.db.execute(insert_query, params)
     
-    def _store_content(self, documents: List[Any], version_ids: List[str]) -> List[str]:
+    def _store_content(self, documents: list[Any], version_ids: list[str]) -> list[str]:
         """Store content for document versions"""
         content_ids = []
         
@@ -410,7 +450,7 @@ class DocumentStorage:
             """
             
             content = doc.get("content", "")
-            processed_content = content  # In reality, this might go through processing
+            processed_content = content  # In reality, this might go through processing TODO: FUCKING IMPLEMENT THIS
             content_hash = self._generate_hash(content)
             
             params = [
@@ -421,12 +461,12 @@ class DocumentStorage:
                 content_hash
             ]
             
-            self.db_service.execute(insert_query, params)
+            self.db.execute(insert_query, params)
             content_ids.append(content_id)
         
         return content_ids
     
-    def _create_version_content_links(self, version_ids: List[str], content_ids: List[str]) -> None:
+    def _create_version_content_links(self, version_ids: list[str], content_ids: list[str]) -> None:
         """Create links between versions and content"""
         for i, version_id in enumerate(version_ids):
             if i >= len(content_ids):
@@ -448,9 +488,9 @@ class DocumentStorage:
                 SourceType.PRIMARY.value
             ]
             
-            self.db_service.execute(insert_query, params)
+            self.db.execute(insert_query, params)
     
-    def _store_vectors(self, vectors: List[Any], content_ids: List[str]) -> None:
+    def _store_vectors(self, vectors: list[Any], content_ids: list[str]) -> None:
         """Store vectors for content"""
         for i, vector in enumerate(vectors):
             if i >= len(content_ids):
@@ -473,19 +513,19 @@ class DocumentStorage:
                 vector.get("embedding_type", "default")
             ]
             
-            self.db_service.execute(insert_query, params)
-    
+            self.db.execute(insert_query, params)
+
     # Utility methods
     def _generate_uuid(self) -> str:
         """Generate a UUID string"""
         return str(uuid4())
-    
+
     def _extract_domain(self, url: str) -> str:
         """Extract domain from URL"""
         import re
         match = re.search(r'https?://([^/]+)', url)
         return match.group(1) if match else url
-    
+
     def _determine_document_type(self, url: str) -> str:
         """Determine document type from URL"""
         if url.endswith('.pdf'):

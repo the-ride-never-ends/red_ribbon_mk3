@@ -2,26 +2,25 @@
 
 echo "Setting up the environment..."
 
-# Check if Python is installed
-if ! command -v python3 &> /dev/null
+# Check if Python 3.12 or later is installed
+if ! python3 -c 'import sys; assert sys.version_info >= (3, 12)' &> /dev/null
 then
-    echo "Python is not installed. Please install Python 3.7 or later and add it to your PATH."
+    echo "Python 3.12 or later is not installed. Please install Python 3.12 or later and add it to your PATH."
     exit 1
 fi
 
 # Check if the virtual environment already exists
-if [ -d "venv" ]; then
+if [ -d ".venv" ]; then
     echo "Virtual environment already exists. Skipping creation."
 else
-    # Create a virtual environment if it doesn't exist
-    echo "Creating a virtual environment..."
-    python3.12 -m venv venv
+    # Create a virtual environment with Python 3.12 or later if it doesn't exist
+    echo "Creating a virtual environment with Python 3.12 or later..."
+    python3 -m venv .venv
 fi
 
 # Activate the virtual environment
-echo "Activating the virtual environment 'venv'..."
-source venv/bin/activate
-
+echo "Activating the virtual environment '.venv'..."
+source .venv/bin/activate
 
 # Install required packages from requirements.txt
 if [[ -f "requirements.txt" ]]; then

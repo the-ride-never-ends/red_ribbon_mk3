@@ -2,15 +2,15 @@
 """Tensor to image converter for transformer models (GGUF and PyTorch)"""
 from __future__ import annotations
 
+
 import argparse
 import logging
 import os
 import sys
 import tempfile
-from collections import OrderedDict
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Callable, Iterable, Protocol, TypeAlias
+from typing import Callable, TypeAlias
 
 
 import numpy as np
@@ -96,18 +96,53 @@ def get_mean_and_std(tensor: Float32Array, axis: int = None) -> tuple[float,floa
         return mean, std_dev
 
 
+SUPPORTED_IMAGE_TYPES = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.geotiff', '.tif'}
+
+
+from easy_nodes import ComfyNode, Choice, NumberInput, StringInput
+from easy_nodes.comfy_types import Float32Array, Image
+import random
+import hashlib
+from pathlib import Path
+
+
+def _is_file_changed(image: str) -> str:
+    image_path = Path(image).resolve()
+    if not image_path.is_file() or not image_path.exists():
+        raise FileNotFoundError(f"Image file not found: {image_path}")
+    
+    sha256 = hashlib.sha256()
+    with open(image_path, 'rb') as f:
+        sha256.update(f.read())
+    return sha256.digest().hex()
+
+
+@ComfyNode(
+    category="GGUF Visualizers",
+    display_name="GGUF Tensor to Image",
+    description="Generate a heatmap image from a tensor in a GGUF or PyTorch model.",
+    color="#1f1f1f",
+    bg_color="#454545",
+    is_changed=lambda: random.randint(0, 1_000_000) % 2 == 0
+)
 def gguf_tensor_to_image_comfy_ui_node(
-                                    adjust_1d_rows: int = 32,
+                                    adjust_1d_rows: int = NumberInput(
+                                        32, min=1, max=1024, step=1, display="rows"
+                                    ),
                                     #mode: Choice["mean-devs-overall", "mean-devs-per-row", "mean-devs-overall"],
-                                    model: str = None,
-                                    model_type: str = None,
+                                    model: str = StringInput(
+                                        "", multiline=False, force_input=False, optional=False, hidden=False
+                                    ),
+                                    model_type: Choice = Choice(["gguf", "torch"]),
                                     match_glob: bool = True,
                                     match_regex: bool = True,
                                     match_1d: bool = True,
-                                    output: str = None,
-                                    scale: float = 1.0,
+                                    output: str = StringInput(
+                                        "", multiline=False, force_input=False, optional=False, hidden=False
+                                    ),
+                                    scale: float = NumberInput(1.0, min=0.1, max=10.0, step=0.1, display="scale"),
                                     show_with: str = "auto",
-                                    ) -> None:
+                                    ) -> Image:
     """
     ComfyUI node for generating a heatmap image from a tensor in a GGUF or PyTorch model.
 
@@ -153,7 +188,7 @@ def gguf_tensor_to_image_comfy_ui_node(
 
 class TensorToImage:
 
-    SUPPORTED_IMAGE_TYPES = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.geotiff', '.tif'}
+    
     SUPPORTED_MODEL_TYPES = {'.gguf','.pth'}
 
     def __init__(self, **kwargs) -> None:
@@ -248,10 +283,8 @@ class TensorToImage:
             - For regex matching, re.compile and search are used.
             - When neither glob nor regex matching is used, only valid tensor names are included.
         """
-
         tensor_dict = {name: self.model.get_type_name(name) for name in self.model.tensor_names()}
         # logger.debug(f"tensor_dict: {tensor_dict}")
-
 
         if len(tensor_dict) == 0:
             logger.error(f"No tensors found in loaded model")
@@ -308,11 +341,11 @@ class TensorToImage:
             # If adjust_1d_rows attribute is set
             if self.adjust_1d_rows is not None:
                 # Reshape the 1D tensor into a 2D array with specified number of rows
-                # The number of columns = total elements ÷ the number of rows.
+                    # The number of columns = total elements ÷ the number of rows.
                 tensor = tensor.reshape((self.adjust_1d_rows, tensor.shape[0] // self.adjust_1d_rows))
             else:
-                # If adjust_1d_rows is not set, add an extra dimension to make it 2D
-                # This creates a 2D array with 1 row and the original data as columns
+                # If adjust_1d_rows is not set, add an extra dimension to make it.
+                    # This creates a 2D array with 1 row and the original data as columns
                 tensor = tensor[None, :]
         return tensor
 

@@ -20,14 +20,14 @@ class DatabaseConfigs(BaseModel):
 
 class Paths(BaseModel):
     THIS_FILE:         DirectoryPath = Path(__file__).resolve()
-    RED_RIBBON_DIR:    DirectoryPath = THIS_FILE.parent
-    CUSTOM_NODES_DIR:  DirectoryPath = RED_RIBBON_DIR.parent
+    THIS_DIR:    DirectoryPath = THIS_FILE.parent
+    CUSTOM_NODES_DIR:  DirectoryPath = THIS_DIR.parent
     COMFYUI_DIR:       DirectoryPath = CUSTOM_NODES_DIR.parent
     LLM_OUTPUTS_DIR:   DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
     LLM_MODELS_DIR:    DirectoryPath = COMFYUI_DIR / "models" / "llm_models"
-    SOCIALTOOLKIT_DIR: DirectoryPath = RED_RIBBON_DIR / "socialtoolkit"
-    DATABASE_DIR:      DirectoryPath = RED_RIBBON_DIR / "database"
-    DB_PATH:           FilePath = RED_RIBBON_DIR / "red_ribbon.db"
+    SOCIALTOOLKIT_DIR: DirectoryPath = THIS_DIR / "socialtoolkit"
+    DATABASE_DIR:      DirectoryPath = THIS_DIR / "database"
+    DB_PATH:           FilePath = THIS_DIR / "red_ribbon.db"
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
@@ -78,12 +78,12 @@ class Configs(BaseModel):
     def get(self, key: str, default: Any = None) -> Optional[Any]:
         return get_value_with_default_from_base_model(self, key, default)
 
-
+configs = Configs()
 
 # class Paths(BaseModel):
 #     THIS_FILE = Path(__file__).resolve()
-#     RED_RIBBON_DIR = THIS_FILE.parent
-#     CUSTOM_NODES_DIR = RED_RIBBON_DIR.parent
+#     THIS_DIR = THIS_FILE.parent
+#     CUSTOM_NODES_DIR = THIS_DIR.parent
 #     COMFYUI_DIR = CUSTOM_NODES_DIR.parent
 #     LLM_OUTPUTS_DIR = COMFYUI_DIR / "output" / "red_ribbon_outputs"
 #     LLM_MODELS_DIR = COMFYUI_DIR / "models" / "llm_models"

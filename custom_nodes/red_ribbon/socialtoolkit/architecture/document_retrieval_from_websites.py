@@ -41,13 +41,13 @@ class DocumentRetrievalFromWebsites:
         self.logger = logging.getLogger(self.class_name)
         
         # Extract needed services from resources
-        self.static_webpage_parser = resources.get("static_webpage_parser")
-        self.dynamic_webpage_parser = resources.get("dynamic_webpage_parser")
-        self.data_extractor = resources.get("data_extractor")
-        self.vector_generator = resources.get("vector_generator")
-        self.metadata_generator = resources.get("metadata_generator")
-        self.document_storage = resources.get("document_storage_service")
-        self.url_path_generator = resources.get("url_path_generator")
+        self.static_webpage_parser = resources["static_webpage_parser"]
+        self.dynamic_webpage_parser = resources["dynamic_webpage_parser"]
+        self.data_extractor = resources["data_extractor"]
+        self.vector_generator = resources["vector_generator"]
+        self.metadata_generator = resources["metadata_generator"]
+        self.document_storage = resources["document_storage_service"]
+        self.url_path_generator = resources["url_path_generator"]
         
         self.logger.info("DocumentRetrievalFromWebsites initialized with services")
 
@@ -110,10 +110,10 @@ class DocumentRetrievalFromWebsites:
     def retrieve_documents(self, domain_urls: List[str]) -> Tuple[List[Any], List[Any], List[Any]]:
         """
         Public method to retrieve documents from websites
-        
+
         Args:
             domain_urls: List of domain URLs to retrieve documents from
-            
+
         Returns:
             Tuple of (documents, metadata, vectors)
         """
@@ -157,6 +157,6 @@ class DocumentRetrievalFromWebsites:
                 "id": f"{url}_{i}",
                 "content": content,
                 "url": url,
-                "timestamp": self.resources.get("timestamp_service").now()
+                "timestamp": self.resources["timestamp_service"].now()
             })
         return documents

@@ -63,8 +63,8 @@ def _get_resources_for(class_name: str, configs, name: str) -> dict[str, Any]:
     func_dict = {}
 
     # Get path to the class' resources folder.
-    resources_folder = configs.paths.RED_RIBBON_DIR / name / "resources" / class_name
-    utils_folder = configs.paths.RED_RIBBON_DIR / "utils"
+    resources_folder = configs.paths.THIS_DIR / name / "resources" / class_name
+    utils_folder = configs.paths.THIS_DIR / "utils"
 
     # See if we're importing a utility class.
     if not resources_folder.exists():

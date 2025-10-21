@@ -20,6 +20,7 @@ class RedRibbonAPI:
             list: The embedding vector
         """
         # In a real implementation, this would use an actual embedding model
+        # TODO FUCK OFF JUST FUCKING DO IT FOR REAL!!!!!!!!!!!!!
         embedding = [ord(char) for char in text]
         return embedding
 

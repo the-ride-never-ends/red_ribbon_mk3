@@ -66,8 +66,8 @@ class QKVProjectionNode:
 
 # # TODO Make a config file for all the constants.
 # THIS_FILE = os.path.realpath(__file__)
-# RED_RIBBON_DIR = os.path.dirname(THIS_FILE)
-# CUSTOM_NODES_DIR = os.path.dirname(RED_RIBBON_DIR)
+# THIS_DIR = os.path.dirname(THIS_FILE)
+# CUSTOM_NODES_DIR = os.path.dirname(THIS_DIR)
 # COMFYUI_DIR = os.path.dirname(CUSTOM_NODES_DIR)
 # LLM_OUTPUTS_DIR = os.path.join(COMFYUI_DIR, "llm_outputs")
 

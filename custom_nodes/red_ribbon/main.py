@@ -88,7 +88,7 @@ from .plug_in_play_transformer.plug_in_play_transformer import TransformerAPI
 # Utility functions
 from .configs import Configs # TODO figure out what the hell is up with imports. It makes EasyNodes not so easy to debug!
 from .database import DatabaseAPI
-from .llm import Llm
+from .utils_.llm._llm import LLM
 from .logger import get_logger
 from .utils_.main_.red_ribbon_banner import get_red_ribbon_banner
 from .utils_.common.safe_format import safe_format
@@ -203,7 +203,7 @@ class RedRibbon:
         self.rr:            Type[RedRibbonAPI]     = self.resources.get("rr")
         self.trans:         Type[TransformerAPI]   = self.resources["trans"]
         # TODO insert the class back when done debugging
-        self.utils: ModuleType                   = self.resources["utils"]
+        # self.utils: ModuleType                   = self.resources["utils"]
 
         self._missing_attributes: list[Optional[str]] = self.check_for_missing_attributes()
         self._print_startup_message()
@@ -282,7 +282,7 @@ Data = TypeVar("Data", DatabaseAPI, Excel)
 Documents = TypeVar("Documents", str, list[str])
 
 # Laws = TypeVar("Laws", list[str], str, dict, tuple[Documents, Metadata, Vectors, Optional[Prompts], Optional[Answers]])
-LlmApi = TypeVar("LlmApi", str, Llm, dict)
+LlmApi = TypeVar("LlmApi", str, LLM, dict)
 
 @dataclass
 class Laws:
@@ -297,7 +297,7 @@ class Laws:
 
 # Register the types with ComfyUI
 types = {
-    "Database": DatabaseAPI, "Llm": Llm, "Configs": Configs, 
+    "Database": DatabaseAPI, "LLM": LLM, "Configs": Configs, 
     "Prompts": Prompts, "DiGraph": DiGraph, "dict": dict,
     "Vectors": Vectors, "Documents": Documents, "Urls": Urls,
     "Metadata": Metadata, "AnyType": AnyType, "Answers": Answers,

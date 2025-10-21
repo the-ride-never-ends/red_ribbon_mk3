@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
+
+
 # Piece-wise Pipeline
 from .architecture.document_retrieval_from_websites import DocumentRetrievalFromWebsites
 from .architecture.document_storage import DocumentStorage
@@ -25,7 +27,7 @@ from .architecture.socialtoolkit_pipeline import SocialtoolkitPipeline
 
 
 from ..configs import Configs
-from ..llm import Llm
+from ..utils_.llm._llm import LLM
 from ..database import DatabaseAPI
 from ..logger import get_logger
 from ..utils_.nodes_.node_types import Node
@@ -59,22 +61,22 @@ class SocialToolkitAPI:
     """
     def __init__(self, resources: dict[str, ClassInstance], configs: Configs):
         self.configs = configs
-        self.resources = resources or {}
+        self.resources = resources
 
         self._logger:                          logging.Logger  = get_logger(self.__class__.__name__)
-        self._llm:                              ClassInstance = self.resources.get("llm")
-        self._db:                               ClassInstance = self.resources.get("db")
+        self._llm:                              ClassInstance = self.resources["llm"]
+        self._db:                               ClassInstance = self.resources["db"]
 
         # Piece-wise Pipeline
-        self._document_retrieval_from_websites: ClassInstance = self.resources.get("document_retrieval_from_websites")
-        self._document_storage:                 ClassInstance = self.resources.get("document_storage")
-        self._top10_document_retrieval:         ClassInstance = self.resources.get("top10_document_retrieval")
-        self._relevance_assessment:             ClassInstance = self.resources.get("relevance_assessment")
-        self._variable_codebook:                ClassInstance = self.resources.get("variable_codebook")
-        self._prompt_decision_tree:             ClassInstance = self.resources.get("prompt_decision_tree")
+        self._document_retrieval_from_websites: ClassInstance = self.resources["document_retrieval_from_websites"]
+        self._document_storage:                 ClassInstance = self.resources["document_storage"]
+        self._top10_document_retrieval:         ClassInstance = self.resources["top10_document_retrieval"]
+        self._relevance_assessment:             ClassInstance = self.resources["relevance_assessment"]
+        self._variable_codebook:                ClassInstance = self.resources["variable_codebook"]
+        self._prompt_decision_tree:             ClassInstance = self.resources["prompt_decision_tree"]
 
         # Full Pipeline
-        self._socialtoolkit_pipeline:           ClassInstance = self.resources.get("socialtoolkit_pipeline")
+        self._socialtoolkit_pipeline:           ClassInstance = self.resources["socialtoolkit_pipeline"]
 
     @property
     def version(self) -> str:
@@ -142,7 +144,7 @@ class SocialToolkitAPI:
             >>> resources = {
                    "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
                    "document_storage": DocumentStorage,
-                   "llm": Llm,
+                   "llm": LLM,
                    "socialtoolkit_pipeline": SocialtoolkitPipeline,
                    "codebook": VariableCodebook
                 }
@@ -162,12 +164,7 @@ class SocialToolkitAPI:
         Get domain URLs from a database or text file
         # NOTE: This function is a placeholder and should be implemented in the final version
         """
-
-        if kwargs['db'] not in kwargs:
-            with open("domain_urls.txt", "r") as f:
-                return ["www.dummy_url.com"]
-        else:
-            return ["www.dummy_url.com"]
+        raise NotImplementedError("get_domain_urls function not implemented yet")
 
     def execute(self, func_name: str, *args, **kwargs) -> Optional[Any]:
         """
@@ -209,7 +206,7 @@ class SocialToolKitResources:
             "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
             "document_storage": DocumentStorage,
             "top10_document_retrieval": Top10DocumentRetrieval,
-            "llm": Llm,
+            "llm": LLM,
             "db": DatabaseAPI,
             "relevance_assessment": RelevanceAssessment,
             "variable_codebook": VariableCodebook,
@@ -228,7 +225,7 @@ def main():
 
     print("Socialtoolkit loaded successfully")
     print(f"Version: {api.version}")
-    print("Running pipeline based on settings in yaml files   ")
+    print("Running pipeline based on settings in yaml files...")
     response = api.execute("socialtoolkit_pipeline", configs.input_data_point)
     print(response)
 

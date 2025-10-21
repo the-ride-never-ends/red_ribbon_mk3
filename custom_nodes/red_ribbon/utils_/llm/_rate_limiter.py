@@ -1,5 +1,5 @@
 """
-Rate limiter for Llm
+Rate limiter for LLM
 """
 import logging
 import time

@@ -127,7 +127,6 @@ class DecisionTree:
         Returns
             out (str): Next node or LLM response if at a leaf node.
         """
-
         node = self[node_name]
         prompt = self._prepare_graph_call(node_name)
         out: str = self.api.chat(prompt)

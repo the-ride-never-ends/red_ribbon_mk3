@@ -1,5 +1,5 @@
 """
-Prompt generator for Llm
+Prompt generator for LLM
 """
 import logging
 from typing import Dict, Any, List

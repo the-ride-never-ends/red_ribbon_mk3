@@ -7,36 +7,35 @@ from typing import Callable
 import logging
 
 
-import dependency_injector
-import dependency_injector.resources
 
-
-from .configs import Configs
-from .utils_.llm.caching_service import CachingService
-from .utils_.llm.model_provider import ModelProvider
-from .utils_.llm.prompt_generator import PromptGenerator
-from .utils_.llm.response_parser import ResponseParser
-from .utils_.llm.token_counter import TokenCounter
-from .logger import get_logger
+from ...configs import Configs
+from ._caching_service import CachingService
+from ._model_provider import ModelProvider
+from ._prompt_generator import PromptGenerator
+from ._response_parser import ResponseParser
+from ._token_counter import TokenCounter
+from ...logger import get_logger
 
 
 # Augmentoolkit LLM tools
-from .utils_.llm.generation_step import GenerationStep
-from .utils_.llm.enginer_wrapper import EngineWrapper
-from .utils_.llm.pipeline_step import PipelineStep
+from ._generation_step import GenerationStep
+from ._enginer_wrapper import EngineWrapper
+from ._pipeline_step import PipelineStep
 
 
-dependency_injector.resources.Resource
 
-class Llm:
+class LLM:
 
     _JSON_INSTRUCTIONS = "Return your answer in JSON format"
 
-    def __init__(self, resources: dict[str, Any], configs: Configs):
+    def __init__(self, 
+                 resources: dict[str, Any] = None, 
+                 configs: Configs = None
+                 ) -> None:
         self.resources = resources
         self.configs = configs
 
-        self.logger = get_logger(self.__class__.__name__)
+        self._logger: logging.Logger = resources['logger']
 
         self.llm_model = resources["llm_model"]
         self.llm_tokenizer = resources["llm_tokenizer"]
@@ -46,7 +45,7 @@ class Llm:
         self.client = resources["client"]
         self.usage_tracker = resources["usage_tracker"]
 
-        self.logger.info("Llm initialized")
+        self._logger.info("LLM initialized")
 
     @property
     def class_name(self) -> str:
@@ -54,28 +53,35 @@ class Llm:
         return self.__class__.__name__.lower()
 
     @classmethod
-    def enter(cls, *args, **kwargs) -> 'Llm':
+    def enter(cls, *args, **kwargs) -> 'LLM':
         instance = cls(*args, **kwargs)
         return instance
 
-    def execute(self, func: str, *args, **kwargs) -> 'Llm':
+    def execute(self, func_name: str, *args, **kwargs) -> Any:
         """
         """
-        match func:
+        func: Callable = None
+        match func_name:
             case "caching_service":
-                return self.caching_service(*args, **kwargs)
+                func = self.caching_service
             case "model_provider":
-                return self.model_provider(*args, **kwargs)
+                func = self.model_provider
             case "prompt_generator":
-                return self.prompt_generator(*args, **kwargs)
+                return self.prompt_generator
             case "response_parser":
-                return self.response_parser(*args, **kwargs)
+                return self.response_parser
             case "token_counter":
-                return self.token_counter(*args, **kwargs)
+                return self.token_counter
             case _:
-                self.logger.error(f"Unknown function {func}")
-                raise ValueError(f"Unknown function {func}")
+                self._logger.error(f"Unknown function '{func_name}'")
+                raise ValueError(f"Unknown function '{func_name}'")
 
+        # Run the function with error handling
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            self._logger.error(f"Error executing {func_name}: {e}")
+            raise RuntimeError(f"Failed to execute {func_name}") from e
 
     def caching_service(self, *args, **kwargs):
         """
@@ -105,9 +111,9 @@ class Llm:
     def _add_json_instructions_if_needed(self, system_message):
         """Add JSON instruction to system message if needed."""
         if self._JSON_INSTRUCTIONS.casefold() not in system_message.casefold():
-            self.logger.debug(
+            self._logger.debug(
                 "JSON instructions not found in system message. Adding..."
             )
             system_message = f"{system_message} {self._JSON_INSTRUCTIONS}."
-            self.logger.debug("New system message:\n%s", system_message)
+            self._logger.debug("New system message:\n%s", system_message)
         return system_message

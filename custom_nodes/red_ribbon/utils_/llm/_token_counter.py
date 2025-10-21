@@ -1,5 +1,5 @@
 """
-Token counter for Llm
+Token counter for LLM
 """
 import logging
 import re
@@ -35,6 +35,7 @@ class TokenCounter:
         
         # Dummy implementation using character ratio
         # In a real implementation, this would use the model's tokenizer
+        # TODO FUCK OFF THIS IS A REAL IMPLEMENTATION!!! FAIOFIABGIAHBGI
         
         # Detect if text is mostly code
         code_patterns = ['{', '}', 'def ', 'class ', 'function', '=>', '()', '[]']

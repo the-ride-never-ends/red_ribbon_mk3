@@ -24,18 +24,4 @@ class UrlPathGenerator:
         Returns:
             List of URLs to crawl
         """
-        logger.info(f"Generating URLs from domain: {domain_url}")
-        
-        # Dummy implementation
-        # In a real implementation, this might explore the site or use sitemaps
-        common_paths = ["", "about", "contact", "products", "services", "blog"]
-        
-        # Clean the domain URL
-        if domain_url.endswith("/"):
-            domain_url = domain_url[:-1]
-            
-        # Generate URLs
-        urls = [f"{domain_url}/{path}" if path else domain_url for path in common_paths]
-        
-        logger.info(f"Generated {len(urls)} URLs from domain {domain_url}")
-        return urls
+        raise NotImplementedError("URL path generation logic not implemented yet")

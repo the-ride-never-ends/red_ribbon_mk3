@@ -1,25 +1,31 @@
-from pydantic import BaseModel
-from typing import Dict, List, Any, Callable, Optional
+
+from typing import Dict, List, Any, Callable, Optional, Iterable, Literal
 import logging
 from enum import Enum
+from itertools import chain, combinations, islice, tee
+from collections import deque
 
-logger = logging.getLogger(__name__)
 
+from pydantic import BaseModel, PositiveFloat, Field, PositiveInt, NonNegativeInt
+import spacy
+
+
+from ..configs_.socialtoolkit_configs import SocialtoolkitConfigs
 
 
 class PromptDecisionTreeConfigs(BaseModel):
     """Configuration for Prompt Decision Tree workflow"""
-    max_tokens_per_prompt: int = 2000
-    max_pages_to_concatenate: int = 10
-    max_iterations: int = 5
-    confidence_threshold: float = 0.7
-    enable_human_review: bool = True  # Whether to enable human review for low confidence or errors
-    context_window_size: int = 8192  # Maximum context window size for LLM
+    max_tokens_per_prompt: PositiveInt = 2000
+    max_pages_to_concatenate: PositiveInt = 10
+    max_iterations: NonNegativeInt = 5
+    confidence_threshold: NonNegativeInt = Field(default=0.7, ge=0.0, le=1.0)
+    context_window_size: PositiveInt = 8192  # Maximum context window size for LLM
+
 
 class PromptDecisionTreeNodeType(str, Enum):
     """Types of nodes in the prompt decision tree"""
-    QUESTION = "question"
-    DECISION = "decision"
+    INIT = "init"
+    GET_TEXT = "get_text"
     FINAL = "final"
 
 class PromptDecisionTreeEdge(BaseModel):
@@ -36,14 +42,232 @@ class PromptDecisionTreeNode(BaseModel):
     is_final: bool = False
 
 
+import networkx as nx
+
+# TODO: Move these to yaml files.
+_SECTION_PROMPT = """
+'section' key is a string that represents the section's title (including numeric labels).
+If it's not given, use `null`.
+"""
+_COMMENT_PROMPT = """
+'comment' key is an optional one sentence explanation of how you determined the value.
+If you think it's not necessary to explain, use `null`.
+"""
+
+def _init_base_graph(**kwargs) -> nx.DiGraph:
+    """Initialize base directed graph for prompt decision tree"""
+    return nx.DiGraph(
+        SECTION_PROMPT=_SECTION_PROMPT,
+        COMMENT_PROMPT=_COMMENT_PROMPT,
+        **kwargs
+    )
+
+def _starts_with_yes(response: str) -> bool:
+    """Determine if response indicates a 'yes' answer. Case insensitive."""
+    return response.strip().lower().startswith("yes")
+
+def _starts_with_no(response: str) -> bool:
+    """Determine if response indicates a 'no' answer. Case insensitive."""
+    return response.strip().lower().startswith("no")
+
+def _does_not_start_with_no(response: str) -> bool:
+    """Determine if response does not indicate a 'no' answer. Case insensitive."""
+    return not _starts_with_no(response)
+
+
+class DecisionTreeError(RuntimeError):
+    """Custom exception for errors that occur during decision tree execution"""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class InitializationError(RuntimeError):
+    """Custom exception for errors that occur during initialization"""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+try:
+    nlp = spacy.load("en_core_web_sm")
+except Exception as e:
+    raise InitializationError(f"Failed to load spaCy model: {e}") from e
+
+
+
+
+def pad_sequence(
+    sequence: Iterable[Any],
+    n: int,
+    pad_left: bool = False,
+    pad_right: bool = False,
+    left_pad_symbol: Optional[str] = None,
+    right_pad_symbol: Optional[str] = None,
+) -> Iterable[Any]:
+    """Returns a padded sequence of items before ngram extraction.
+
+    Args:
+        sequence: The source data to be padded (sequence or iter).
+        n: The degree of the ngrams.
+        pad_left: Whether the ngrams should be left-padded.
+        pad_right: Whether the ngrams should be right-padded.
+        left_pad_symbol: The symbol to use for left padding (default is None).
+        right_pad_symbol: The symbol to use for right padding (default is None).
+
+    Returns:
+        Padded sequence or iter.
+
+    Examples:
+        >>> list(pad_sequence([1,2,3,4,5], 2, pad_left=True, pad_right=True, left_pad_symbol='<s>', right_pad_symbol='</s>'))
+        ['<s>', 1, 2, 3, 4, 5, '</s>']
+        >>> list(pad_sequence([1,2,3,4,5], 2, pad_left=True, left_pad_symbol='<s>'))
+        ['<s>', 1, 2, 3, 4, 5]
+        >>> list(pad_sequence([1,2,3,4,5], 2, pad_right=True, right_pad_symbol='</s>'))
+        [1, 2, 3, 4, 5, '</s>']
+    """
+    sequence = iter(sequence)
+    if pad_left:
+        sequence = chain((left_pad_symbol,) * (n - 1), sequence)
+    if pad_right:
+        sequence = chain(sequence, (right_pad_symbol,) * (n - 1))
+    return sequence
+
+
+# NOTE: These are directly copy-pasted from nltk.util to avoid adding nltk as a dependency.
+def ngrams(sequence: Iterable[Any], n, **kwargs):
+    """Return the ngrams generated from a sequence of items, as an iterator.
+
+    Args:
+        sequence: The source data to be converted into ngrams.
+        n: The degree of the ngrams.
+        pad_left: Whether the ngrams should be left-padded.
+        pad_right: Whether the ngrams should be right-padded.
+        left_pad_symbol: The symbol to use for left padding (default is None).
+        right_pad_symbol: The symbol to use for right padding (default is None).
+
+    Yields:
+        Tuple of n consecutive items from the sequence.
+
+    Example:
+        >>> from nltk.util import ngrams
+        >>> list(ngrams([1,2,3,4,5], 3))
+        [(1, 2, 3), (2, 3, 4), (3, 4, 5)]
+
+        >>> # Wrap with list for a list version of this function. Set pad_left
+        >>> # or pad_right to true in order to get additional ngrams:
+        >>> list(ngrams([1,2,3,4,5], 2, pad_right=True))
+        [(1, 2), (2, 3), (3, 4), (4, 5), (5, None)]
+        >>> list(ngrams([1,2,3,4,5], 2, pad_right=True, right_pad_symbol='</s>'))
+        [(1, 2), (2, 3), (3, 4), (4, 5), (5, '</s>')]
+        >>> list(ngrams([1,2,3,4,5], 2, pad_left=True, left_pad_symbol='<s>'))
+        [('<s>', 1), (1, 2), (2, 3), (3, 4), (4, 5)]
+        >>> list(ngrams([1,2,3,4,5], 2, pad_left=True, pad_right=True, left_pad_symbol='<s>', right_pad_symbol='</s>'))
+        [('<s>', 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, '</s>')]
+    """
+    sequence = pad_sequence(sequence, n, **kwargs)
+
+    # sliding_window('ABCDEFG', 4) --> ABCD BCDE CDEF DEFG
+    # https://docs.python.org/3/library/itertools.html?highlight=sliding_window#itertools-recipes
+    it = iter(sequence)
+    window = deque(islice(it, n), maxlen=n)
+    if len(window) == n:
+        yield tuple(window)
+    for x in it:
+        window.append(x)
+        yield tuple(window)
+
+class NgramValidator:
+
+    _STOP_WORDS = nlp.Defaults.stop_words
+    _PUNCTUATION = {
+        '.', ',', '!', '?', ';', ':', '...'
+        '-', '_', '(', ')', '[', ']', '{', '}', 
+        '"', "'","''", "``"
+    }
+
+    def __init__(self, resources, configs):
+        self.resources = resources
+        self.configs = configs
+
+        self.ngrams = ngrams
+
+    def _check_word(self, word: str) -> bool:
+        """True if a word is not a stop word or a punctuation."""
+        return word not in self._STOP_WORDS and word not in self._PUNCTUATION
+
+    def _filtered_words(self, sentence: str) -> List[str]:
+        """Return list of words in sentence after filtering out stop words and punctuation."""
+        doc = nlp(sentence)
+        return [token.text for token in doc if self._check_word(token.text)]
+
+    def text_to_ngrams(self, text: str, n: int) -> List[str]:
+        """Convert text to list of n-grams."""
+        if not isinstance(text, str):
+            raise TypeError(f"text must be a string, got {type(text).__name__}")
+        if not isinstance(n, int):
+            raise TypeError(f"n must be an integer, got {type(n).__name__}")
+        if n <= 0:
+            raise ValueError(f"n must be a positive integer, got {n}")
+        doc = nlp(text)
+        ngrams = [
+            gram for sent in doc.sents 
+            for gram in self.ngrams(self._filtered_words(sent.text), n)
+        ]
+        return ngrams
+
+    def sentence_ngram_fraction(self, original_text: str, test_text: str, n: int) -> float | Literal[True]:
+        """Calculate fraction of sentence ngrams from test text found in original text.
+
+        Args:
+            original_text (str): Original text. Is a superset of test_text.
+            test_text (str): Test text. Is a subset of original_text.
+            n (int): Number of words to include per ngram.
+
+        Returns:
+            float | Literal[True]: Fraction of ngrams from test_text that were found in
+            original_text. Returns True if test_text has no ngrams.
+
+        Raises:
+            TypeError: If original_text or test_text is not a string, or if n is
+                not an integer.
+            ValueError: If n is not a positive integer.
+            RuntimeError: If ngram extraction fails for either text.
+        """
+        for var in [("original_text", original_text), ("test_text", test_text)]:
+            if not isinstance(var[1], str):
+                raise TypeError(f"{var[0]} must be a string, got {type(var[1]).__name__}")
+        if not isinstance(n, int):
+            raise TypeError(f"n must be an integer, got {type(n).__name__}")
+        if n <= 0:
+            raise ValueError(f"n must be a positive integer, got {n}")
+
+        try:
+            test_ngrams = self.text_to_ngrams(test_text, n)
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract ngrams from test_text: {e}") from e
+        num_test_ngrams = len(test_ngrams)
+        if not num_test_ngrams:
+            return True
+
+        try:
+            original_ngrams = set(self.text_to_ngrams(original_text, n))
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract ngrams from original_text: {e}") from e
+        num_ngrams_found = sum(ngram in original_ngrams for ngram in test_ngrams)
+        return num_ngrams_found / num_test_ngrams
+
 
 class PromptDecisionTree:
     """
-    Prompt Decision Tree system based on mermaid flowchart in README.md
+    Prompt Decision Tree system.
     Executes a decision tree of prompts to extract information from documents
     """
-    
-    def __init__(self, resources: dict[str, Callable], configs: PromptDecisionTreeConfigs):
+
+    def __init__(self, 
+                 resources: dict[str, Callable], 
+                 configs: PromptDecisionTreeConfigs
+                ):
         """
         Initialize with injected dependencies and configuration
         
@@ -53,21 +277,24 @@ class PromptDecisionTree:
         """
         self.resources = resources
         self.configs = configs
-        
+
         # Extract needed services from resources
-        self.variable_codebook = resources.get("variable_codebook_service")
-        self.human_review_service = resources.get("human_review_service")
-        
-        logger.info("PromptDecisionTree initialized with services")
+        self.logger: logging.Logger = resources['logger']
+        self.llm = resources["llm"]
+        self.variable_codebook = resources["variable_codebook"]
+
+        self.logger.info("PromptDecisionTree initialized.")
 
     @property
     def class_name(self) -> str:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def control_flow(self, relevant_pages: List[Any], 
+    def control_flow(self, 
+                   relevant_pages: List[Any], 
                    prompt_sequence: List[str],
-                   llm_api: Any) -> Dict[str, Any]:
+                   llm_api: Any
+                   ) -> Dict[str, Any]:
         """
         Execute the prompt decision tree flow based on the mermaid flowchart
         
@@ -79,24 +306,24 @@ class PromptDecisionTree:
         Returns:
             Dictionary containing the output data point
         """
-        logger.info(f"Starting prompt decision tree with {len(relevant_pages)} pages")
-        
+        self.logger.info(f"Starting prompt decision tree with {len(relevant_pages)} pages")
+
         # Step 1: Concatenate pages
         concatenated_pages = self._concatenate_pages(relevant_pages)
-        
+
         # Step 2: Get desired data point codebook entry & prompt sequence
         # (Already provided as input parameter)
-        
+
         # Step 3: Execute prompt decision tree
         result = self._execute_decision_tree(
             concatenated_pages, prompt_sequence, llm_api
         )
-        
+
         # Step 4: Handle errors and unforeseen edge-cases if needed
         if result.get("error") and self.configs.enable_human_review:
             result = self._request_human_review(result, concatenated_pages)
-        
-        logger.info("Completed prompt decision tree execution")
+
+        self.logger.info("Completed prompt decision tree execution")
         return result
 
     def execute(self, relevant_pages: List[Any], prompt_sequence: List[str], 
@@ -131,24 +358,26 @@ class PromptDecisionTree:
         concatenated_text = ""
         
         for i, page in enumerate(pages_to_use):
+            default_title = f"Document {i+1}"
             content = page.get("content", "")
-            title = page.get("title", f"Document {i+1}")
+            title = page.get("title", default_title)
             url = page.get("url", "")
             
             page_text = f"""
---- DOCUMENT {i+1}: {title} ---
-Source: {url}
-
+# {title}
+## Source: {url}
+## Content:
 {content}
-
 """
             concatenated_text += page_text
             
-        return concatenated_text
+        return concatenated_text.strip()
     
-    def _execute_decision_tree(self, document_text: str, 
+    def _execute_decision_tree(self, 
+                             document_text: str, 
                              prompt_sequence: List[str], 
-                             llm_api: Any) -> Dict[str, Any]:
+                             llm_api: Any
+                             ) -> Dict[str, Any]:
         """
         Execute the prompt decision tree
         
@@ -212,7 +441,7 @@ Source: {url}
             }
             
         except Exception as e:
-            logger.error(f"Error executing decision tree: {e}")
+            self.logger.error(f"Error executing decision tree: {e}")
             return {
                 "success": False,
                 "error": str(e),
@@ -304,11 +533,8 @@ Your answer should be concise, factual, and directly address the question.
         Returns:
             ID of the next node
         """
-        # In this simplified version, just follow the first edge
-        if edges:
-            return edges[0].next_node_id
-        return ""
-    
+        raise NotImplementedError("Edge condition evaluation not implemented.")
+
     def _extract_output_data_point(self, response: str) -> str:
         """
         Extract the output data point from the final response
@@ -357,14 +583,14 @@ Your answer should be concise, factual, and directly address the question.
         Returns:
             Updated result after human review
         """
-        if self.human_review_service:
+        if self.human_review:
             review_request = {
                 "error": result.get("error"),
                 "document_text": document_text,
                 "responses": result.get("responses", [])
             }
             
-            human_review_result = self.human_review_service.review(review_request)
+            human_review_result = self.human_review.review(review_request)
             
             if human_review_result.get("success"):
                 result["output_data_point"] = human_review_result.get("output_data_point", "")
@@ -373,3 +599,28 @@ Your answer should be concise, factual, and directly address the question.
                 result.pop("error", None)
         
         return result
+
+
+logger = logging.getLogger(__name__)
+
+
+def _make_prompt_decision_tree(
+        resources: Optional[dict[str, Callable]] = None,
+        configs: Optional[BaseModel] = None,
+        ) -> PromptDecisionTree:
+    """
+    Factory function to create PromptDecisionTree instance.
+    """
+
+
+    resources = resources or {}
+    configs = configs or SocialtoolkitConfigs()
+
+    _resources_ = {
+        "llm": resources.get("llm"),
+    }
+
+    try:
+        return PromptDecisionTree(resources=_resources_, configs=configs)
+    except Exception as e:
+        raise InitializationError(f"Failed to initialize PromptDecisionTree: {e}") from e

@@ -1,5 +1,5 @@
 """
-Model provider for Llm
+Model provider for LLM
 """
 import logging
 from typing import Any
@@ -38,11 +38,13 @@ class ModelProvider:
         logger.info(f"Generating completion with model {model}")
         
         # Dummy implementation
+        # TODO: THIS IS NOT SUPPOSED TO BE A DUMMY IMPLEMENTATION!!!!!!!
         if model not in self.available_models:
             logger.warning(f"Unknown model: {model}, falling back to gpt-3.5-turbo")
             model = "gpt-3.5-turbo"
             
         # In a real implementation, this would call the appropriate API
+        # TODO I WILL FUCKING KILL CLAUDE FOR RUINING THIS CODE!!!!!
         response = f"This is a dummy response from {model} for prompt: {prompt[:30]}..."
         
         return response
