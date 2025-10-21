@@ -10,7 +10,6 @@ Feature: Cache Manager
 
 import pytest
 
-
 # Fixtures for Background
 
 @pytest.fixture
@@ -19,13 +18,10 @@ def a_cachemanager_instance_is_initialized_with_defaul():
     Given a CacheManager instance is initialized with default TTL
     """
     pass
-
-
 class TestGetMethodRetrievesCachedValues:
     """
     Rule: Get Method Retrieves Cached Values
     """
-
     def test_get_returns_cached_value_when_key_exists_and_not_expired(self):
         """
         Scenario: Get returns cached value when key exists and not expired
@@ -34,7 +30,17 @@ class TestGetMethodRetrievesCachedValues:
           And cache_ttl_seconds is 3600
           When I call get with key "query1"
           Then the cached value is returned
-          And the value matches {"results": []}
+        """
+        pass
+
+    def test_get_returns_cached_value_when_key_exists_and_not_expired_1(self):
+        """
+        Scenario: Get returns cached value when key exists and not expired
+          Given a cache entry with key "query1" and value {"results": []}
+          And the entry was created 60 seconds ago
+          And cache_ttl_seconds is 3600
+          When I call get with key "query1"
+          Then the value matches {"results": []}
         """
         pass
 
@@ -55,23 +61,39 @@ class TestGetMethodRetrievesCachedValues:
           And cache_ttl_seconds is 3600
           When I call get with key "old_query"
           Then None is returned
-          And the expired entry is removed from cache
         """
         pass
 
+    def test_get_returns_none_for_expired_entry_1(self):
+        """
+        Scenario: Get returns None for expired entry
+          Given a cache entry with key "old_query"
+          And the entry was created 7200 seconds ago
+          And cache_ttl_seconds is 3600
+          When I call get with key "old_query"
+          Then the expired entry is removed from cache
+        """
+        pass
 
 class TestSetMethodStoresValueswithTimestamp:
     """
     Rule: Set Method Stores Values with Timestamp
     """
-
     def test_set_stores_value_in_cache(self):
         """
         Scenario: Set stores value in cache
           Given a key "new_query" and value {"data": "test"}
           When I call set with the key and value
           Then the value is stored in cache
-          And the current timestamp is recorded
+        """
+        pass
+
+    def test_set_stores_value_in_cache_1(self):
+        """
+        Scenario: Set stores value in cache
+          Given a key "new_query" and value {"data": "test"}
+          When I call set with the key and value
+          Then the current timestamp is recorded
         """
         pass
 
@@ -82,7 +104,16 @@ class TestSetMethodStoresValueswithTimestamp:
           And a new value for key "query1"
           When I call set with key and new value
           Then the old value is replaced
-          And the timestamp is updated to current time
+        """
+        pass
+
+    def test_set_overwrites_existing_key_1(self):
+        """
+        Scenario: Set overwrites existing key
+          Given a cache entry with key "query1" and old value
+          And a new value for key "query1"
+          When I call set with key and new value
+          Then the timestamp is updated to current time
         """
         pass
 
@@ -91,7 +122,6 @@ class TestCacheTTLConfigurationAffectsExpiration:
     """
     Rule: Cache TTL Configuration Affects Expiration
     """
-
     def test_short_ttl_causes_faster_expiration(self):
         """
         Scenario: Short TTL causes faster expiration
@@ -99,7 +129,16 @@ class TestCacheTTLConfigurationAffectsExpiration:
           And a cache entry was created 61 seconds ago
           When I call get for that entry
           Then None is returned
-          And the entry is considered expired
+        """
+        pass
+
+    def test_short_ttl_causes_faster_expiration_1(self):
+        """
+        Scenario: Short TTL causes faster expiration
+          Given cache_ttl_seconds is configured as 60
+          And a cache entry was created 61 seconds ago
+          When I call get for that entry
+          Then the entry is considered expired
         """
         pass
 
@@ -110,7 +149,16 @@ class TestCacheTTLConfigurationAffectsExpiration:
           And a cache entry was created 3600 seconds ago (1 hour)
           When I call get for that entry
           Then the cached value is returned
-          And the entry is not expired
+        """
+        pass
+
+    def test_long_ttl_keeps_entries_longer_1(self):
+        """
+        Scenario: Long TTL keeps entries longer
+          Given cache_ttl_seconds is configured as 86400 (24 hours)
+          And a cache entry was created 3600 seconds ago (1 hour)
+          When I call get for that entry
+          Then the entry is not expired
         """
         pass
 
@@ -128,15 +176,30 @@ class TestClearMethodRemovesAllCacheEntries:
     """
     Rule: Clear Method Removes All Cache Entries
     """
-
     def test_clear_removes_all_cached_values(self):
         """
         Scenario: Clear removes all cached values
           Given 5 cache entries exist
           When I call clear
           Then all cache entries are removed
-          And all timestamps are removed
-          And the cache is empty
+        """
+        pass
+
+    def test_clear_removes_all_cached_values_1(self):
+        """
+        Scenario: Clear removes all cached values
+          Given 5 cache entries exist
+          When I call clear
+          Then all timestamps are removed
+        """
+        pass
+
+    def test_clear_removes_all_cached_values_2(self):
+        """
+        Scenario: Clear removes all cached values
+          Given 5 cache entries exist
+          When I call clear
+          Then the cache is empty
         """
         pass
 
@@ -146,7 +209,15 @@ class TestClearMethodRemovesAllCacheEntries:
           Given the cache is empty
           When I call clear
           Then the operation completes successfully
-          And the cache remains empty
+        """
+        pass
+
+    def test_clear_on_empty_cache_completes_without_error_1(self):
+        """
+        Scenario: Clear on empty cache completes without error
+          Given the cache is empty
+          When I call clear
+          Then the cache remains empty
         """
         pass
 
@@ -155,7 +226,6 @@ class TestGetStatsReturnsCacheInformation:
     """
     Rule: Get Stats Returns Cache Information
     """
-
     def test_stats_include_cache_size(self):
         """
         Scenario: Stats include cache size
@@ -171,7 +241,15 @@ class TestGetStatsReturnsCacheInformation:
           Given cache contains keys ["query1", "query2", "query3"]
           When I call get_stats
           Then the result contains key "keys"
-          And keys list includes ["query1", "query2", "query3"]
+        """
+        pass
+
+    def test_stats_include_cached_keys_1(self):
+        """
+        Scenario: Stats include cached keys
+          Given cache contains keys ["query1", "query2", "query3"]
+          When I call get_stats
+          Then keys list includes ["query1", "query2", "query3"]
         """
         pass
 
@@ -190,7 +268,15 @@ class TestGetStatsReturnsCacheInformation:
           Given the cache is empty
           When I call get_stats
           Then size is 0
-          And keys list is empty
+        """
+        pass
+
+    def test_stats_reflect_empty_cache_1(self):
+        """
+        Scenario: Stats reflect empty cache
+          Given the cache is empty
+          When I call get_stats
+          Then keys list is empty
         """
         pass
 
@@ -199,15 +285,30 @@ class TestExpiredEntriesAreRemovedonGet:
     """
     Rule: Expired Entries Are Removed on Get
     """
-
     def test_get_removes_expired_entry_from_cache(self):
         """
         Scenario: Get removes expired entry from cache
           Given a cache entry that expired 100 seconds ago
           When I call get for that entry
           Then None is returned
-          And the entry is deleted from self.cache
-          And the timestamp is deleted from self.cache_timestamps
+        """
+        pass
+
+    def test_get_removes_expired_entry_from_cache_1(self):
+        """
+        Scenario: Get removes expired entry from cache
+          Given a cache entry that expired 100 seconds ago
+          When I call get for that entry
+          Then the entry is deleted from self.cache
+        """
+        pass
+
+    def test_get_removes_expired_entry_from_cache_2(self):
+        """
+        Scenario: Get removes expired entry from cache
+          Given a cache entry that expired 100 seconds ago
+          When I call get for that entry
+          Then the timestamp is deleted from self.cache_timestamps
         """
         pass
 
@@ -217,7 +318,15 @@ class TestExpiredEntriesAreRemovedonGet:
           Given 5 cache entries with 1 expired
           When I call get for the expired entry
           Then the cache size is reduced to 4
-          And only 4 timestamps remain
+        """
+        pass
+
+    def test_cache_size_decreases_when_expired_entry_removed_1(self):
+        """
+        Scenario: Cache size decreases when expired entry removed
+          Given 5 cache entries with 1 expired
+          When I call get for the expired entry
+          Then only 4 timestamps remain
         """
         pass
 
@@ -226,7 +335,6 @@ class TestCacheOperationsAreLogged:
     """
     Rule: Cache Operations Are Logged
     """
-
     def test_initialization_logs_ttl_value(self):
         """
         Scenario: Initialization logs TTL value
@@ -276,7 +384,6 @@ class TestKeyParameterMustBeString:
     """
     Rule: Key Parameter Must Be String
     """
-
     def test_get_accepts_string_keys(self):
         """
         Scenario: Get accepts string keys
@@ -300,7 +407,6 @@ class TestValueParameterMustBeDictionary:
     """
     Rule: Value Parameter Must Be Dictionary
     """
-
     def test_set_stores_dictionary_values(self):
         """
         Scenario: Set stores dictionary values
@@ -315,7 +421,6 @@ class TestCacheUsesCurrentTimeforExpirationChecks:
     """
     Rule: Cache Uses Current Time for Expiration Checks
     """
-
     def test_time_comparison_determines_expiration(self):
         """
         Scenario: Time comparison determines expiration
@@ -323,7 +428,16 @@ class TestCacheUsesCurrentTimeforExpirationChecks:
           And current time is T + TTL + 1
           When get is called
           Then the entry is expired
-          And None is returned
+        """
+        pass
+
+    def test_time_comparison_determines_expiration_1(self):
+        """
+        Scenario: Time comparison determines expiration
+          Given a cache entry with timestamp T
+          And current time is T + TTL + 1
+          When get is called
+          Then None is returned
         """
         pass
 
@@ -334,8 +448,16 @@ class TestCacheUsesCurrentTimeforExpirationChecks:
           And current time is T + (TTL / 2)
           When get is called
           Then the entry is not expired
-          And the cached value is returned
         """
         pass
 
+    def test_entry_within_ttl_is_not_expired_1(self):
+        """
+        Scenario: Entry within TTL is not expired
+          Given a cache entry with timestamp T
+          And current time is T + (TTL / 2)
+          When get is called
+          Then the cached value is returned
+        """
+        pass
 

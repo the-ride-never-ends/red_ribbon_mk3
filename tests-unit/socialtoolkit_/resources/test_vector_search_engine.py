@@ -10,7 +10,6 @@ Feature: Vector Search Engine
 
 import pytest
 
-
 # Fixtures for Background
 
 @pytest.fixture
@@ -19,20 +18,25 @@ def a_vectorsearchengine_instance_is_initialized():
     Given a VectorSearchEngine instance is initialized
     """
     pass
-
-
 class TestAddVectorsMethodStoresDocumentsandEmbeddings:
     """
     Rule: Add Vectors Method Stores Documents and Embeddings
     """
-
     def test_add_vectors_for_multiple_documents(self):
         """
         Scenario: Add vectors for multiple documents
           Given 5 documents with corresponding vector embeddings
           When I call add_vectors with documents and vectors
           Then all 5 document-vector pairs are stored
-          And each document ID maps to its vector and document data
+        """
+        pass
+
+    def test_add_vectors_for_multiple_documents_1(self):
+        """
+        Scenario: Add vectors for multiple documents
+          Given 5 documents with corresponding vector embeddings
+          When I call add_vectors with documents and vectors
+          Then each document ID maps to its vector and document data
         """
         pass
 
@@ -42,7 +46,15 @@ class TestAddVectorsMethodStoresDocumentsandEmbeddings:
           Given empty lists for documents and vectors
           When I call add_vectors
           Then no vectors are stored
-          And the operation completes without error
+        """
+        pass
+
+    def test_add_vectors_handles_empty_lists_1(self):
+        """
+        Scenario: Add vectors handles empty lists
+          Given empty lists for documents and vectors
+          When I call add_vectors
+          Then the operation completes without error
         """
         pass
 
@@ -53,16 +65,23 @@ class TestAddVectorsMethodStoresDocumentsandEmbeddings:
           And a new document with the same ID "doc1"
           When I call add_vectors with the new document
           Then the old document is replaced
-          And the new vector and document data are stored
         """
         pass
 
+    def test_add_vectors_overwrites_existing_document_ids_1(self):
+        """
+        Scenario: Add vectors overwrites existing document IDs
+          Given a document with ID "doc1" already exists
+          And a new document with the same ID "doc1"
+          When I call add_vectors with the new document
+          Then the new vector and document data are stored
+        """
+        pass
 
 class TestSearchMethodReturnsTopKSimilarDocuments:
     """
     Rule: Search Method Returns Top-K Similar Documents
     """
-
     def test_search_returns_requested_number_of_documents(self):
         """
         Scenario: Search returns requested number of documents
@@ -70,7 +89,16 @@ class TestSearchMethodReturnsTopKSimilarDocuments:
           And top_k is 10
           When I call search with a query vector
           Then exactly 10 documents are returned
-          And documents are ordered by similarity
+        """
+        pass
+
+    def test_search_returns_requested_number_of_documents_1(self):
+        """
+        Scenario: Search returns requested number of documents
+          Given 20 documents are stored with vectors
+          And top_k is 10
+          When I call search with a query vector
+          Then documents are ordered by similarity
         """
         pass
 
@@ -109,17 +137,48 @@ class TestSearchResultsIncludeRequiredDocumentFields:
     """
     Rule: Search Results Include Required Document Fields
     """
-
     def test_each_result_contains_document_metadata(self):
         """
         Scenario: Each result contains document metadata
           Given documents with id, content, url, and title fields
           When search is executed
           Then each result has an "id" field
-          And each result has a "content" field
-          And each result has a "url" field
-          And each result has a "title" field
-          And each result has a "similarity_score" field
+        """
+        pass
+
+    def test_each_result_contains_document_metadata_1(self):
+        """
+        Scenario: Each result contains document metadata
+          Given documents with id, content, url, and title fields
+          When search is executed
+          Then each result has a "content" field
+        """
+        pass
+
+    def test_each_result_contains_document_metadata_2(self):
+        """
+        Scenario: Each result contains document metadata
+          Given documents with id, content, url, and title fields
+          When search is executed
+          Then each result has a "url" field
+        """
+        pass
+
+    def test_each_result_contains_document_metadata_3(self):
+        """
+        Scenario: Each result contains document metadata
+          Given documents with id, content, url, and title fields
+          When search is executed
+          Then each result has a "title" field
+        """
+        pass
+
+    def test_each_result_contains_document_metadata_4(self):
+        """
+        Scenario: Each result contains document metadata
+          Given documents with id, content, url, and title fields
+          When search is executed
+          Then each result has a "similarity_score" field
         """
         pass
 
@@ -137,14 +196,21 @@ class TestSearchResultsAreOrderedbySimilarityScore:
     """
     Rule: Search Results Are Ordered by Similarity Score
     """
-
     def test_results_are_in_descending_similarity_order(self):
         """
         Scenario: Results are in descending similarity order
           Given multiple documents with similarity scores
           When search returns results
           Then the first result has the highest similarity score
-          And each subsequent result has equal or lower score
+        """
+        pass
+
+    def test_results_are_in_descending_similarity_order_1(self):
+        """
+        Scenario: Results are in descending similarity order
+          Given multiple documents with similarity scores
+          When search returns results
+          Then each subsequent result has equal or lower score
         """
         pass
 
@@ -162,7 +228,6 @@ class TestQueryVectorParameterIsRequired:
     """
     Rule: Query Vector Parameter Is Required
     """
-
     def test_search_with_valid_query_vector(self):
         """
         Scenario: Search with valid query vector
@@ -186,7 +251,6 @@ class TestSearchLogsOperations:
     """
     Rule: Search Logs Operations
     """
-
     def test_add_vectors_logs_document_count(self):
         """
         Scenario: Add vectors logs document count
@@ -204,5 +268,4 @@ class TestSearchLogsOperations:
           Then a log message indicates "Searching for top 5 similar documents"
         """
         pass
-
 

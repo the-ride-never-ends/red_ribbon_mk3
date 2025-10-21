@@ -9,7 +9,8 @@ Each `.feature` file has a corresponding `test_*.py` file containing pytest test
 - **Module-level docstrings** containing the complete Feature description
 - **Fixtures** for Background steps (where applicable)
 - **Test classes** organized by Rules
-- **Test methods** for each Scenario with complete step descriptions in docstrings
+- **Test methods** for each Scenario assertion with complete step descriptions in docstrings
+- **One Given-When-Then per test** - Each test method contains exactly one Then assertion
 
 ## Structure
 
@@ -17,34 +18,36 @@ Each `.feature` file has a corresponding `test_*.py` file containing pytest test
 tests-unit/socialtoolkit_/
 ├── architecture/
 │   ├── document_retrieval_from_websites.feature
-│   ├── test_document_retrieval_from_websites.py (415 lines)
+│   ├── test_document_retrieval_from_websites.py (641 lines, 54 tests)
 │   ├── document_storage.feature
-│   ├── test_document_storage.py (546 lines)
+│   ├── test_document_storage.py (896 lines, 82 tests)
 │   ├── prompt_decision_tree.feature
-│   ├── test_prompt_decision_tree.py (545 lines)
+│   ├── test_prompt_decision_tree.py (848 lines, 78 tests)
 │   ├── relevance_assessment.feature
-│   ├── test_relevance_assessment.py (397 lines)
+│   ├── test_relevance_assessment.py (615 lines, 51 tests)
 │   ├── top10_document_retrieval.feature
-│   ├── test_top10_document_retrieval.py (277 lines)
+│   ├── test_top10_document_retrieval.py (441 lines, 38 tests)
 │   ├── variable_codebook.feature
-│   └── test_variable_codebook.py (556 lines)
+│   └── test_variable_codebook.py (851 lines, 76 tests)
 └── resources/
     ├── cache_manager.feature
-    ├── test_cache_manager.py (341 lines)
+    ├── test_cache_manager.py (463 lines, 42 tests)
     ├── query_processor.feature
-    ├── test_query_processor.py (338 lines)
+    ├── test_query_processor.py (442 lines, 41 tests)
     ├── ranking_algorithm.feature
-    ├── test_ranking_algorithm.py (241 lines)
+    ├── test_ranking_algorithm.py (314 lines, 26 tests)
     ├── vector_search_engine.feature
-    └── test_vector_search_engine.py (208 lines)
+    └── test_vector_search_engine.py (271 lines, 24 tests)
 ```
 
 ## Statistics
 
-- **10 test stub files** created (3,864 lines total)
+- **10 test stub files** created (5,782 lines total)
+- **512 test methods** total (split from 264 original scenarios)
 - **1:1 correspondence** with Gherkin feature files
 - **All Gherkin lines preserved** in docstrings
 - **Valid Python syntax** in all files
+- **One Given-When-Then per test** - Each test has exactly one Then assertion
 
 ## Test Stub Format
 
@@ -88,9 +91,9 @@ class TestGetMethodRetrievesCachedValues:
     """
 ```
 
-### Test Methods by Scenario
+### Test Methods - One Given-When-Then Per Test
 
-Each Scenario becomes a test method with complete steps in the docstring:
+Each assertion from the original Scenario becomes a separate test method. This ensures each test validates exactly one behavior:
 
 ```python
 def test_get_returns_cached_value_when_key_exists_and_not_expired(self):
@@ -101,10 +104,26 @@ def test_get_returns_cached_value_when_key_exists_and_not_expired(self):
       And cache_ttl_seconds is 3600
       When I call get with key "query1"
       Then the cached value is returned
-      And the value matches {"results": []}
+    """
+    pass
+
+def test_get_returns_cached_value_when_key_exists_and_not_expired_1(self):
+    """
+    Scenario: Get returns cached value when key exists and not expired
+      Given a cache entry with key "query1" and value {"results": []}
+      And the entry was created 60 seconds ago
+      And cache_ttl_seconds is 3600
+      When I call get with key "query1"
+      Then the value matches {"results": []}
     """
     pass
 ```
+
+**Key Points:**
+- Each test has only one `Then` assertion
+- Multiple `And` clauses after `Then` in the original Gherkin are split into separate tests
+- `And` clauses are converted to `Then` when they become the assertion
+- Each test shares the same Given/When setup but validates a different assertion
 
 ## Next Steps
 

@@ -10,7 +10,6 @@ Feature: Ranking Algorithm
 
 import pytest
 
-
 # Fixtures for Background
 
 @pytest.fixture
@@ -19,13 +18,10 @@ def a_rankingalgorithm_instance_is_initialized():
     Given a RankingAlgorithm instance is initialized
     """
     pass
-
-
 class TestRankMethodAcceptsDocumentsandQuery:
     """
     Rule: Rank Method Accepts Documents and Query
     """
-
     def test_rank_with_valid_documents_and_query(self):
         """
         Scenario: Rank with valid documents and query
@@ -33,7 +29,16 @@ class TestRankMethodAcceptsDocumentsandQuery:
           And a query with keywords ["tax", "sales"]
           When I call rank with documents and query
           Then all 10 documents are returned
-          And documents are sorted by relevance
+        """
+        pass
+
+    def test_rank_with_valid_documents_and_query_1(self):
+        """
+        Scenario: Rank with valid documents and query
+          Given 10 documents
+          And a query with keywords ["tax", "sales"]
+          When I call rank with documents and query
+          Then documents are sorted by relevance
         """
         pass
 
@@ -47,12 +52,10 @@ class TestRankMethodAcceptsDocumentsandQuery:
         """
         pass
 
-
 class TestRankingScoreIsBasedonKeywordFrequency:
     """
     Rule: Ranking Score Is Based on Keyword Frequency
     """
-
     def test_documents_with_more_keyword_matches_rank_higher(self):
         """
         Scenario: Documents with more keyword matches rank higher
@@ -77,7 +80,6 @@ class TestTitleMatchesReceiveBonusScore:
     """
     Rule: Title Matches Receive Bonus Score
     """
-
     def test_keyword_in_title_increases_rank_score(self):
         """
         Scenario: Keyword in title increases rank score
@@ -86,7 +88,17 @@ class TestTitleMatchesReceiveBonusScore:
           And both have same content keyword frequency
           When documents are ranked
           Then document A ranks higher than document B
-          And document A's rank_score includes title bonus
+        """
+        pass
+
+    def test_keyword_in_title_increases_rank_score_1(self):
+        """
+        Scenario: Keyword in title increases rank score
+          Given document A with keyword "tax" in title
+          And document B with keyword "tax" only in content
+          And both have same content keyword frequency
+          When documents are ranked
+          Then document A's rank_score includes title bonus
         """
         pass
 
@@ -96,7 +108,15 @@ class TestTitleMatchesReceiveBonusScore:
           Given a document with 2 query keywords in title
           When the document is ranked
           Then the rank_score includes 2 title bonuses
-          And each title bonus is worth 2 points
+        """
+        pass
+
+    def test_multiple_keywords_in_title_accumulate_bonuses_1(self):
+        """
+        Scenario: Multiple keywords in title accumulate bonuses
+          Given a document with 2 query keywords in title
+          When the document is ranked
+          Then each title bonus is worth 2 points
         """
         pass
 
@@ -105,7 +125,6 @@ class TestKeywordsatDocumentStartReceiveBonus:
     """
     Rule: Keywords at Document Start Receive Bonus
     """
-
     def test_document_starting_with_keyword_gets_bonus(self):
         """
         Scenario: Document starting with keyword gets bonus
@@ -114,7 +133,17 @@ class TestKeywordsatDocumentStartReceiveBonus:
           And both have same total keyword frequency
           When documents are ranked
           Then document A ranks higher than document B
-          And document A's rank_score includes start bonus
+        """
+        pass
+
+    def test_document_starting_with_keyword_gets_bonus_1(self):
+        """
+        Scenario: Document starting with keyword gets bonus
+          Given document A starts with query keyword
+          And document B has keyword later in content
+          And both have same total keyword frequency
+          When documents are ranked
+          Then document A's rank_score includes start bonus
         """
         pass
 
@@ -123,14 +152,21 @@ class TestRankScoreIsStoredinDocument:
     """
     Rule: Rank Score Is Stored in Document
     """
-
     def test_each_document_receives_rank_score_field(self):
         """
         Scenario: Each document receives rank_score field
           Given 5 documents to rank
           When rank is called
           Then each document has a "rank_score" field
-          And rank_score is a numeric value
+        """
+        pass
+
+    def test_each_document_receives_rank_score_field_1(self):
+        """
+        Scenario: Each document receives rank_score field
+          Given 5 documents to rank
+          When rank is called
+          Then rank_score is a numeric value
         """
         pass
 
@@ -148,14 +184,21 @@ class TestDocumentsAreSortedinDescendingOrderbyRankScore:
     """
     Rule: Documents Are Sorted in Descending Order by Rank Score
     """
-
     def test_highest_scoring_document_is_first(self):
         """
         Scenario: Highest scoring document is first
           Given documents with rank_scores [5, 10, 3, 8]
           When ranking is complete
           Then the first document has rank_score 10
-          And the last document has rank_score 3
+        """
+        pass
+
+    def test_highest_scoring_document_is_first_1(self):
+        """
+        Scenario: Highest scoring document is first
+          Given documents with rank_scores [5, 10, 3, 8]
+          When ranking is complete
+          Then the last document has rank_score 3
         """
         pass
 
@@ -173,14 +216,21 @@ class TestQueryKeywordsAreExtractedandUsedforScoring:
     """
     Rule: Query Keywords Are Extracted and Used for Scoring
     """
-
     def test_query_keywords_parameter_is_used(self):
         """
         Scenario: Query keywords parameter is used
           Given a query with keywords ["business", "license"]
           When rank is called
           Then document scoring uses keywords "business" and "license"
-          And occurrences of these keywords increase rank_score
+        """
+        pass
+
+    def test_query_keywords_parameter_is_used_1(self):
+        """
+        Scenario: Query keywords parameter is used
+          Given a query with keywords ["business", "license"]
+          When rank is called
+          Then occurrences of these keywords increase rank_score
         """
         pass
 
@@ -190,7 +240,15 @@ class TestQueryKeywordsAreExtractedandUsedforScoring:
           Given a query with empty keywords list
           When rank is called
           Then all documents have rank_score of 0
-          And original document order may be preserved
+        """
+        pass
+
+    def test_query_without_keywords_results_in_zero_scores_1(self):
+        """
+        Scenario: Query without keywords results in zero scores
+          Given a query with empty keywords list
+          When rank is called
+          Then original document order may be preserved
         """
         pass
 
@@ -199,7 +257,6 @@ class TestContentMatchingIsCaseInsensitive:
     """
     Rule: Content Matching Is Case-Insensitive
     """
-
     def test_uppercase_and_lowercase_keywords_match_equally(self):
         """
         Scenario: Uppercase and lowercase keywords match equally
@@ -207,7 +264,16 @@ class TestContentMatchingIsCaseInsensitive:
           And query keyword "sales"
           When the document is ranked
           Then the keyword match is counted
-          And rank_score increases
+        """
+        pass
+
+    def test_uppercase_and_lowercase_keywords_match_equally_1(self):
+        """
+        Scenario: Uppercase and lowercase keywords match equally
+          Given document with content "SALES TAX"
+          And query keyword "sales"
+          When the document is ranked
+          Then rank_score increases
         """
         pass
 
@@ -218,7 +284,16 @@ class TestContentMatchingIsCaseInsensitive:
           And query keyword "tax"
           When the document is ranked
           Then the title bonus applies
-          And rank_score includes title bonus
+        """
+        pass
+
+    def test_title_matching_is_case_insensitive_1(self):
+        """
+        Scenario: Title matching is case-insensitive
+          Given document with title "Property TAX"
+          And query keyword "tax"
+          When the document is ranked
+          Then rank_score includes title bonus
         """
         pass
 
@@ -227,7 +302,6 @@ class TestRankingLogsOperations:
     """
     Rule: Ranking Logs Operations
     """
-
     def test_rank_logs_document_count_and_query(self):
         """
         Scenario: Rank logs document count and query
@@ -237,5 +311,4 @@ class TestRankingLogsOperations:
           Then a log message indicates "Ranking 15 documents for query: sales tax rates"
         """
         pass
-
 
