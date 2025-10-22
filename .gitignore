@@ -19,3 +19,4 @@ venv/
 *.log
 web_custom_versions/
 .DS_Store
+custom_nodes/red_ribbon/plug_in_play_transformer/nanoGPT
