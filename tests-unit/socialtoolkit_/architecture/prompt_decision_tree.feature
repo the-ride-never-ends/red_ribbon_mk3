@@ -1,4 +1,4 @@
-Feature: Prompt Decision Tree
+Feature: extract_ordinance_information
   As a user 
   I want to extract ordinance information from input documents
 

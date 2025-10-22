@@ -293,7 +293,6 @@ class PromptDecisionTree:
     def control_flow(self, 
                    relevant_pages: List[Any], 
                    prompt_sequence: List[str],
-                   llm_api: Any
                    ) -> Dict[str, Any]:
         """
         Execute the prompt decision tree flow based on the mermaid flowchart
@@ -315,9 +314,7 @@ class PromptDecisionTree:
         # (Already provided as input parameter)
 
         # Step 3: Execute prompt decision tree
-        result = self._execute_decision_tree(
-            concatenated_pages, prompt_sequence, llm_api
-        )
+        result = self._execute_decision_tree(concatenated_pages, prompt_sequence)
 
         # Step 4: Handle errors and unforeseen edge-cases if needed
         if result.get("error") and self.configs.enable_human_review:
@@ -326,8 +323,7 @@ class PromptDecisionTree:
         self.logger.info("Completed prompt decision tree execution")
         return result
 
-    def execute(self, relevant_pages: List[Any], prompt_sequence: List[str], 
-               llm_api: Any) -> Any:
+    def execute(self, relevant_pages: List[Any], prompt_sequence: List[str]) -> Any:
         """
         Public method to execute prompt decision tree
         
@@ -339,7 +335,7 @@ class PromptDecisionTree:
         Returns:
             Output data point
         """
-        result = self.control_flow(relevant_pages, prompt_sequence, llm_api)
+        result = self.control_flow(relevant_pages, prompt_sequence)
         return result.get("output_data_point", "")
     
     def _concatenate_pages(self, pages: List[Any]) -> str:
@@ -376,7 +372,6 @@ class PromptDecisionTree:
     def _execute_decision_tree(self, 
                              document_text: str, 
                              prompt_sequence: List[str], 
-                             llm_api: Any
                              ) -> Dict[str, Any]:
         """
         Execute the prompt decision tree
@@ -391,20 +386,21 @@ class PromptDecisionTree:
         """
         # Create a simplified decision tree from the prompt sequence
         decision_tree = self._create_decision_tree(prompt_sequence)
-        
+        iteration = 0
+        responses = []
+        output_data_point = None
+        output_dict = {"success": None, "msg": None}
         try:
             # Start with the first node
             current_node = decision_tree[0]
-            iteration = 0
-            responses = []
-            
+
             # Follow the decision tree until a final node is reached or max iterations is exceeded
             while not current_node.is_final and iteration < self.configs.max_iterations:
                 # Generate prompt for the current node
                 prompt = self._generate_node_prompt(current_node, document_text)
                 
-                # Get response from LLM
-                llm_response = llm_api.generate(prompt, max_tokens=self.configs.max_tokens_per_prompt)
+                # Get response from LLM#
+                llm_response = self.llm.generate(prompt, max_tokens=self.configs.max_tokens_per_prompt)
                 responses.append({
                     "node_id": current_node.id,
                     "prompt": prompt,
@@ -433,20 +429,24 @@ class PromptDecisionTree:
             final_response = responses[-1]["response"] if responses else ""
             output_data_point = self._extract_output_data_point(final_response)
             
-            return {
+            output_dict = {
                 "success": True,
-                "output_data_point": output_data_point,
-                "responses": responses,
-                "iterations": iteration
+                "msg": "Successfully executed decision tree",
             }
             
         except Exception as e:
-            self.logger.error(f"Error executing decision tree: {e}")
-            return {
+            self.logger.exception(f"Error executing decision tree: {e}")
+            output_dict = {
                 "success": False,
-                "error": str(e),
-                "output_data_point": ""
+                "msg": f"{type(e).__name__}: {str(e)}",
             }
+        else:
+            output_dict.update({
+                "output_data_point": output_data_point,
+                "responses": responses,
+                "iterations": iteration
+            })
+            return output_dict
     
     def _create_decision_tree(self, prompt_sequence: List[str]) -> List[PromptDecisionTreeNode]:
         """
