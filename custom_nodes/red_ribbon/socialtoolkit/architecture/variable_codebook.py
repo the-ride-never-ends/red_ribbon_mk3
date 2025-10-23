@@ -124,7 +124,7 @@ class VariableCodebook:
         self.configs = configs
 
         self._db = self.resources['db']
-        self._logger = self.resources['logger'] or logging.getLogger(self.__class__.__name__)
+        self.logger = self.resources['logger']
         self._llm = self.resources['llm']
 
         # Extract needed services from resources

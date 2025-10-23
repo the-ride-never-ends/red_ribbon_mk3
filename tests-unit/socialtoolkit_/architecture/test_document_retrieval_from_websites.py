@@ -14,47 +14,6 @@ Feature: Document Retrieval from Websites
     And a document storage service is available
     And a URL path generator is available
 """
-
-import pytest
-from unittest.mock import Mock
-
-@pytest.fixture
-def mock_document_retrieval():
-    """Mock DocumentRetrievalFromWebsites instance"""
-    mock = Mock()
-    mock.batch_size = 10
-    mock.user_agent = "TestBot/1.0"
-    mock.timeout = 30
-    
-    def mock_execute(domain_urls):
-        if not domain_urls:
-            return {
-                "documents": [],
-                "metadata": [],
-                "vectors": []
-            }
-        
-        # Simulate document retrieval
-        documents = []
-        metadata = []
-        vectors = []
-        
-        for url in domain_urls[:mock.batch_size]:
-            doc = {"id": f"doc_{url}", "content": f"Content from {url}", "url": url}
-            documents.append(doc)
-            metadata.append({"source": url, "fetched": True})
-            vectors.append([0.1, 0.2, 0.3])
-        
-        return {
-            "documents": documents,
-            "metadata": metadata,
-            "vectors": vectors
-        }
-    
-    mock.execute = mock_execute
-    return mock
-
-
 import pytest
 
 # Fixtures for Background

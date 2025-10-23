@@ -11,71 +11,8 @@ Feature: Document Storage
     And a vector store service is available
     And an ID generator service is available
 """
-
 import pytest
-from unittest.mock import Mock
 
-@pytest.fixture
-def mock_document_storage():
-    """Mock DocumentStorage instance"""
-    mock = Mock()
-    mock.batch_size = 100
-    mock.storage_type = "SQL"
-    mock.use_cache = True
-    mock.vector_dimensions = 768
-    
-    # In-memory storage for testing
-    mock._storage = {}
-    
-    def mock_execute(action, **kwargs):
-        if action == "store":
-            documents = kwargs.get("documents", [])
-            metadata = kwargs.get("metadata", [])
-            vectors = kwargs.get("vectors", [])
-            
-            for i, doc in enumerate(documents):
-                doc_id = doc.get("id", f"doc_{i}")
-                mock._storage[doc_id] = {
-                    "document": doc,
-                    "metadata": metadata[i] if i < len(metadata) else {},
-                    "vector": vectors[i] if i < len(vectors) else []
-                }
-            
-            return {
-                "success": True,
-                "stored_count": len(documents),
-                "document_ids": [d.get("id", f"doc_{i}") for i, d in enumerate(documents)]
-            }
-        
-        elif action == "retrieve":
-            doc_ids = kwargs.get("document_ids", [])
-            results = []
-            for doc_id in doc_ids:
-                if doc_id in mock._storage:
-                    results.append(mock._storage[doc_id]["document"])
-            return {
-                "documents": results,
-                "count": len(results)
-            }
-        
-        elif action == "update":
-            # Similar to store but for existing docs
-            return {"success": True, "updated_count": 1}
-        
-        elif action == "delete":
-            doc_ids = kwargs.get("document_ids", [])
-            for doc_id in doc_ids:
-                if doc_id in mock._storage:
-                    del mock._storage[doc_id]
-            return {"success": True, "deleted_count": len(doc_ids)}
-        
-        return {"success": False}
-    
-    mock.execute = mock_execute
-    return mock
-
-
-import pytest
 
 # Fixtures for Background
 

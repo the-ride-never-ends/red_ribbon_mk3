@@ -4,15 +4,13 @@ import logging
 from typing import Callable, TypeVar, Optional
 
 
-from .configs import Configs
-from .utils_.database.resources.duckdb import DuckDB
+from .configs import Configs, configs
 from .utils_.main_.instantiate import instantiate
 
 
-from pydantic import BaseModel, Field
-
 Class = TypeVar('Class')
 ClassInstance = TypeVar('ClassInstance')
+
 
 class DatabaseApiError(Exception):
     """
@@ -37,7 +35,7 @@ class DatabaseAPI:
     def __init__(self, resources, configs) -> 'DatabaseAPI':
         self.configs = configs
         self.resources = resources
-        self.logger = self.resources['logger'] or logging.getLogger(self.__class__.__name__)
+        self.logger: logging.Logger = self.resources['logger']
 
         self._dep_enter = self.resources["_enter"]
         self._execute = self.resources["_execute"]
@@ -76,3 +74,28 @@ class DatabaseAPI:
         except Exception as e:
             self.logger.error(f"Error executing statement: {e}")
             raise DatabaseApiError from e
+        
+
+def make_duckdb_database(
+        resources: dict[str, Callable] = {}, 
+        configs: Configs = configs
+        ) -> DatabaseAPI:
+    """
+    Factory function to create a DuckDB DatabaseAPI instance.
+    
+    Args:
+        resources: Optional dictionary of resource overrides.
+        configs: Configuration object for the database.
+
+    Returns:
+        An instance of DatabaseAPI configured for DuckDB.
+    """
+    from custom_nodes.red_ribbon.utils_.database.resources.duckdb import DuckDB
+
+    _resources = {
+        "logger": resources.get("logger", logging.getLogger("DatabaseAPI")),
+        "_enter": resources.get("_enter", DuckDB._enter),
+        "_execute": resources.get("_execute", DuckDB._execute),
+        "_exit": resources.get("_exit", DuckDB._exit),
+    }
+    return DatabaseAPI(resources=_resources, configs=configs)

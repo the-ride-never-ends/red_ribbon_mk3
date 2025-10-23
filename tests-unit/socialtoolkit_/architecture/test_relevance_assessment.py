@@ -16,63 +16,7 @@ Feature: Relevance Assessment
 import pytest
 from unittest.mock import Mock
 
-# Fixtures for Background
 
-@pytest.fixture
-def mock_relevance_assessment():
-    """
-    Given a RelevanceAssessment instance is initialized
-    And all required services are available
-    
-    Creates a mock instance that simulates RelevanceAssessment behavior
-    """
-    mock = Mock()
-    mock.criteria_threshold = 0.6
-    mock.use_hallucination_filter = False
-    mock.max_retries = 3
-    mock.citation_max_length = 500
-    
-    # Default control_flow behavior
-    def mock_control_flow(documents, variable_definition):
-        if not documents:
-            return {
-                "relevant_pages": [],
-                "relevant_doc_ids": [],
-                "page_numbers": [],
-                "relevance_scores": {}
-            }
-        
-        # Simulate relevance assessment
-        relevant_docs = []
-        relevant_ids = []
-        page_nums = []
-        scores = {}
-        
-        for i, doc in enumerate(documents):
-            # Simulate score based on position (decreasing relevance)
-            score = 0.9 - (i * 0.1)
-            if score >= mock.criteria_threshold:
-                relevant_docs.append(doc)
-                doc_id = doc.get("id", f"doc{i}")
-                relevant_ids.append(doc_id)
-                scores[doc_id] = score
-                # Extract page number if available
-                if "page_number" in doc:
-                    page_nums.append(doc["page_number"])
-        
-        return {
-            "relevant_pages": relevant_docs,
-            "relevant_doc_ids": relevant_ids,
-            "page_numbers": page_nums,
-            "relevance_scores": scores
-        }
-    
-    mock.control_flow = mock_control_flow
-    
-    # Assess method as public interface
-    mock.assess = mock_control_flow
-    
-    return mock
 class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
     """
     Rule: Control Flow Method Returns Dictionary with Required Keys
@@ -167,11 +111,12 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         # Assert
         assert "relevance_scores" in result
 
+
 class TestRelevanceAssessmentFiltersDocumentsbyCriteriaThreshold:
     """
     Rule: Relevance Assessment Filters Documents by Criteria Threshold
     """
-    def test_only_documents_above_threshold_are_marked_relevant(self):
+    def test_only_documents_above_threshold_are_marked_relevant(self, mock_relevance_assessment):
         """
         Scenario: Only documents above threshold are marked relevant
           Given criteria_threshold is configured as 0.7

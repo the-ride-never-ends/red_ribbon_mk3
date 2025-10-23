@@ -11,54 +11,6 @@ Feature: Variable Codebook
     And a database connection is available
     And an LLM API client is available
 """
-
-import pytest
-from unittest.mock import Mock
-
-@pytest.fixture
-def mock_variable_codebook():
-    """Mock VariableCodebook instance"""
-    mock = Mock()
-    mock.use_cache = True
-    mock.use_default_assumptions = True
-    
-    # Sample variable data
-    mock.variables = {
-        "sales_tax_rate": {
-            "label": "Sales Tax Rate",
-            "item_name": "sales_tax_rate",
-            "description": "The sales tax rate",
-            "units": "percentage",
-            "assumptions": {
-                "general": [],
-                "specific": [],
-                "business_owner": [],
-                "business": [],
-                "taxes": []
-            },
-            "prompt_decision_tree": None
-        }
-    }
-    
-    def mock_control_flow(action, **kwargs):
-        if action == "get_variable":
-            var_name = kwargs.get("variable_name", "")
-            return {"variable": mock.variables.get(var_name, {})}
-        elif action == "get_prompt_sequence":
-            return {"prompt_sequence": []}
-        elif action == "get_assumptions":
-            return {"assumptions": {}}
-        elif action == "add_variable":
-            return {"success": True}
-        elif action == "update_variable":
-            return {"success": True}
-        else:
-            return {}
-    
-    mock.control_flow = mock_control_flow
-    return mock
-
-
 import pytest
 
 # Fixtures for Background
@@ -101,6 +53,8 @@ def an_llm_api_client_is_available():
     And an LLM API client is available
     """
     pass
+
+
 class TestControlFlowMethodAcceptsActionParameter:
     """
     Rule: Control Flow Method Accepts Action Parameter
@@ -1178,7 +1132,6 @@ class TestCacheServiceIsUsedWhenEnabled:
           When get_variable retrieves from storage
           Then the variable is added to cache
         """
-
         # Arrange
         action = "get_variable"
         

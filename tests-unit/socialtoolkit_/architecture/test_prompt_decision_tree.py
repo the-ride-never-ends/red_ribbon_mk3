@@ -10,43 +10,6 @@ Feature: Prompt Decision Tree
     And a variable codebook service is available
     And a logger is available
 """
-
-import pytest
-from unittest.mock import Mock
-
-@pytest.fixture
-def mock_prompt_decision_tree():
-    """Mock PromptDecisionTree instance"""
-    mock = Mock()
-    mock.max_pages_to_concatenate = 5
-    mock.max_iterations = 10
-    mock.use_human_review = False
-    
-    def mock_execute(documents):
-        if not documents:
-            return {
-                "success": True,
-                "output_data_point": None,
-                "responses": [],
-                "iterations": 0
-            }
-        
-        # Simulate decision tree execution
-        return {
-            "success": True,
-            "output_data_point": "extracted_value",
-            "responses": ["response1", "response2"],
-            "iterations": 2
-        }
-    
-    def mock_control_flow(documents):
-        return mock_execute(documents)
-    
-    mock.execute = mock_execute
-    mock.control_flow = mock_control_flow
-    return mock
-
-
 import pytest
 
 # Fixtures for Background
