@@ -1,11 +1,8 @@
-from dataclasses import dataclass, field, InitVar
-from functools import cached_property
 import logging
-from typing import Callable, TypeVar, Optional
+from typing import Callable, TypeVar
 
 
-from .configs import Configs, configs
-from .utils_.main_.instantiate import instantiate
+from ..configs import Configs, _configs
 
 
 Class = TypeVar('Class')
@@ -78,7 +75,7 @@ class DatabaseAPI:
 
 def make_duckdb_database(
         resources: dict[str, Callable] = {}, 
-        configs: Configs = configs
+        configs: Configs = _configs
         ) -> DatabaseAPI:
     """
     Factory function to create a DuckDB DatabaseAPI instance.

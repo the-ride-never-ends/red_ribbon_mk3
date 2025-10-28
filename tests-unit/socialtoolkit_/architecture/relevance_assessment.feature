@@ -16,7 +16,7 @@ Feature: Relevance Assessment
     Scenario: Control flow returns expected result structure
       Given a list of 10 potentially relevant documents
       And a variable definition for "sales_tax_rate"
-      When I call control_flow with documents and variable definition
+      When I call run with documents and variable definition
       Then I receive a dictionary response
       And the response contains key "relevant_pages"
       And the response contains key "relevant_doc_ids"
@@ -28,7 +28,7 @@ Feature: Relevance Assessment
     Scenario: Only documents above threshold are marked relevant
       Given criteria_threshold is configured as 0.7
       And documents with relevance scores [0.9, 0.8, 0.6, 0.4]
-      When control_flow assesses the documents
+      When run assesses the documents
       Then exactly 2 documents are in "relevant_pages"
       And the relevant documents have scores >= 0.7
       And documents with scores < 0.7 are in discarded pages
@@ -36,14 +36,14 @@ Feature: Relevance Assessment
     Scenario: All documents pass when all exceed threshold
       Given criteria_threshold is configured as 0.5
       And all documents have relevance scores >= 0.5
-      When control_flow assesses the documents
+      When run assesses the documents
       Then all documents are in "relevant_pages"
       And no documents are discarded
 
     Scenario: No documents pass when all below threshold
       Given criteria_threshold is configured as 0.9
       And all documents have relevance scores < 0.9
-      When control_flow assesses the documents
+      When run assesses the documents
       Then "relevant_pages" is an empty list
       And all documents are in discarded pages
 
@@ -52,14 +52,14 @@ Feature: Relevance Assessment
     Scenario: Hallucination filter removes false information
       Given use_hallucination_filter is configured as True
       And assessment results contain hallucinated content
-      When control_flow processes the results
+      When run processes the results
       Then hallucinated content is filtered out
       And only verified information remains
 
     Scenario: Hallucination filter is skipped when disabled
       Given use_hallucination_filter is configured as False
       And assessment results may contain hallucinations
-      When control_flow processes the results
+      When run processes the results
       Then no hallucination filtering is performed
       And all assessment results are retained
 
@@ -82,13 +82,13 @@ Feature: Relevance Assessment
 
     Scenario: Page numbers are extracted for relevant documents
       Given relevant documents reference pages [1, 3, 5, 7]
-      When control_flow completes
+      When run completes
       Then "page_numbers" contains [1, 3, 5, 7]
       And page numbers are in ascending order
 
     Scenario: No page numbers when no relevant documents
       Given no documents pass the relevance threshold
-      When control_flow completes
+      When run completes
       Then "page_numbers" is an empty list
 
   Rule: Cited Pages Are Extracted by Page Numbers
@@ -159,19 +159,19 @@ Feature: Relevance Assessment
 
     Scenario: Control flow rejects non-list documents parameter
       Given a documents parameter that is not a list
-      When I call control_flow
+      When I call run
       Then a TypeError is raised
       And the error indicates documents must be a list
 
     Scenario: Control flow rejects invalid variable definition
       Given a variable_definition that is not a dictionary
-      When I call control_flow
+      When I call run
       Then a TypeError is raised
       And the error indicates variable_definition must be a dict
 
     Scenario: Control flow accepts empty document list
       Given an empty list of potentially relevant documents
-      When I call control_flow
+      When I call run
       Then execution completes without error
       And empty results are returned
 
@@ -180,7 +180,7 @@ Feature: Relevance Assessment
     Scenario: Relevant doc IDs match relevant documents
       Given documents with IDs ["A", "B", "C", "D", "E"]
       And documents "B" and "D" are assessed as relevant
-      When control_flow completes
+      When run completes
       Then "relevant_doc_ids" contains ["B", "D"]
       And the IDs correspond to documents in "relevant_pages"
 
@@ -188,10 +188,10 @@ Feature: Relevance Assessment
 
     Scenario: Control flow logs start with document count
       Given 15 potentially relevant documents
-      When control_flow is called
+      When run is called
       Then a log message indicates "Starting relevance assessment for 15 documents"
 
     Scenario: Control flow logs completion with relevant count
       Given relevance assessment identifies 8 relevant pages
-      When control_flow completes
+      When run completes
       Then a log message indicates "Completed relevance assessment: 8 relevant pages"

@@ -34,7 +34,7 @@
 - **2025-03-01 2:09 PM**: Debugging server initialization issues:
   - Fixed dictionary modification during iteration in `instantiate()` by creating a copy of dict before iteration
   - Fixed import path issues by properly constructing module paths relative to package
-  - Added centralized logger module with `get_logger()` function to fix LLM initialization
+  - Added centralized logger module with `make_logger()` function to fix LLM initialization
   - Created test folder structure for Red Ribbon modules
   - Remaining issues: Resource loading for SocialToolkit components needs further debugging
   - Killing processes from terminal

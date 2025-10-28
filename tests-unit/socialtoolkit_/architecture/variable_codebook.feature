@@ -15,7 +15,7 @@ Feature: Variable Codebook
     Scenario: Control flow with "get_variable" action
       Given action parameter is "get_variable"
       And variable_name is "sales_tax_city"
-      When I call control_flow with the action
+      When I call run with the action
       Then the variable is retrieved
       And a dictionary with the variable is returned
 
@@ -23,20 +23,20 @@ Feature: Variable Codebook
       Given action parameter is "get_prompt_sequence"
       And variable_name is "sales_tax_city"
       And input_data_point is "What is the sales tax rate?"
-      When I call control_flow with the action
+      When I call run with the action
       Then the prompt sequence is retrieved
       And a list of prompts is returned
 
     Scenario: Control flow with "get_assumptions" action
       Given action parameter is "get_assumptions"
       And variable_name is "property_tax"
-      When I call control_flow with the action
+      When I call run with the action
       Then assumptions for the variable are retrieved
 
     Scenario: Control flow with "add_variable" action
       Given action parameter is "add_variable"
       And a new Variable object
-      When I call control_flow with the action
+      When I call run with the action
       Then the variable is added to the codebook
       And success status is returned
 
@@ -44,7 +44,7 @@ Feature: Variable Codebook
       Given action parameter is "update_variable"
       And variable_name is "income_tax"
       And an updated Variable object
-      When I call control_flow with the action
+      When I call run with the action
       Then the variable is updated in the codebook
       And success status is returned
 
@@ -52,7 +52,7 @@ Feature: Variable Codebook
 
     Scenario: Control flow rejects unknown action
       Given action parameter is "unknown_action"
-      When I call control_flow with the invalid action
+      When I call run with the invalid action
       Then a ValueError is raised
       And the error message indicates "Unknown action"
 
@@ -288,7 +288,7 @@ Feature: Variable Codebook
 
     Scenario: Control flow logs operation start
       Given any action is executed
-      When control_flow is called
+      When run is called
       Then a log message indicates "Starting variable codebook operation: <action>"
 
     Scenario: Variable not found is logged as warning

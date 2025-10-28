@@ -30,7 +30,7 @@ Feature: Prompt Decision Tree
     Scenario: Control flow returns expected result structure
       Given 5 relevant pages
       And a prompt sequence
-      When I call control_flow with pages and prompts
+      When I call run with pages and prompts
       Then I receive a dictionary response
       And the response contains key "success"
       And the response contains key "output_data_point"

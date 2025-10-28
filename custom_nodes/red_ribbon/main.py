@@ -7,7 +7,6 @@ DEMO_MODE = True
 IN_COMFY = True
 
 
-import contextvars
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
@@ -26,6 +25,9 @@ import importlib
 import importlib.util as importlib_util
 
 
+from .utils_.database import DuckDB
+
+
 class RedRibbonError(Exception):
     """
     Error that occurred in the main.py file.
@@ -41,6 +43,7 @@ class RedRibbonError(Exception):
 try:
     import torch
     import comfy
+    from torch import Tensor
 except ImportError as e:
     msg = "Critical import not found. Please install Comfy to use this package."
     raise RedRibbonError(msg) from e
@@ -67,16 +70,6 @@ from pydantic import BaseModel, Field
 import openai
 from tqdm import tqdm
 
-def _load_from_file(module_name: str, file_path: str) -> Any:
-    """Load a module from a file path."""
-    spec = importlib_util.spec_from_file_location(module_name, file_path)
-    if spec is None:
-        raise ImportError(f"Could not load module '{module_name}' from '{file_path}'")
-    module = importlib_util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 # Import components from subdirectories
 # Modules
 import comfy.utils
@@ -86,10 +79,10 @@ from .plug_in_play_transformer.plug_in_play_transformer import TransformerAPI
 
 
 # Utility functions
-from .configs import Configs # TODO figure out what the hell is up with imports. It makes EasyNodes not so easy to debug!
-from .database import DatabaseAPI
-from .utils_.llm._llm import LLM
-from .logger import get_logger
+from .utils_.configs import Configs # TODO figure out what the hell is up with imports. It makes EasyNodes not so easy to debug!
+from .utils_ import DatabaseAPI
+from .utils_ import LLM
+from .utils_ import make_logger
 from .utils_.main_.red_ribbon_banner import get_red_ribbon_banner
 from .utils_.common.safe_format import safe_format
 
@@ -195,7 +188,7 @@ class RedRibbon:
         """Initialize the Red Ribbon package components"""
         self.configs = configs
         self.resources = resources or {}
-        self.logger = get_logger(self.__class__.__name__)
+        self.logger = make_logger(self.__class__.__name__)
         #self.llm = self.resources["llm"] or openai.OpenAI()
 
         self.socialtoolkit: Type[SocialToolkitAPI] = self.resources.get("social")
@@ -243,6 +236,7 @@ class RedRibbon:
         red_ribbon_banner = get_red_ribbon_banner(without_logo=True)
         for line in red_ribbon_banner:
             print(line)
+            time.sleep(0.05)
         print(f"""
                                     Red Ribbon loaded successfully.
                                     Version: {self.VERSION}
@@ -333,7 +327,7 @@ resources = {
 red_ribbon = RedRibbon(resources, configs)
 
 
-from .utils_.database.resources.duckdb import DuckDB
+
 
 
 #####################
@@ -889,7 +883,6 @@ def answer(
 
 ######## Plug-in-play Transformer Nodes ########
 
-from torch import Tensor
 
 torch_types = {
     "Tensor": Tensor,

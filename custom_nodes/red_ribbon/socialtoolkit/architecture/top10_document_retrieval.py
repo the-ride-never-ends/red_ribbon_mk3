@@ -153,7 +153,7 @@ class Top10DocumentRetrieval:
         with self.db.enter() as db:
             result = self._retrieve_top_documents(input_data_point, documents, document_vectors, db)
         
-        self.control_flow(input_data_point, documents, document_vectors)
+        self.run(input_data_point, documents, document_vectors)
         return result["relevant_documents"]
     
     def _encode_query(self, input_data_point: str) -> Any:

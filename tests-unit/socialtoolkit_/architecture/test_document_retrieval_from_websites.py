@@ -80,6 +80,7 @@ def a_url_path_generator_is_available():
     And a URL path generator is available
     """
     pass
+
 class TestExecuteMethodAcceptsListofDomainURLs:
     """
     Rule: Execute Method Accepts List of Domain URLs

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Socialtoolkit - Turn Law into Datasets
 """
@@ -9,8 +10,8 @@ from functools import cached_property
 import logging
 import os
 from pathlib import Path
+import sys
 from typing import Any, Optional, TypeVar
-
 
 
 # Piece-wise Pipeline
@@ -21,15 +22,15 @@ from .architecture.relevance_assessment import RelevanceAssessment
 from .architecture.variable_codebook import VariableCodebook
 from .architecture.prompt_decision_tree import PromptDecisionTree
 
+
 # Integrated Pipeline
 from .architecture.socialtoolkit_pipeline import SocialtoolkitPipeline
 
 
-
-from ..configs import Configs
+from ..utils_.configs._configs import Configs
 from ..utils_.llm._llm import LLM
 from ..database import DatabaseAPI
-from ..logger import get_logger
+from ..logger import make_logger
 from ..utils_.nodes_.node_types import Node
 from ..utils_.main_.instantiate import instantiate
 
@@ -63,7 +64,7 @@ class SocialToolkitAPI:
         self.configs = configs
         self.resources = resources
 
-        self._logger:                          logging.Logger  = get_logger(self.__class__.__name__)
+        self._logger:                          logging.Logger  = make_logger(self.__class__.__name__)
         self._llm:                              ClassInstance = self.resources["llm"]
         self._db:                               ClassInstance = self.resources["db"]
 
@@ -219,15 +220,25 @@ class SocialToolKitResources:
 # Main function that can be called when using this as a script
 def main():
     """Main function for Socialtoolkit module"""
-    configs = Configs()
-    resources = SocialToolKitResources(configs).resources
-    api = SocialToolkitAPI(resources, configs)
+    try:
+        configs = Configs()
+        resources = SocialToolKitResources(configs).resources
+        api = SocialToolkitAPI(resources, configs)
 
-    print("Socialtoolkit loaded successfully")
-    print(f"Version: {api.version}")
-    print("Running pipeline based on settings in yaml files...")
-    response = api.execute("socialtoolkit_pipeline", configs.input_data_point)
-    print(response)
+        print("Socialtoolkit loaded successfully")
+        print(f"Version: {api.version}")
+        print("Running pipeline based on settings in yaml files...")
+        response = api.execute("socialtoolkit_pipeline", configs.input_data_point)
+        print(response)
+    except Exception as e:
+        print(f"Error running socialtoolkit: {e}")
+        return 1
+    except KeyboardInterrupt:
+        print("Process interrupted by user.")
+        return 1
+    else:
+        print("Program completed successfully.")
+        return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

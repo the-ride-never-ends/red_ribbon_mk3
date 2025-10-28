@@ -5,8 +5,8 @@ import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 
-# from custom_nodes.red_ribbon.logger import get_logger
-# logger = get_logger(__name__)
+# from custom_nodes.red_ribbon.logger import make_logger
+# logger = make_logger(__name__)
 import logging
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class QKVProjectionNode:
     
     Inputs:
       - x: Input tensor of shape (B, T, C)
-      - number_of_attention_heads: Number of attention heads
+      - number_of_attn_heads: Number of attention heads
       - number_of_embeddings: Embedding dimension
     
     Outputs:
@@ -31,7 +31,7 @@ class QKVProjectionNode:
         return {
             "required": {
                 "x": ("TENSOR",),
-                "number_of_attention_heads": ("INT", {"default": 8, "min": 1, "max": 100}),
+                "number_of_attn_heads": ("INT", {"default": 8, "min": 1, "max": 100}),
                 "number_of_embeddings": ("INT", {"default": 512, "min": 16, "max": 8192}),
             }
         }
@@ -44,7 +44,7 @@ class QKVProjectionNode:
     def __init__(self):
         self.c_attn = None  # Will be initialized at runtime
     
-    def project(self, x: Tensor, number_of_attention_heads: int, number_of_embeddings: int
+    def project(self, x: Tensor, number_of_attn_heads: int, number_of_embeddings: int
                 ) -> tuple[Tensor, Tensor, Tensor]:
         B, T, C = x.size()
         
@@ -57,9 +57,9 @@ class QKVProjectionNode:
         q, k, v = qkv.split(number_of_embeddings, dim=2)
 
         # Reshape for multi-head attention
-        k = k.view(B, T, number_of_attention_heads, C // number_of_attention_heads).transpose(1, 2)  # (B, nh, T, hs)
-        q = q.view(B, T, number_of_attention_heads, C // number_of_attention_heads).transpose(1, 2)  # (B, nh, T, hs)
-        v = v.view(B, T, number_of_attention_heads, C // number_of_attention_heads).transpose(1, 2)  # (B, nh, T, hs)
+        k = k.view(B, T, number_of_attn_heads, C // number_of_attn_heads).transpose(1, 2)  # (B, nh, T, hs)
+        q = q.view(B, T, number_of_attn_heads, C // number_of_attn_heads).transpose(1, 2)  # (B, nh, T, hs)
+        v = v.view(B, T, number_of_attn_heads, C // number_of_attn_heads).transpose(1, 2)  # (B, nh, T, hs)
         
         return (q, k, v,)
 
@@ -74,7 +74,7 @@ class QKVProjectionNode:
 
 # def qkv_projection(
 #     x: Tensor, 
-#     number_of_attention_heads: int = NumberInput(default=8, min=1, max=1128, step=1), 
+#     number_of_attn_heads: int = NumberInput(default=8, min=1, max=1128, step=1), 
 #     number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16), 
 #     ) -> tuple[Tensor, Tensor, Tensor]:
 #     """
@@ -82,7 +82,7 @@ class QKVProjectionNode:
 
 #     Inputs:
 #       - x: Input tensor of shape (B, T, C)
-#       - number_of_attention_heads: Number of attention heads
+#       - number_of_attn_heads: Number of attention heads
 #       - number_of_embeddings: Embedding dimension
     
 #     Outputs:
@@ -102,9 +102,9 @@ class QKVProjectionNode:
 #     q, k, v = qkv.split(number_of_embeddings, dim=2)
 
 #     # Reshape for multi-head attention
-#     k = k.view(B, T, number_of_attention_heads, C // number_of_attention_heads).transpose(1, 2)  # (B, nh, T, hs)
-#     q = q.view(B, T, number_of_attention_heads, C // number_of_attention_heads).transpose(1, 2)  # (B, nh, T, hs)
-#     v = v.view(B, T, number_of_attention_heads, C // number_of_attention_heads).transpose(1, 2)  # (B, nh, T, hs)
+#     k = k.view(B, T, number_of_attn_heads, C // number_of_attn_heads).transpose(1, 2)  # (B, nh, T, hs)
+#     q = q.view(B, T, number_of_attn_heads, C // number_of_attn_heads).transpose(1, 2)  # (B, nh, T, hs)
+#     v = v.view(B, T, number_of_attn_heads, C // number_of_attn_heads).transpose(1, 2)  # (B, nh, T, hs)
     
 #     return q, k, v
 
@@ -328,7 +328,7 @@ class CausalSelfAttentionNode:
     
     Inputs:
       - x: Input tensor of shape (B, T, C)
-      - number_of_attention_heads: Number of attention heads
+      - number_of_attn_heads: Number of attention heads
       - number_of_embeddings: Embedding dimension 
       - block_size: Maximum sequence length
       - attn_dropout_rate: Attention dropout rate
@@ -343,7 +343,7 @@ class CausalSelfAttentionNode:
         return {
             "required": {
                 "x": ("TENSOR",),
-                "number_of_attention_heads": ("INT", {"default": 8, "min": 1, "max": 100}),
+                "number_of_attn_heads": ("INT", {"default": 8, "min": 1, "max": 100}),
                 "number_of_embeddings": ("INT", {"default": 512, "min": 16, "max": 8192}),
                 "block_size": ("INT", {"default": 1024, "min": 1, "max": 8192}),
                 "attn_dropout_rate": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 0.9, "step": 0.05}),
@@ -365,21 +365,22 @@ class CausalSelfAttentionNode:
         # AKA Forward
     def calculate_attention(self, 
                             x, 
-                            number_of_attention_heads, 
+                            number_of_attn_heads, 
                             number_of_embeddings, 
                             block_size, 
                             attn_dropout_rate, 
                             residual_dropout_rate
                         ):
         # Apply each component in sequence
-        q, k, v = self.qkv_node.project(x, number_of_attention_heads, number_of_embeddings)
+        q, k, v = self.qkv_node.project(x, number_of_attn_heads, number_of_embeddings)
         attention, = self.att_matrix_node.calculate_attention(q, k, block_size, attn_dropout_rate)
         y, = self.apply_att_node.apply_attention(attention, v, number_of_embeddings)
         output, = self.output_node.project_output(y, number_of_embeddings, residual_dropout_rate)
-        
+
         return (output,)
 
-    def forward(self, x, number_of_attention_heads, number_of_embeddings, block_size, attn_dropout_rate, residual_dropout_rate):
+    def forward(self, x, number_of_attn_heads, number_of_embeddings, block_size, attn_dropout_rate, residual_dropout_rate):
         # Alias for calculate_attention
-        return self.calculate_attention(x, number_of_attention_heads, number_of_embeddings, block_size, attn_dropout_rate, residual_dropout_rate)
+        args = (x, number_of_attn_heads, number_of_embeddings, block_size, attn_dropout_rate, residual_dropout_rate)
+        return self.calculate_attention(*args)
 

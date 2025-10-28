@@ -8,13 +8,13 @@ import logging
 
 
 
-from ...configs import Configs
+from ..configs._configs import Configs
 from ._caching_service import CachingService
 from ._model_provider import ModelProvider
 from ._prompt_generator import PromptGenerator
 from ._response_parser import ResponseParser
 from ._token_counter import TokenCounter
-from ...logger import get_logger
+from ..logger import make_logger
 
 
 # Augmentoolkit LLM tools

@@ -134,7 +134,7 @@ class DocumentStorage:
         Returns:
             Dictionary with storage status
         """
-        return self.control_flow("store", documents=documents, metadata=metadata, vectors=vectors)
+        return self.run("store", documents=documents, metadata=metadata, vectors=vectors)
 
     def get_documents_and_vectors(self, doc_ids: list[str] = None, 
                                  filters: Dict[str, Any] = None) -> Tuple[list[Any], list[Any]]:
@@ -148,12 +148,12 @@ class DocumentStorage:
         Returns:
             Tuple of (documents, vectors)
         """
-        result = self.control_flow(
+        result = self.run(
             "retrieve", doc_ids=doc_ids, filters=filters
         )
         documents = result.get("documents", [])
         
-        vectors_result = self.control_flow(
+        vectors_result = self.run(
             "get_vectors", doc_ids=[doc.get("id") for doc in documents]
         )
         vectors = vectors_result.get("vectors", [])

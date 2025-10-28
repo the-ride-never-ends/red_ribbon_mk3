@@ -3,15 +3,16 @@ Configs module - Configuration constants loaded from YAML files.
 """
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Self
+from typing import Any, Optional
 
 
 from pydantic import BaseModel, DirectoryPath, Field, FilePath
 import yaml
 
 
-from .utils_.common.get_value_from_base_model import get_value_from_base_model
-from .utils_.common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
+from ..common.get_value_from_base_model import get_value_from_base_model
+from ..common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
+import custom_nodes.red_ribbon.__version__ as __version__
 
 
 class DatabaseConfigs(BaseModel):
@@ -20,14 +21,15 @@ class DatabaseConfigs(BaseModel):
 
 class Paths(BaseModel):
     THIS_FILE:         DirectoryPath = Path(__file__).resolve()
-    THIS_DIR:    DirectoryPath = THIS_FILE.parent
+    THIS_DIR:          DirectoryPath = THIS_FILE.parent
+    VERSION_DIR:       DirectoryPath = Path(__version__.__file__).parent
     CUSTOM_NODES_DIR:  DirectoryPath = THIS_DIR.parent
     COMFYUI_DIR:       DirectoryPath = CUSTOM_NODES_DIR.parent
     LLM_OUTPUTS_DIR:   DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
     LLM_MODELS_DIR:    DirectoryPath = COMFYUI_DIR / "models" / "llm_models"
-    SOCIALTOOLKIT_DIR: DirectoryPath = THIS_DIR / "socialtoolkit"
-    DATABASE_DIR:      DirectoryPath = THIS_DIR / "database"
-    DB_PATH:           FilePath = THIS_DIR / "red_ribbon.db"
+    SOCIALTOOLKIT_DIR: DirectoryPath = VERSION_DIR / "socialtoolkit"
+    DATABASE_DIR:      DirectoryPath = VERSION_DIR / "database"
+    DB_PATH:           FilePath = VERSION_DIR / "red_ribbon.db"
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)

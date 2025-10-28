@@ -13,7 +13,7 @@ from ._pipeline_step import PipelineStep
 
 
 from .clients.openai import OpenAiApi
-from ...configs import configs
+from ..configs._configs import configs
 
 
 def make_llm(client_name: str = "openai") -> LLM:

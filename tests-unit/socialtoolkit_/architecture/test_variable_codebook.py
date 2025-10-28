@@ -64,7 +64,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         Scenario: Control flow with "get_variable" action
           Given action parameter is "get_variable"
           And variable_name is "sales_tax_city"
-          When I call control_flow with the action
+          When I call run with the action
           Then the variable is retrieved
         """
 
@@ -72,7 +72,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -82,7 +82,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         Scenario: Control flow with "get_variable" action
           Given action parameter is "get_variable"
           And variable_name is "sales_tax_city"
-          When I call control_flow with the action
+          When I call run with the action
           Then a dictionary with the variable is returned
         """
 
@@ -90,7 +90,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -101,7 +101,7 @@ class TestControlFlowMethodAcceptsActionParameter:
           Given action parameter is "get_prompt_sequence"
           And variable_name is "sales_tax_city"
           And input_data_point is "What is the sales tax rate?"
-          When I call control_flow with the action
+          When I call run with the action
           Then the prompt sequence is retrieved
         """
 
@@ -109,7 +109,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -120,7 +120,7 @@ class TestControlFlowMethodAcceptsActionParameter:
           Given action parameter is "get_prompt_sequence"
           And variable_name is "sales_tax_city"
           And input_data_point is "What is the sales tax rate?"
-          When I call control_flow with the action
+          When I call run with the action
           Then a list of prompts is returned
         """
 
@@ -128,7 +128,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -138,7 +138,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         Scenario: Control flow with "get_assumptions" action
           Given action parameter is "get_assumptions"
           And variable_name is "property_tax"
-          When I call control_flow with the action
+          When I call run with the action
           Then assumptions for the variable are retrieved
         """
 
@@ -146,7 +146,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -156,7 +156,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         Scenario: Control flow with "add_variable" action
           Given action parameter is "add_variable"
           And a new Variable object
-          When I call control_flow with the action
+          When I call run with the action
           Then the variable is added to the codebook
         """
 
@@ -164,7 +164,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -174,7 +174,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         Scenario: Control flow with "add_variable" action
           Given action parameter is "add_variable"
           And a new Variable object
-          When I call control_flow with the action
+          When I call run with the action
           Then success status is returned
         """
 
@@ -182,7 +182,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -193,7 +193,7 @@ class TestControlFlowMethodAcceptsActionParameter:
           Given action parameter is "update_variable"
           And variable_name is "income_tax"
           And an updated Variable object
-          When I call control_flow with the action
+          When I call run with the action
           Then the variable is updated in the codebook
         """
 
@@ -201,7 +201,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -212,7 +212,7 @@ class TestControlFlowMethodAcceptsActionParameter:
           Given action parameter is "update_variable"
           And variable_name is "income_tax"
           And an updated Variable object
-          When I call control_flow with the action
+          When I call run with the action
           Then success status is returned
         """
 
@@ -220,7 +220,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -233,7 +233,7 @@ class TestControlFlowValidatesActionParameter:
         """
         Scenario: Control flow rejects unknown action
           Given action parameter is "unknown_action"
-          When I call control_flow with the invalid action
+          When I call run with the invalid action
           Then a ValueError is raised
         """
 
@@ -241,7 +241,7 @@ class TestControlFlowValidatesActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -250,7 +250,7 @@ class TestControlFlowValidatesActionParameter:
         """
         Scenario: Control flow rejects unknown action
           Given action parameter is "unknown_action"
-          When I call control_flow with the invalid action
+          When I call run with the invalid action
           Then the error message indicates "Unknown action"
         """
 
@@ -258,7 +258,7 @@ class TestControlFlowValidatesActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -280,7 +280,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -297,7 +297,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -314,7 +314,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -331,7 +331,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -348,7 +348,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -365,7 +365,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -387,7 +387,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -404,7 +404,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -421,7 +421,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -438,7 +438,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -455,7 +455,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -472,7 +472,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -489,7 +489,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -506,7 +506,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -528,7 +528,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -545,7 +545,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -562,7 +562,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -579,7 +579,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -596,7 +596,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -613,7 +613,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -630,7 +630,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -647,7 +647,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -670,7 +670,7 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -688,7 +688,7 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -705,7 +705,7 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -722,7 +722,7 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -744,7 +744,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -761,7 +761,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -778,7 +778,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -795,7 +795,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -813,7 +813,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -836,7 +836,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -854,7 +854,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -872,7 +872,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -890,7 +890,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -908,7 +908,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -931,7 +931,7 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -949,7 +949,7 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -967,7 +967,7 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -985,7 +985,7 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1003,7 +1003,7 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1026,7 +1026,7 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1044,7 +1044,7 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1061,7 +1061,7 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1078,7 +1078,7 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1101,7 +1101,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1119,7 +1119,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1136,7 +1136,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1154,7 +1154,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1171,7 +1171,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1188,7 +1188,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1211,7 +1211,7 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1229,7 +1229,7 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1247,7 +1247,7 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1265,7 +1265,7 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1287,7 +1287,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1304,7 +1304,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1321,7 +1321,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1338,7 +1338,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1356,7 +1356,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1374,7 +1374,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1396,7 +1396,7 @@ class TestKeywordMatchingMapsInputtoVariables:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1410,7 +1410,7 @@ class TestCodebookOperationsAreLogged:
         """
         Scenario: Control flow logs operation start
           Given any action is executed
-          When control_flow is called
+          When run is called
           Then a log message indicates "Starting variable codebook operation: <action>"
         """
 
@@ -1418,7 +1418,7 @@ class TestCodebookOperationsAreLogged:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1435,7 +1435,7 @@ class TestCodebookOperationsAreLogged:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1452,7 +1452,7 @@ class TestCodebookOperationsAreLogged:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.control_flow(action, variable_name="sales_tax_rate")
+        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)

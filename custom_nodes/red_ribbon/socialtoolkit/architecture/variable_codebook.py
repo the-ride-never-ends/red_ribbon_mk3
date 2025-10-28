@@ -5,11 +5,17 @@ from pathlib import Path
 from typing import Any, Callable, Never, Optional
 
 
+from collections import OrderedDict
+
+
 from pydantic import BaseModel, Field
 
 
 from typing import Annotated
 from pydantic import BaseModel, PlainSerializer, PlainValidator
+
+
+
 
 # Define serializer/deserializer functions
 def serialize_digraph(graph: nx.DiGraph) -> dict:
@@ -32,11 +38,11 @@ def validate_digraph(v: Any) -> nx.DiGraph:
     raise ValueError("Must be a NetworkX DiGraph or serialized graph dict")
 
 # Create an annotated type
-DiGraph = Annotated[
-    nx.DiGraph,
-    PlainSerializer(serialize_digraph),
-    PlainValidator(validate_digraph)
-]
+# DiGraph = Annotated[
+#     nx.DiGraph,
+#     PlainSerializer(serialize_digraph),
+#     PlainValidator(validate_digraph)
+# ]
 
 class BusinessOwnerAssumptions(BaseModel):
     """Assumptions about the business owner"""
@@ -73,21 +79,81 @@ class Assumptions(BaseModel):
     other: Optional[OtherAssumptions] = None
 
 
+
+
+
 class PromptDecisionTreeNode(BaseModel):
     """Node in the prompt decision tree"""
+    name: str 
     prompt: str
-    depends_on: Optional[list[str]] = None
-    next_prompts: Optional[dict[str, str]] = None
+
+    @property
+    def args(self):
+        return (self.name,)
+
+    @property
+    def kwargs(self):
+        return {"prompt": self.prompt}
+
+
+class PromptDecisionTreeEdge(BaseModel):
+    """Edge in the prompt decision tree"""
+    prev_node: str
+    to_node: str
+    condition: Optional[Callable] = None
+
+    @property
+    def args(self):
+        return (self.prev_node, self.to_node)
+
+    @property
+    def kwargs(self):
+        return {"condition": self.condition}
+
+
+
+
+class PromptDecisionTree(BaseModel):
+    """Prompt decision tree structure"""
+    nodes: list[PromptDecisionTreeNode] = Field(default_factory=list)
+    edges: list[PromptDecisionTreeEdge] = Field(default_factory=list)
+
+    _tree = {}
+    _graph = None
+
+    def __init__(self, **data: Any):
+        for key in {'nodes', 'edges'}:
+            if key not in data:
+                raise ValueError(f"PromptDecisionTree requires '{key}' field")
+        nodes = data.pop('nodes', [])
+        edges = data.pop('edges', [])
+
+        super().__init__(nodes=nodes,edges=edges)
+        try:
+            self._graph = nx.DiGraph(**data)
+        except Exception as e:
+            raise ValueError(f"Error initializing DiGraph: {e}") from e
+
+        # prev_node = None
+        # prev_edge = None
+        # for node in self.nodes:
+
+
+
+        #     if prev_node 
+        #     self.graph.add_node(node.name, prompt=node.prompt)
+        # for edge in self.edges:
+        #     self.graph.add_edge(edge.from_node, edge.to_node, condition=edge.condition)
 
 
 class Variable(BaseModel):
     """Variable definition in the codebook"""
-    label: str
-    item_name: str
-    description: str
-    units: str
-    assumptions: Optional[Assumptions] = None
-    prompt_decision_tree: Optional[DiGraph] = None
+    label: str = Field(..., description="Human-readable label for the variable", examples=["Sales Tax - City"])
+    item_name: str = Field(..., description="Internal name for the variable", examples=["sales_tax_city"])
+    description: str = Field(..., description="Detailed description of the variable", examples=["A tax levied on the sales of all goods and services by the municipal government."])
+    units: str = Field(..., description="Units of measurement for the variable", examples=["Double (Percent)"])
+    assumptions: Optional[Assumptions] = Field(None, description="Assumptions associated with the variable")
+    prompt_decision_tree: Optional[PromptDecisionTree] = Field(None, description="Prompt decision tree for extracting the variable")
 
 
 class CodeBook(BaseModel):
@@ -103,7 +169,51 @@ class VariableCodebookConfigs(BaseModel):
     default_assumptions_enabled: bool = True
 
 
-
+def _build_sales_tax_city_variable() -> Variable:
+    """Helper to build the sales tax city variable"""
+    return Variable(
+        label="Sales Tax - City",
+        item_name="sales_tax_city",
+        description="A tax levied on the sales of all goods and services by the municipal government.",
+        units="Double (Percent)",
+        assumptions=Assumptions(
+            business_owner=BusinessOwnerAssumptions(),
+            business=BusinessAssumptions(),
+            taxes=TaxesAssumptions(),
+            other=OtherAssumptions(
+                other_assumptions=["Assume the business has no special tax exemptions."]
+            )
+        ),
+        prompt_decision_tree=PromptDecisionTree(
+            nodes=[
+                PromptDecisionTreeNode(
+                    name="init",
+                    prompt="Does the text ."
+                ),
+                PromptDecisionTreeEdge(
+                    prev_node="init",
+                    to_node="node1",
+                    condition=None
+                ),
+                PromptDecisionTreeNode(
+                    name="node1",
+                    prompt="List the name of the tax as given in the document verbatim, as well as its line item."
+                ),
+                PromptDecisionTreeNode(
+                    name="node2",
+                    prompt="List the formal definition of the tax verbatim, as well as its line item."
+                ),
+                PromptDecisionTreeNode(
+                    name="node3",
+                    prompt="Does this statute apply to all goods or services, or only to specific ones?"
+                ),
+                PromptDecisionTreeNode(
+                    name="node4",
+                    prompt="What is the exact percentage rate of the tax?"
+                )
+            ],
+        )
+    )
 
 
 class VariableCodebook:
@@ -150,7 +260,10 @@ class VariableCodebook:
         self.logger.error(msg)
         raise exc(msg)
 
-    def control_flow(self, action: str, **kwargs) -> dict[str, Any]:
+    def execute():
+        pass
+
+    def run(self, action: str, **kwargs) -> dict[str, Any]:
         """
         Execute variable codebook operations based on the action
         
@@ -200,7 +313,7 @@ class VariableCodebook:
         variable_name = self._extract_variable_from_input(input_data_point)
         
         # Get prompt sequence for the variable
-        result = self.control_flow(
+        result = self.run(
             "get_prompt_sequence",
             variable_name=variable_name,
             input_data_point=input_data_point
