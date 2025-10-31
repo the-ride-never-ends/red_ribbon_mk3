@@ -20,14 +20,8 @@ def make_variable_codebook(
     configs: SocialtoolkitConfigs = lambda: SocialtoolkitConfigs(),
 ) -> VariableCodebook:
     """Factory function to create VariableCodebook instance"""
-    _resources = {   
-        "llm": resources.get("llm"),
-        "db": resources.get("db"),
-        "logger": resources.get("logger", make_logger("variable_codebook")),
-    }
-
     try:
-        return VariableCodebook(resources=_resources, configs=configs)
+        return VariableCodebook(resources=resources, configs=configs)
     except Exception as e:
         raise InitializationError(f"Failed to initialize VariableCodebook: {e}") from e
 

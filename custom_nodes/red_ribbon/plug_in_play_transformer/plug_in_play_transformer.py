@@ -13,15 +13,21 @@ import torch
 from torch import Tensor, nn
 from torch.nn import Dropout
 
-from easy_nodes.easy_nodes import AnythingVerifier
-from easy_nodes import (
-    NumberInput,
+from .._easy_nodes.easy_nodes import (
+    AnythingVerifier,
     ComfyNode,
+    NumberInput,
     StringInput,
-    Choice,
-    register_type,
+    Choice
 )
-from easy_nodes.comfy_types import ImageTensor, LatentTensor
+from .._easy_nodes.comfy_types import (
+    register_type,
+    ImageTensor,
+    LatentTensor
+)
+
+
+
 
 # Piece-wise Attention
 from .attention import (

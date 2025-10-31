@@ -17,9 +17,9 @@ import logging
 
 from custom_nodes.red_ribbon.socialtoolkit.architecture.prompt_decision_tree import (
     PromptDecisionTree, 
-    PromptDecisionTreeConfigs,
-    NgramValidator
+    PromptDecisionTreeConfigs
 )
+
 from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import VariableCodebook
 from .conftest import FixtureError
 
@@ -196,7 +196,8 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         assert isinstance(result, dict), f"Expected dict but got {type(result)}"
 
     @pytest.mark.parametrize("key", ['success', 'output_data_point', 'responses', 'iterations'])
-    def test_when_control_flow_called_then_response_contains_required_keys(self, prompt_decision_tree, documents, response_keys, key):
+    def test_when_control_flow_called_then_response_contains_required_keys(
+        self, prompt_decision_tree, documents, response_keys, key, prompt_sequencess):
         """
         GIVEN 5 relevant pages
         WHEN I call run with pages and prompts
@@ -208,7 +209,8 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         
         assert response_keys[key] in result, f"Expected '{response_keys[key]}' key in {result.keys()}"
 
-    def test_when_control_flow_executes_successfully_then_success_is_true(self, prompt_decision_tree, documents, response_keys):
+    def test_when_control_flow_executes_successfully_then_success_is_true(
+            self, prompt_decision_tree, documents, response_keys, prompt_sequences):
         """
         GIVEN valid inputs for control flow
         WHEN control flow executes successfully
@@ -220,7 +222,8 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
 
         assert result[response_keys['success']] is True, f"Expected success=True but got {result[response_keys['success']]}"
 
-    def test_when_control_flow_executes_successfully_then_output_data_point_is_nonempty(self, prompt_decision_tree, documents, response_keys):
+    def test_when_control_flow_executes_successfully_then_output_data_point_is_nonempty(
+            self, prompt_decision_tree, documents, response_keys, prompt_sequences):
         """
         GIVEN valid inputs for control flow
         WHEN control flow executes successfully
@@ -244,28 +247,28 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         
         assert response_keys['error'] not in result, f"Expected no error key but found {result.get(response_keys['error'])}"
 
-    def test_when_control_flow_encounters_error_then_success_is_false(self, prompt_decision_tree, documents, response_keys):
+    def test_when_control_flow_encounters_error_then_success_is_false(
+            self, prompt_decision_tree, documents, response_keys, prompt_sequences):
         """
         GIVEN inputs that cause execution to fail
         WHEN control flow encounters an error
         THEN the success field is False
         """
         prompt_decision_tree.resources['llm'].generate.side_effect = Exception("API Error")
-        prompt_sequence = ["Extract information"]
-        
+
         result = prompt_decision_tree.run(documents['single'], prompt_sequences['command'])
         
         assert result[response_keys['success']] is False, f"Expected success=False but got {result[response_keys['success']]}"
 
-    def test_when_control_flow_encounters_error_then_error_key_contains_description(self, prompt_decision_tree, documents, response_keys):
+    def test_when_control_flow_encounters_error_then_error_key_contains_description(
+            self, prompt_decision_tree, documents, response_keys, prompt_sequences):
         """
         GIVEN inputs that cause execution to fail
         WHEN control flow encounters an error
         THEN error key contains error description
         """
         prompt_decision_tree.resources['llm'].generate.side_effect = Exception("LLM API timeout")
-        prompt_sequence = ["Process data"]
-        
+
         result = prompt_decision_tree.run(documents['single'], prompt_sequences['command'])
         
         assert len(result.get(response_keys['error'], "")) > 0, f"Expected error description but got {result.get(response_keys['error'])}"
@@ -277,8 +280,7 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         THEN output_data_point is empty string
         """
         prompt_decision_tree.resources['llm'].generate.side_effect = Exception("Extraction failed")
-        prompt_sequence = ["Extract value"]
-        
+
         result = prompt_decision_tree.run(documents['single'], prompt_sequences['command'])
         
         assert result[response_keys['output_data_point']] == '', f"Expected empty string but got '{result[response_keys['output_data_point']]}'"
@@ -287,7 +289,7 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
 class TestPagesAreConcatenatedUptomaxpagestoconcatenate:
     """Tests for PromptDecisionTree page concatenation logic."""
 
-    def test_when_page_count_below_maximum_then_all_pages_included(self, prompt_decision_tree, test_values):
+    def test_when_page_count_below_maximum_then_all_pages_included(self, prompt_decision_tree, test_values, prompt_sequences):
         """
         GIVEN max_pages_to_concatenate is configured as 10
         And 5 relevant pages are provided

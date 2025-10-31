@@ -1,9 +1,9 @@
 """
 Configs module - Configuration constants loaded from YAML files.
 """
-import os
 from pathlib import Path
 from typing import Any, Optional
+
 
 
 from pydantic import BaseModel, DirectoryPath, Field, FilePath
@@ -12,7 +12,7 @@ import yaml
 
 from ..common.get_value_from_base_model import get_value_from_base_model
 from ..common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
-import custom_nodes.red_ribbon.__version__ as __version__
+import custom_nodes.red_ribbon.main as main_module
 
 
 class DatabaseConfigs(BaseModel):
@@ -22,7 +22,7 @@ class DatabaseConfigs(BaseModel):
 class Paths(BaseModel):
     THIS_FILE:         DirectoryPath = Path(__file__).resolve()
     THIS_DIR:          DirectoryPath = THIS_FILE.parent
-    VERSION_DIR:       DirectoryPath = Path(__version__.__file__).parent
+    VERSION_DIR:       DirectoryPath = Path(main_module.__file__).parent
     CUSTOM_NODES_DIR:  DirectoryPath = THIS_DIR.parent
     COMFYUI_DIR:       DirectoryPath = CUSTOM_NODES_DIR.parent
     LLM_OUTPUTS_DIR:   DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
@@ -37,7 +37,7 @@ class Paths(BaseModel):
     def get(self, key: str, default: Any = None) -> Optional[Any]:
         return get_value_with_default_from_base_model(self, key, default)
 
-    class Config:
+    class ConfigDict:
         frozen = True  # Make the model immutable (read-only)
 
 

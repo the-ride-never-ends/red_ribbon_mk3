@@ -30,6 +30,7 @@ class PhotoMaker:
 class NumberType:
     pass
 
+
 type_list: list[tuple[Type, str, TypeVerifier]] = [
     # ComfyUI will get the special string that AnyType is registered with, which is hardcoded to match anything.
     (AnyType,            "ANY",          Any),
@@ -60,9 +61,23 @@ for cls, name, verifier in type_list:
             args = (arg for arg in verifier if not isinstance(arg, dict))
             kwargs = kwargs in verifier if isinstance(verifier, dict) else {}
             verifier = TensorVerifier(*verifier, **kwargs)
-        case Any():
+        case _:
             verifier = AnythingVerifier()
     try:
         register_type(cls, name, verifier=verifier)
     except Exception as e:
         print(f"Failed to register type {cls.__name__} as {name}: {e}")
+
+
+# Define __all__ for easy imports
+__all__ = [
+    "ImageTensor",
+    "MaskTensor",
+    "LatentTensor",
+    "ConditioningTensor",
+    "ModelTensor",
+    "SigmasTensor",
+    "PhotoMaker",
+    "NumberType",
+    "NumberInput"
+]

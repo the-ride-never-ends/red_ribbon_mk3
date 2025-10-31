@@ -7,8 +7,9 @@ from typing import Any, Optional, TypeVar
 from pydantic import BaseModel
 
 
-from easy_nodes import register_type
-from easy_nodes.easy_nodes import AnythingVerifier
+from custom_nodes.red_ribbon._easy_nodes import register_type
+from custom_nodes.red_ribbon._easy_nodes.easy_nodes import AnythingVerifier
+
 
 Class = TypeVar('Class')
 

@@ -28,7 +28,7 @@ class DocumentRetrievalFromWebsites:
     based on mermaid chart in README.md
     """
     
-    def __init__(self, resources: Dict[str, Any] = None, configs: DocumentRetrievalConfigs = None):
+    def __init__(self, *, resources: Dict[str, Any] = None, configs: DocumentRetrievalConfigs = None):
         """
         Initialize with injected dependencies and configuration
         

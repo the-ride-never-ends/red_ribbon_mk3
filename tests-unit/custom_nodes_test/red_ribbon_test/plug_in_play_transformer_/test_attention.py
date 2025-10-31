@@ -1,6 +1,8 @@
 import torch
 import unittest
-from ..attention import (
+
+from custom_nodes.red_ribbon.plug_in_play_transformer.attention import (
+    CausalSelfAttentionNode,
     QKVProjectionNode, 
     CalculateCausalAttentionMatrixNode, 
     ApplyAttentionNode, 
@@ -92,9 +94,7 @@ class TestTransformerNodes(unittest.TestCase):
                 self.block_size = self.block_size
                 self.attn_pdrop = self.dropout_rate
                 self.resid_pdrop = self.dropout_rate
-                
-        from ..attention import CausalSelfAttentionNode
-        
+
         config = MockConfig()
         original_model = CausalSelfAttentionNode(config)
         original_output = original_model(self.x)

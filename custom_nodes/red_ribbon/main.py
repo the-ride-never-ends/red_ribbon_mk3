@@ -43,7 +43,8 @@ class RedRibbonError(Exception):
 try:
     import torch
     import comfy
-    from torch import Tensor
+    from torch import Tensor, nn
+    import comfy.utils
 except ImportError as e:
     msg = "Critical import not found. Please install Comfy to use this package."
     raise RedRibbonError(msg) from e
@@ -55,7 +56,7 @@ except ImportError as e:
 #     print(f"Failed to set OpenAI API key. Please set it manually: {e}")
 #     sys.exit(1)
 
-from easy_nodes import (
+from ._easy_nodes import (
     NumberInput,
     ComfyNode,
     StringInput,
@@ -63,8 +64,9 @@ from easy_nodes import (
     show_text,
     register_type,
 )
-from torch import nn
-from easy_nodes.easy_nodes import AnythingVerifier, _curr_preview as easy_nodes_curr_preview
+from ._easy_nodes.easy_nodes import AnythingVerifier, _curr_preview as easy_nodes_curr_preview
+
+
 from networkx import DiGraph # NOTE We do this so that we can register the nx.DiGraph type in ComfyUI
 from pydantic import BaseModel, Field
 import openai
@@ -72,7 +74,7 @@ from tqdm import tqdm
 
 # Import components from subdirectories
 # Modules
-import comfy.utils
+
 from .socialtoolkit.socialtoolkit import SocialToolkitAPI, SocialToolKitResources
 from .red_ribbon_core.red_ribbon import RedRibbonAPI
 from .plug_in_play_transformer.plug_in_play_transformer import TransformerAPI

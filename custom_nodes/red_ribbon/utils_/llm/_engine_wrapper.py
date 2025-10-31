@@ -127,7 +127,7 @@ class EngineWrapper:
                     print("\n\n------------CAUGHT EXCEPTION DURING GENERATION")
                     print(e)
                     timed_out = True
-                    print("\n\n-----/\------")
+                    print("\n\n----- HERE ------")
 
             return completion, timed_out
 

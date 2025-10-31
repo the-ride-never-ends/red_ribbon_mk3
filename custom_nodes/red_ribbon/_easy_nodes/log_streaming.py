@@ -13,10 +13,13 @@ from ansi2html import Ansi2HTMLConverter
 from colorama import Fore
 from server import PromptServer
 
-import easy_nodes.config_service as config_service
+from .config_service import get_config_value
 
-routes = PromptServer.instance.routes
-
+try:
+    routes = PromptServer.instance.routes
+except AttributeError:
+    from unittest.mock import MagicMock
+    routes = MagicMock()
 
 class CloseableBufferWrapper:
     def __init__(self, buffer: io.StringIO):
@@ -150,8 +153,8 @@ _converter = Ansi2HTMLConverter(inline=True)
 def convert_text(text: str):
     # Convert ANSI codes to HTML
     converted = _converter.convert(text, full=False, ensure_trailing_newline=False)
-    editor_prefix = config_service.get_config_value("easy_nodes.EditorPathPrefix", "")
-    source_prefix = config_service.get_config_value("easy_nodes.SourcePathPrefix")
+    editor_prefix = get_config_value("easy_nodes.EditorPathPrefix", "")
+    source_prefix = get_config_value("easy_nodes.SourcePathPrefix")
 
     def replace_with_link(match):
         full_path = match.group(1)

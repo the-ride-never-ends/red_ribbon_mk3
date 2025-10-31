@@ -9,7 +9,7 @@ import uuid
 
 
 from ..common.write_output_to_file import write_output_to_file
-from ._enginer_wrapper import EngineWrapper
+from ._engine_wrapper import EngineWrapper
 from ._generation_step import GenerationStep
 
 

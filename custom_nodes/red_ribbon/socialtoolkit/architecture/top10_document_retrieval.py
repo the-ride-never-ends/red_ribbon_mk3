@@ -12,7 +12,7 @@ from ..resources.top10_document_retrieval._dot_product import dot_product
 from ..resources.top10_document_retrieval._euclidean_distance import euclidean_distance
 
 
-from custom_nodes.red_ribbon.database import make_duckdb_database
+from custom_nodes.red_ribbon.utils_ import make_duckdb_database
 
 from enum import StrEnum
 

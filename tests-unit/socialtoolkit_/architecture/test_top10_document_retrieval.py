@@ -18,7 +18,7 @@ from custom_nodes.red_ribbon.socialtoolkit.architecture.top10_document_retrieval
     Top10DocumentRetrieval,
     make_top10_document_retrieval,
 )
-from custom_nodes.red_ribbon.database import DatabaseAPI
+from custom_nodes.red_ribbon.utils_ import DatabaseAPI
 
 
 @pytest.fixture
@@ -491,7 +491,7 @@ class TestExecuteHandlesDocumentandVectorParameters:
         assert isinstance(relevant_docs, list), f"Expected list but got {type(relevant_docs).__name__}"
 
     def test_when_execute_is_called_with_documents_parameter_is_none_then_returns_dict(
-        self, top10_retrieval, constants):
+        self, num_docs, top10_retrieval, constants):
         """
         GIVEN documents parameter is None
         WHEN execute is called with only the query
@@ -501,7 +501,7 @@ class TestExecuteHandlesDocumentandVectorParameters:
         assert isinstance(result, dict), f"Expected dict but got {type(result)}"
 
     def test_when_execute_is_called_with_documents_parameter_is_none_then_contains_relevant_documents_key(
-        self, top10_retrieval, constants):
+        self, num_docs, top10_retrieval, constants):
         """
         GIVEN documents parameter is None
         WHEN execute is called with only the query

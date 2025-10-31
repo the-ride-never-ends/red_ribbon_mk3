@@ -14,12 +14,12 @@ from ._model_provider import ModelProvider
 from ._prompt_generator import PromptGenerator
 from ._response_parser import ResponseParser
 from ._token_counter import TokenCounter
-from ..logger import make_logger
+from ..logger._logger import make_logger
 
 
 # Augmentoolkit LLM tools
 from ._generation_step import GenerationStep
-from ._enginer_wrapper import EngineWrapper
+from ._engine_wrapper import EngineWrapper
 from ._pipeline_step import PipelineStep
 
 

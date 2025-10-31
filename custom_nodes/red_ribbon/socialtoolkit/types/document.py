@@ -22,11 +22,7 @@ def _check_gnis(value: Any) -> int:
     except Exception as e:
         raise ValueError(f"GNIS must be convertible to an integer, got value: {value}") from e
 
-GNIS = Ann[
-    PositiveInt,
-    BV(_check_gnis),
-    PlainSerializer(return_type=int),
-]
+GNIS = Ann[PositiveInt, BV(_check_gnis)]
 
 def _check_cid(value: Any) -> str:
 

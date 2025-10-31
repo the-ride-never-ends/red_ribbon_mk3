@@ -14,25 +14,20 @@ import sys
 from typing import Any, Optional, TypeVar
 
 
-# Piece-wise Pipeline
-from .architecture.document_retrieval_from_websites import DocumentRetrievalFromWebsites
-from .architecture.document_storage import DocumentStorage
-from .architecture.top10_document_retrieval import Top10DocumentRetrieval
-from .architecture.relevance_assessment import RelevanceAssessment
-from .architecture.variable_codebook import VariableCodebook
-from .architecture.prompt_decision_tree import PromptDecisionTree
+
 
 
 # Integrated Pipeline
 from .architecture.socialtoolkit_pipeline import SocialtoolkitPipeline
+from ..utils_ import (
+    Configs,
+    LLM,
+    DatabaseAPI,
+    make_logger,
+    Node,
+    instantiate,
+)
 
-
-from ..utils_.configs._configs import Configs
-from ..utils_.llm._llm import LLM
-from ..database import DatabaseAPI
-from ..logger import make_logger
-from ..utils_.nodes_.node_types import Node
-from ..utils_.main_.instantiate import instantiate
 
 
 Class = TypeVar('Class')
@@ -203,6 +198,14 @@ class SocialToolKitResources:
     resources: dict[str, ClassInstance] = field(default_factory=dict)
 
     def __post_init__(self, _configs):
+        # Piece-wise Pipeline
+        from .architecture.document_retrieval_from_websites import DocumentRetrievalFromWebsites
+        from .architecture.document_storage import DocumentStorage
+        from .architecture.top10_document_retrieval import Top10DocumentRetrieval
+        from .architecture.relevance_assessment import RelevanceAssessment
+        from .architecture.variable_codebook import VariableCodebook
+        from .architecture.prompt_decision_tree import PromptDecisionTree
+
         self.resources = instantiate({
             "document_retrieval_from_websites": DocumentRetrievalFromWebsites,
             "document_storage": DocumentStorage,

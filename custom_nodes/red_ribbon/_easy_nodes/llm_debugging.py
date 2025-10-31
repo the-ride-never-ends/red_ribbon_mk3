@@ -12,7 +12,8 @@ import traceback
 from colorama import Fore, Style
 from openai import OpenAI
 
-import easy_nodes.config_service as config_service
+
+from .config_service import get_config_value
 
 
 def create_openai_client() -> OpenAI:
@@ -170,7 +171,7 @@ def replace_source_with_updates(entry_code: str, original_source: dict[str, list
     logging.info(f"Patch file created: {patch_file}")
     print_patch_with_color(patch_file)
 
-    if config_service.get_config_value("easy_nodes.llm_debugging", "Off") == "AutoFix":
+    if get_config_value("easy_nodes.llm_debugging", "Off") == "AutoFix":
         logging.info("Applying the patch to the original file...")
         # Apply the patch to a copy of the original file to test changes
         _, patched_file = tempfile.mkstemp()
@@ -206,7 +207,7 @@ def process_exception_logic(func, exception, input_desc, buffer):
     
     openai_client = create_openai_client()
     
-    model_name = config_service.get_config_value("easy_nodes.llm_model", "gpt-4o")
+    model_name = get_config_value("easy_nodes.llm_model", "gpt-4o")
     
     # Send the prompt to OpenAI and get the response
     # Assuming send_prompt_to_openai returns a structured response with the modified function code

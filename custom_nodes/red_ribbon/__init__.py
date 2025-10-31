@@ -1,7 +1,11 @@
 """
 Red Ribbon - A collection of custom nodes for ComfyUI
 """
-import easy_nodes
+try:
+    import easy_nodes
+except AttributeError:
+    from ._easy_nodes import easy_nodes
+
 import os
 from .__version__ import __version__
 

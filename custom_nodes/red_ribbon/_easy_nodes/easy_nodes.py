@@ -17,6 +17,7 @@ from enum import Enum
 from importlib import import_module
 from pathlib import Path
 from typing import Callable, Dict, Union, get_args, get_origin
+from types import ModuleType
 
 import coloredlogs
 import nodes as comfyui_nodes
@@ -26,10 +27,10 @@ import torch
 from colorama import Fore
 from PIL import Image
 
-import easy_nodes
-import easy_nodes.config_service as config_service
-import easy_nodes.llm_debugging as llm_debugging
-import easy_nodes.log_streaming as log_streaming
+from .config_service import get_config_value
+from .llm_debugging import process_exception_logic
+from .log_streaming import CloseableBufferWrapper, add_log_buffer
+
 
 # Export the web directory so ComfyUI can pick up the JavaScript.
 _web_path = os.path.join(os.path.dirname(__file__), "web")
@@ -184,7 +185,7 @@ def save_node_list(filepath: str = "node_list.json"):
 def _get_curr_config() -> EasyNodesConfig:
     if _current_config is None:
         logging.warning("easy_nodes.initialize_easy_nodes() should be called prior to any other EasyNodes activity. Initializing now with easy_nodes.initialize_easy_nodes() for backwards compatibility.")
-        easy_nodes.initialize_easy_nodes()
+        initialize_easy_nodes()
     return _current_config
 
 
@@ -426,7 +427,7 @@ _cpu_device = torch.device("cpu")
 
 def show_image(image: torch.Tensor, type: str = None):
     if type is None:
-        retain_previews = config_service.get_config_value("easy_nodes.RetainPreviews", False)
+        retain_previews = get_config_value("easy_nodes.RetainPreviews", False)
         type = "output" if retain_previews else "temp"
     
     images = image
@@ -585,8 +586,10 @@ def _register_function(func: callable, checksum, timestamp):
     _function_update_times[func.__qualname__] = timestamp
 
 
-def _get_latest_version_of_module(module_name: str, debug: bool = False):
+def _get_latest_version_of_module(module_name: str, debug: bool = False) -> tuple[ModuleType, float]:
     if module_name not in _module_dict:
+        if "_easy_nodes" in module_name:
+            print(f"importing {module_name}...")
         _module_dict[module_name] = importlib.import_module(module_name)
     module = _module_dict[module_name]
     
@@ -611,7 +614,7 @@ def _get_latest_version_of_module(module_name: str, debug: bool = False):
 
 
 def _get_latest_version_of_func(func: callable, debug: bool = False):
-    reload_modules = config_service.get_config_value("easy_nodes.ReloadOnEdit", False)
+    reload_modules = get_config_value("easy_nodes.ReloadOnEdit", False)
     if reload_modules and func.__module__:
         module, current_modified_time = _get_latest_version_of_module(func.__module__, debug)
         
@@ -657,9 +660,9 @@ def _call_function_and_verify_result(config: EasyNodesConfig, func: callable,
                                      args, kwargs, debug, input_desc, adjusted_return_types, 
                                      wrapped_name, node_class, return_names=None):
     try_count = 0
-    llm_debugging_mode = config_service.get_config_value("easy_nodes.llm_debugging", "Off")
+    llm_debugging_mode = get_config_value("easy_nodes.llm_debugging", "Off")
     llm_debugging_enabled = llm_debugging_mode != "Off"
-    max_tries = int(config_service.get_config_value("easy_nodes.max_tries", 1)) if llm_debugging_mode == "AutoFix" else 1
+    max_tries = int(get_config_value("easy_nodes.max_tries", 1)) if llm_debugging_mode == "AutoFix" else 1
     
     logging.debug(f"Running {func.__qualname__} for {_curr_unique_id} with {max_tries} tries. {llm_debugging_enabled}")
 
@@ -673,7 +676,7 @@ def _call_function_and_verify_result(config: EasyNodesConfig, func: callable,
             node_logger = logging.getLogger()
             node_logger.setLevel(logging.INFO)
             buffer = io.StringIO()
-            buffer_wrapper = log_streaming.CloseableBufferWrapper(buffer)
+            buffer_wrapper = CloseableBufferWrapper(buffer)
             
             buffer_handler = BufferHandler(buffer)
             node_logger.addHandler(buffer_handler)
@@ -681,7 +684,7 @@ def _call_function_and_verify_result(config: EasyNodesConfig, func: callable,
             sys.stdout = Tee(sys.stdout, buffer)
             
             if save_logs:
-                log_streaming.add_log_buffer(str(_curr_unique_id), node_class, prompt_id, input_desc,
+                add_log_buffer(str(_curr_unique_id), node_class, prompt_id, input_desc,
                                              buffer_wrapper)
 
             _curr_preview.clear()
@@ -719,7 +722,7 @@ def _call_function_and_verify_result(config: EasyNodesConfig, func: callable,
         except Exception as e:
             if llm_debugging_enabled:
                 logging.info("Handling exception with LLM debugging")
-                llm_debugging.process_exception_logic(func, e, input_desc, buffer)
+                process_exception_logic(func, e, input_desc, buffer)
                 logging.info("Handled exception with LLM debugging")
 
             if try_count == max_tries:
