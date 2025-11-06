@@ -9,18 +9,21 @@ from .document_storage import DocumentStorage
 from .top10_document_retrieval import Top10DocumentRetrieval
 from .relevance_assessment import RelevanceAssessment
 from .prompt_decision_tree import PromptDecisionTree
-from .variable_codebook import VariableCodebook
+from .variable_codebook import VariableCodebook, VariableCodebookConfigs
 
+from custom_nodes.red_ribbon.utils_.configs import Configs
 from custom_nodes.red_ribbon.utils_ import make_logger
-from custom_nodes.red_ribbon.utils_.database import DatabaseAPI
-from custom_nodes.red_ribbon.utils_.llm import LLM
+from custom_nodes.red_ribbon.utils_.database import DatabaseAPI, make_duckdb_database
+from custom_nodes.red_ribbon.utils_.llm import LLM, make_llm
 
 
 def make_variable_codebook(
     resources: dict[str, Callable] = {},
-    configs: SocialtoolkitConfigs = lambda: SocialtoolkitConfigs(),
+    configs: VariableCodebookConfigs = lambda: VariableCodebookConfigs(),
 ) -> VariableCodebook:
     """Factory function to create VariableCodebook instance"""
+    if isinstance(configs, Configs):
+        configs = configs.variable_codebook
     try:
         return VariableCodebook(resources=resources, configs=configs)
     except Exception as e:
@@ -88,11 +91,14 @@ def make_socialtoolkit_pipeline(
 ) -> SocialtoolkitPipeline:
     """Factory function to create SocialtoolkitPipeline instance"""
 
-    common_resources = {
-        "llm": resources.get("llm"),
-        "db": resources.get("db"),
-        "logger": resources.get("logger", make_logger("socialtoolkit_pipeline")),
-    }
+    try:
+        common_resources = {
+            "llm": resources.get("llm", make_llm()),
+            "db": resources.get("db", make_duckdb_database()),
+            "logger": resources.get("logger", make_logger("socialtoolkit_pipeline")),
+        }
+    except Exception as e:
+        raise InitializationError(f"Unexpected error creating common resources for SocialtoolkitPipeline: {e}") from e
 
     try:
         _resources = {

@@ -56,7 +56,7 @@ except ImportError as e:
 #     print(f"Failed to set OpenAI API key. Please set it manually: {e}")
 #     sys.exit(1)
 
-from ._easy_nodes import (
+from .custom_easy_nodes import (
     NumberInput,
     ComfyNode,
     StringInput,
@@ -64,7 +64,7 @@ from ._easy_nodes import (
     show_text,
     register_type,
 )
-from ._easy_nodes.easy_nodes import AnythingVerifier, _curr_preview as easy_nodes_curr_preview
+from .custom_easy_nodes.easy_nodes import AnythingVerifier, _curr_preview as easy_nodes_curr_preview
 
 
 from networkx import DiGraph # NOTE We do this so that we can register the nx.DiGraph type in ComfyUI

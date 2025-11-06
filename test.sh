@@ -10,12 +10,12 @@ echo -e "${YELLOW}=== Red Ribbon MK3 Test Suite ===${NC}"
 echo "Running from directory: $(pwd)"
 
 # Create test directory structure if it doesn't exist
-mkdir -p tests-unit/custom_nodes/red_ribbon/utils
+mkdir -p tests_unit/custom_nodes/red_ribbon/utils
 
 # Copy the test file if it's not already there
-if [ ! -f tests-unit/custom_nodes/red_ribbon/utils/test_instantiate.py ]; then
+if [ ! -f tests_unit/custom_nodes/red_ribbon/utils/test_instantiate.py ]; then
   echo -e "${YELLOW}Creating test_instantiate.py...${NC}"
-  cp test_instantiate.py tests-unit/custom_nodes/red_ribbon/utils/test_instantiate.py
+  cp test_instantiate.py tests_unit/custom_nodes/red_ribbon/utils/test_instantiate.py
 fi
 
 # Run diagnostic checks
@@ -44,7 +44,7 @@ fi
 
 # Run the Python test
 echo -e "\n${YELLOW}Running Python unit tests...${NC}"
-python -m tests-unit.custom_nodes.red_ribbon.utils.test_instantiate
+python -m tests_unit.custom_nodes.red_ribbon.utils.test_instantiate
 
 # Check if the test succeeded
 if [ $? -eq 0 ]; then

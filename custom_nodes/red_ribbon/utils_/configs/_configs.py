@@ -42,7 +42,7 @@ class Paths(BaseModel):
 
 
 class VariableCodebookConfigs(BaseModel):
-    variables_path: str = "variables.json"
+    variable_file_paths: dict[str, str] = Field(default_factory=dict)
     load_from_file: bool = True
     cache_enabled: bool = True
     cache_ttl_seconds: int = 3600

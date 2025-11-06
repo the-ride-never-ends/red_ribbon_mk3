@@ -12,7 +12,7 @@ Successfully implemented **91 new unit tests** for the SocialToolkit resources l
 ### 1. New Test Implementations (91 tests)
 
 #### QueryProcessor - 41 tests ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_query_processor.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_query_processor.py`
 - Process method returns dictionary with required keys
 - Query normalization (lowercase, whitespace stripping)
 - Tokenization (word splitting)
@@ -23,7 +23,7 @@ Successfully implemented **91 new unit tests** for the SocialToolkit resources l
 - Logging verification
 
 #### RankingAlgorithm - 26 tests ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_ranking_algorithm.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_ranking_algorithm.py`
 - Keyword frequency-based scoring
 - Title match bonuses (2 points per keyword)
 - Document start bonuses (1 point)
@@ -34,7 +34,7 @@ Successfully implemented **91 new unit tests** for the SocialToolkit resources l
 - Logging verification
 
 #### VectorSearchEngine - 24 tests ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_vector_search_engine.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_vector_search_engine.py`
 - Document-vector pair storage
 - Top-K similarity search
 - Required field validation (id, content, url, title, similarity_score)
@@ -45,7 +45,7 @@ Successfully implemented **91 new unit tests** for the SocialToolkit resources l
 - Logging verification
 
 ### 2. Documentation
-- ✅ `tests-unit/socialtoolkit_/IMPLEMENTATION_SUMMARY.md` - Detailed implementation guide
+- ✅ `tests_unit/socialtoolkit_/IMPLEMENTATION_SUMMARY.md` - Detailed implementation guide
 - ✅ This report - Executive summary
 
 ### 3. Security Verification
@@ -108,22 +108,22 @@ pip install pytest pytest-mock
 ### Run All Resource Tests
 ```bash
 cd /home/runner/work/red_ribbon_mk3/red_ribbon_mk3
-pytest tests-unit/socialtoolkit_/resources/ -v
+pytest tests_unit/socialtoolkit_/resources/ -v
 ```
 
 ### Run Specific Test File
 ```bash
-pytest tests-unit/socialtoolkit_/resources/test_query_processor.py -v
+pytest tests_unit/socialtoolkit_/resources/test_query_processor.py -v
 ```
 
 ### Run Specific Test Class
 ```bash
-pytest tests-unit/socialtoolkit_/resources/test_query_processor.py::TestProcessMethodAcceptsStringQuery -v
+pytest tests_unit/socialtoolkit_/resources/test_query_processor.py::TestProcessMethodAcceptsStringQuery -v
 ```
 
 ### Run with Coverage Report
 ```bash
-pytest tests-unit/socialtoolkit_/resources/ --cov=custom_nodes.red_ribbon.socialtoolkit.resources --cov-report=html
+pytest tests_unit/socialtoolkit_/resources/ --cov=custom_nodes.red_ribbon.socialtoolkit.resources --cov-report=html
 ```
 
 ## Files Modified

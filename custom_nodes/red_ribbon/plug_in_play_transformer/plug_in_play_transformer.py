@@ -13,14 +13,14 @@ import torch
 from torch import Tensor, nn
 from torch.nn import Dropout
 
-from .._easy_nodes.easy_nodes import (
+from ..custom_easy_nodes.easy_nodes import (
     AnythingVerifier,
     ComfyNode,
     NumberInput,
     StringInput,
     Choice
 )
-from .._easy_nodes.comfy_types import (
+from ..custom_easy_nodes.comfy_types import (
     register_type,
     ImageTensor,
     LatentTensor

@@ -1,4 +1,4 @@
-# Function and Class stubs from '/home/kylerose1946/red_ribbon_mk3/tests-unit/socialtoolkit_/architecture/test_variable_codebook.py'
+# Function and Class stubs from '/home/kylerose1946/red_ribbon_mk3/tests_unit/socialtoolkit_/architecture/test_variable_codebook.py'
 
 Files last updated: 1762225176.316985
 
@@ -440,7 +440,7 @@ def test_when_business_owner_assumptions_exist_then_contains_has_annual_gross_in
     """
     Given a variable with business owner assumptions
 When assumptions are retrieved
-Then business_owner contains "has_annual_gross_income"
+Then business_owner contains "annual_gross_income"
     """
 ```
 * **Async:** False

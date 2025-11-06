@@ -18,7 +18,7 @@ This document summarizes the unit test implementation work completed for the Soc
 ## Detailed Breakdown
 
 ### 1. QueryProcessor (41 tests) ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_query_processor.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_query_processor.py`
 **Source:** `custom_nodes/red_ribbon/socialtoolkit/resources/top10_document_retrieval/query_processor.py`
 
 **Test Coverage:**
@@ -47,7 +47,7 @@ This document summarizes the unit test implementation work completed for the Soc
 11. `TestUnicodeandNonASCIICharactersAreHandled` (4 tests)
 
 ### 2. RankingAlgorithm (26 tests) ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_ranking_algorithm.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_ranking_algorithm.py`
 **Source:** `custom_nodes/red_ribbon/socialtoolkit/resources/top10_document_retrieval/ranking_algorithm.py`
 
 **Test Coverage:**
@@ -74,7 +74,7 @@ This document summarizes the unit test implementation work completed for the Soc
 9. `TestRankingLogsOperations` (1 test)
 
 ### 3. VectorSearchEngine (24 tests) ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_vector_search_engine.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_vector_search_engine.py`
 **Source:** `custom_nodes/red_ribbon/socialtoolkit/resources/top10_document_retrieval/vector_search_engine.py`
 
 **Test Coverage:**
@@ -99,7 +99,7 @@ This document summarizes the unit test implementation work completed for the Soc
 6. `TestSearchLogsOperations` (2 tests)
 
 ### 4. CacheManager (42 tests) ✅
-**File:** `tests-unit/socialtoolkit_/resources/test_cache_manager.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_cache_manager.py`
 **Source:** `custom_nodes/red_ribbon/socialtoolkit/resources/top10_document_retrieval/cache_manager.py`
 
 **Status:** Already fully implemented (not part of this work)
@@ -198,38 +198,38 @@ The architecture layer tests were identified but not implemented:
 
 ### Run all resource tests:
 ```bash
-pytest tests-unit/socialtoolkit_/resources/ -v
+pytest tests_unit/socialtoolkit_/resources/ -v
 ```
 
 ### Run specific test file:
 ```bash
-pytest tests-unit/socialtoolkit_/resources/test_query_processor.py -v
+pytest tests_unit/socialtoolkit_/resources/test_query_processor.py -v
 ```
 
 ### Run specific test class:
 ```bash
-pytest tests-unit/socialtoolkit_/resources/test_query_processor.py::TestProcessMethodAcceptsStringQuery -v
+pytest tests_unit/socialtoolkit_/resources/test_query_processor.py::TestProcessMethodAcceptsStringQuery -v
 ```
 
 ### Run specific test method:
 ```bash
-pytest tests-unit/socialtoolkit_/resources/test_query_processor.py::TestProcessMethodAcceptsStringQuery::test_process_with_valid_query_string -v
+pytest tests_unit/socialtoolkit_/resources/test_query_processor.py::TestProcessMethodAcceptsStringQuery::test_process_with_valid_query_string -v
 ```
 
 ### Run with coverage:
 ```bash
-pytest tests-unit/socialtoolkit_/resources/ --cov=custom_nodes.red_ribbon.socialtoolkit.resources --cov-report=html
+pytest tests_unit/socialtoolkit_/resources/ --cov=custom_nodes.red_ribbon.socialtoolkit.resources --cov-report=html
 ```
 
 ## Files Modified
 
 ### New Test Implementations
-1. `tests-unit/socialtoolkit_/resources/test_query_processor.py` - Updated with 41 test implementations
-2. `tests-unit/socialtoolkit_/resources/test_ranking_algorithm.py` - Updated with 26 test implementations
-3. `tests-unit/socialtoolkit_/resources/test_vector_search_engine.py` - Updated with 24 test implementations
+1. `tests_unit/socialtoolkit_/resources/test_query_processor.py` - Updated with 41 test implementations
+2. `tests_unit/socialtoolkit_/resources/test_ranking_algorithm.py` - Updated with 26 test implementations
+3. `tests_unit/socialtoolkit_/resources/test_vector_search_engine.py` - Updated with 24 test implementations
 
 ### Documentation
-4. `tests-unit/socialtoolkit_/IMPLEMENTATION_SUMMARY.md` - This file
+4. `tests_unit/socialtoolkit_/IMPLEMENTATION_SUMMARY.md` - This file
 
 ## Conclusion
 

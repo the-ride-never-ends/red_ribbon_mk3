@@ -11,48 +11,176 @@ Feature: Variable Codebook
     And a database connection is available
     And an LLM API client is available
 """
+# NOTE: Current test function count: 47
+from unittest.mock import MagicMock
+from pathlib import Path
+
+import networkx as nx
 import pytest
 
-# Fixtures for Background
+
+from tests_unit.socialtoolkit_.architecture.conftest import (
+    variable_codebook_fixture,
+    mock_llm,
+    mock_database,
+    mock_logger,
+    mock_resources,
+    mock_configs,
+    FixtureError,
+    variable_codebook_cache_enabled_is_true_fixture,
+    variable_codebook_load_from_file_is_false_fixture,
+)
+
+from custom_nodes.red_ribbon.socialtoolkit.architecture.factory import (
+    make_variable_codebook,
+)
+from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import (
+    VariableCodebook,
+    Variable,
+    Assumptions,
+    BusinessOwnerAssumptions,
+    BusinessAssumptions,
+    TaxesAssumptions,
+    PromptDecisionTree,
+)
 
 @pytest.fixture
-def a_variablecodebook_instance_is_initialized():
-    """
-    Given a VariableCodebook instance is initialized
-    """
-    pass
+def expected_prompt_sequence():
+    """Fixture providing expected prompt sequence for sales_tax_city variable."""
+    expected_order = [
+        "Is there a sales tax in the city?",
+        "Is the sales tax rate a flat rate or variable rate?",
+        "What are the units of the sales tax rate?",
+        "Is the sales tax rate inclusive or exclusive?",
+        "Are there any special sales tax exemptions applicable?"
+    ]
+    return expected_order
+
+@pytest.fixture
+def valid_inputs():
+    """Fixture providing valid inputs for get_prompt_sequence_for_input method."""
+    return {
+        "sales_tax": "What is the sales tax rate?",
+        "property_tax": "What is the property tax assessment?",
+        "no_match": "What is the regulation?",
+    }
+
+@pytest.fixture
+def valid_variable_kwargs():
+    """Fixture providing valid kwargs for creating Variable instances."""
+    return {
+        "label": "Sales Tax City",
+        "item_name": "sales_tax_city",
+        "description": "The sales tax rate for the city.",
+        "units": "percentage",
+        "assumptions": {
+            "description": "Assumptions for business owners regarding sales tax.",
+            "details": {"assumption_1": "Must comply with local laws."}
+        },
+        "prompt_decision_tree": PromptDecisionTree()
+    }
+
+@pytest.fixture
+def valid_new_variable_kwargs():
+    """Fixture providing valid kwargs for creating Variable instances."""
+    return {
+        "label": "Employee Healthcare Benefits",
+        "item_name": "employee_healthcare_benefits",
+        "description": "The healthcare coverage provided to full-time employees.",
+        "units": "coverage_type",
+        "assumptions": {
+            "description": "Assumptions for HR departments regarding employee benefits.",
+            "details": {"assumption_1": "Must meet state insurance requirements."}
+        },
+        "prompt_decision_tree": PromptDecisionTree()
+    }
 
 
 @pytest.fixture
-def a_storage_service_is_available():
-    """
-    And a storage service is available
-    """
-    pass
+def variable_fixture(valid_variable_kwargs) -> Variable:
+    """Fixture providing a Variable instance for testing."""
+    try:
+        return Variable(**valid_variable_kwargs)
+    except Exception as e:
+        raise FixtureError(f"Failed to create variable_fixture: {e}") from e
+
+@pytest.fixture
+def variable_fixture_new_var(valid_new_variable_kwargs) -> Variable:
+    """Fixture providing a Variable instance for testing."""
+    try:
+        return Variable(**valid_new_variable_kwargs)
+    except Exception as e:
+        raise FixtureError(f"Failed to create variable_fixture_new_var: {e}") from e
+
+@pytest.fixture
+def variable_fixture_new_desc(variable_fixture):
+    try:
+        variable = variable_fixture.model_copy()
+        variable.description = "Updated description for testing."
+        return variable
+    except Exception as e:
+        raise FixtureError(f"Failed to create variable_fixture_new_desc: {e}") from e
+
+@pytest.fixture
+def variable_fixture_update_income(variable_fixture):
+    try:
+        variable = variable_fixture.model_copy()
+        variable.label = "Updated Income Tax"
+        return variable
+    except Exception as e:
+        raise FixtureError(f"Failed to create variable_fixture_update_income: {e}") from e
+
+@pytest.fixture
+def variable_fixture_nonexistent_var(variable_fixture):
+    try:
+        variable = variable_fixture.model_copy()
+        variable.item_name = "nonexistent_var"
+        return variable
+    except Exception as e:
+        raise FixtureError(f"Failed to create variable_fixture_new_desc: {e}") from e
 
 
 @pytest.fixture
-def a_cache_service_is_available():
-    """
-    And a cache service is available
-    """
-    pass
-
-
-@pytest.fixture
-def a_database_connection_is_available():
-    """
-    And a database connection is available
-    """
-    pass
-
+def valid_args():
+    """Fixture providing valid positional arguments for VariableCodebook methods."""
+    return {
+        "get_variable": ("get_variable",),
+        "get_prompt_sequence": ("get_prompt_sequence",),
+        "get_assumptions": ("get_assumptions",),
+        "add_variable": ("add_variable",),
+        "update_variable": ("update_variable",),
+        "unknown_action": ("unknown_action",),
+    }
 
 @pytest.fixture
-def an_llm_api_client_is_available():
-    """
-    And an LLM API client is available
-    """
-    pass
+def valid_kwargs(
+    variable_fixture, 
+    variable_fixture_new_var,
+    variable_fixture_new_desc,
+    variable_fixture_update_income
+    ):
+    """Fixture providing valid keyword arguments for VariableCodebook methods."""
+    return {
+        "get_variable": {"variable_name": "sales_tax_city"},
+        "get_variable_rate": {"variable_name": "sales_tax_rate"},
+        "get_variable_property_tax": {"variable_name": "property_tax"},
+        "get_variable_income_tax": {"variable_name": "income_tax"},
+        "get_variable_test": {"variable_name": "test_var"},
+        "get_variable_basic": {"variable_name": "basic_var"},
+        "get_variable_nonexistent": {"variable_name": "nonexistent_var"},
+        "get_variable_missing": {"variable_name": "missing_var"},
+        "get_prompt_sequence": {"variable_name": "sales_tax_city"},
+        "get_prompt_sequence_basic": {"variable_name": "basic_var"},
+        "get_assumptions": {"variable_name": "property_tax"},
+        "add_variable_new": {"variable": variable_fixture_new_var},
+        "add_variable_duplicate": {"variable": variable_fixture},
+        "update_variable": {"variable_name": "sales_tax_city", "variable": variable_fixture_new_desc},
+        "update_variable_income": {"variable_name": "income_tax", "variable": variable_fixture_update_income},
+        "update_variable_nonexistent": {"variable_name": "nonexistent_var", "variable": variable_fixture},
+    }
+
+
+
 
 
 class TestControlFlowMethodAcceptsActionParameter:
@@ -61,86 +189,98 @@ class TestControlFlowMethodAcceptsActionParameter:
     
     Production method: VariableCodebook.run(action, **kwargs)
     """
-    def test_when_calling_run_with_get_variable_action_then_variable_is_retrieved(self, variable_codebook_fixture):
+    @pytest.mark.parametrize("action_key,kwargs_key,expected_value", [
+        ("get_variable", "get_variable_rate", True),
+        ("add_variable", "add_variable_new", True),
+        ("update_variable", "update_variable_income", True),
+    ]) # NOTE: Done
+    def test_when_calling_run_with_action_then_expected_result_is_returned(self, variable_codebook_fixture, valid_args, valid_kwargs, action_key, kwargs_key, expected_value):
         """
-        Given action parameter is "get_variable" and variable_name is "sales_tax_city"
+        Given action parameter and appropriate kwargs
         When I call run with the action
-        Then the variable is retrieved
+        Then the value of 'success' key matches expected_value
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_rate")
-        assert isinstance(result, dict)
+        args, kwargs = valid_args[action_key], valid_kwargs[kwargs_key]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert result['success'] == expected_value, f"Expected result['success'] to equal '{expected_value}', but got '{result['success']}'"
 
-    def test_when_calling_run_with_get_variable_action_then_dictionary_with_variable_is_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_calling_run_with_get_variable_action_then_dictionary_with_variable_is_returned(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given action parameter is "get_variable" and variable_name is "sales_tax_city"
         When I call run with the action
         Then a dictionary with the variable is returned
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_rate")
-        assert isinstance(result, dict)
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_rate"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert isinstance(result, dict), f"Expected result to be dict, but got {type(result).__name__}"
 
-    def test_when_calling_run_with_get_prompt_sequence_action_then_prompt_sequence_is_retrieved(self, variable_codebook_fixture):
+
+    @pytest.mark.parametrize("action_key,kwargs_key,expected_key", [
+        ("get_prompt_sequence", "get_variable_rate", "prompt_sequence"),
+        ("get_assumptions", "get_assumptions", "assumptions"),
+    ]) # NOTE: Done
+    def test_when_calling_run_with_action_then_expected_key_is_retrieved(self, variable_codebook_fixture, valid_args, valid_kwargs, action_key, kwargs_key, expected_key):
         """
-        Given action parameter is "get_prompt_sequence", variable_name is "sales_tax_city"
+        Given action parameter and variable_name
         When I call run with the action
-        Then the prompt sequence is retrieved
+        Then the expected key is retrieved in the result
         """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="sales_tax_rate")
-        assert isinstance(result, dict)
+        args, kwargs = valid_args[action_key], valid_kwargs[kwargs_key]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert expected_key in result, f"Expected '{expected_key}' key in result, but got {list(result.keys())}"
 
-    def test_when_calling_run_with_get_prompt_sequence_action_then_list_of_prompts_is_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_calling_run_with_get_prompt_sequence_action_then_list_of_prompts_is_returned(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given action parameter is "get_prompt_sequence", variable_name is "sales_tax_city"
         When I call run with the action
         Then a list of prompts is returned
         """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="sales_tax_rate")
-        assert isinstance(result, dict)
+        args, kwargs = valid_args["get_prompt_sequence"], valid_kwargs["get_variable_rate"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert isinstance(result['prompt_sequence'], list), f"Expected result['prompt_sequence'] to be list, but got {type(result['prompt_sequence'])}"
 
-    def test_when_calling_run_with_get_assumptions_action_then_assumptions_are_retrieved(self, variable_codebook_fixture):
+    # NOTE: Done
+    @pytest.mark.parametrize("idx", [0, 1, 2, 3])
+    def test_when_calling_run_with_get_prompt_sequence_action_then_list_of_prompts_is_returned(self, idx, variable_codebook_fixture, valid_args, valid_kwargs):
         """
-        Given action parameter is "get_assumptions" and variable_name is "property_tax"
+        Given action parameter is "get_prompt_sequence", variable_name is "sales_tax_city"
         When I call run with the action
-        Then assumptions for the variable are retrieved
+        Then the prompts are strings
         """
-        result = variable_codebook_fixture.run("get_assumptions", variable_name="property_tax")
-        assert isinstance(result, dict)
+        args, kwargs = valid_args["get_prompt_sequence"], valid_kwargs["get_variable_rate"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        prompt = result['prompt_sequence'][idx]
+        assert isinstance(prompt, str), f"Expected prompt '{idx}' to be str, but got {type(prompt).__name__}"
 
-    def test_when_calling_run_with_add_variable_action_then_variable_is_added(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_calling_run_with_add_variable_action_then_variable_is_added(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given action parameter is "add_variable" and a new Variable object
         When I call run with the action
         Then the variable is added to the codebook
         """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "new_var"})
-        assert isinstance(result, dict)
+        new_var = valid_kwargs["add_variable_new"]["item_name"]
+        args, kwargs = valid_args["add_variable"], valid_kwargs["add_variable_new"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert new_var in variable_codebook_fixture.variables, f"Expected {new_var} to be in variables, but got {list(variable_codebook_fixture.variables.keys())}"
 
-    def test_when_calling_run_with_add_variable_action_then_success_status_is_returned(self, variable_codebook_fixture):
-        """
-        Given action parameter is "add_variable" and a new Variable object
-        When I call run with the action
-        Then success status is returned
-        """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "new_var"})
-        assert result.get("success") is True
-
-    def test_when_calling_run_with_update_variable_action_then_variable_is_updated(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_calling_run_with_update_variable_action_then_variable_is_updated(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given action parameter is "update_variable" and variable_name is "income_tax"
         When I call run with the action
         Then the variable is updated in the codebook
         """
-        result = variable_codebook_fixture.run("update_variable", variable_name="income_tax", variable={"label": "updated"})
-        assert isinstance(result, dict)
+        var_key = "income_tax"
+        updated_variable = valid_kwargs["update_variable_income"]["variable"]["label"]
+        args, kwargs = valid_args["update_variable"], valid_kwargs["update_variable_income"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        actual_label = variable_codebook_fixture.variables[var_key].label
+        assert actual_label == updated_variable, f"Expected variables['{var_key}'] to be {updated_variable}, but got {actual_label}"
 
-    def test_when_calling_run_with_update_variable_action_then_success_status_is_returned(self, variable_codebook_fixture):
-        """
-        Given action parameter is "update_variable" and variable_name is "income_tax"
-        When I call run with the action
-        Then success status is returned
-        """
-        result = variable_codebook_fixture.run("update_variable", variable_name="income_tax", variable={"label": "updated"})
-        assert result.get("success") is True
+
 
 class TestControlFlowValidatesActionParameter:
     """
@@ -148,23 +288,29 @@ class TestControlFlowValidatesActionParameter:
     
     Production method: VariableCodebook.run(action, **kwargs)
     """
-    def test_when_calling_run_with_unknown_action_then_value_error_is_raised(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_calling_run_with_unknown_action_then_value_error_is_raised(self, variable_codebook_fixture, valid_args):
         """
         Given action parameter is "unknown_action"
         When I call run with the invalid action
-        Then a ValueError is raised
+        Then a ValueError is raised with message "Unknown action"
         """
-        with pytest.raises(ValueError):
-            variable_codebook_fixture.run("unknown_action")
+        args = valid_args["unknown_action"]
+        kwargs = {}
+        with pytest.raises(ValueError, match=r"Unknown action"):
+            variable_codebook_fixture.run(*args, **kwargs)
 
-    def test_when_calling_run_with_unknown_action_then_error_message_indicates_unknown_action(self, variable_codebook_fixture):
+    # NOTE: Done
+    @pytest.mark.parametrize("invalid_type", [None, 420, 6.4, [], {}, ()])
+    def test_when_calling_run_with_non_string_action_then_type_error_is_raised(self, invalid_type, variable_codebook_fixture):
         """
-        Given action parameter is "unknown_action"
+        Given action parameter is a non-string type
         When I call run with the invalid action
-        Then the error message indicates "Unknown action"
+        Then a TypeError is raised with message "Action must be a string"
         """
-        with pytest.raises(ValueError, match="Unknown action"):
-            variable_codebook_fixture.run("unknown_action")
+        kwargs = {}
+        with pytest.raises(TypeError, match=r"Action must be a string"):
+            variable_codebook_fixture.run(invalid_type, **kwargs)
 
 
 class TestControlFlowReturnsDictionarywithOperationResults:
@@ -173,59 +319,75 @@ class TestControlFlowReturnsDictionarywithOperationResults:
     
     Production method: VariableCodebook.run(action, **kwargs)
     """
-    def test_when_get_variable_succeeds_then_result_contains_success_true(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_variable_succeeds_then_result_contains_success_true(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a valid variable_name "sales_tax_city"
         When get_variable action is executed
         Then the result contains key "success" with value True
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert result.get("success") is True
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert result['success'] is True, f"Expected result['success'] to be True, but got {result['success']}"
 
-    def test_when_get_variable_succeeds_then_result_contains_variable_key(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_variable_succeeds_then_result_contains_variable_key(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a valid variable_name "sales_tax_city"
         When get_variable action is executed
         Then the result contains key "variable"
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert "variable" in result
+        expected_key = 'variable'
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert expected_key in result, f"Expected '{expected_key}' key in result, but got {list(result.keys())}"
 
-    def test_when_get_variable_succeeds_then_variable_is_variable_object(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_variable_succeeds_then_variable_is_variable_object(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a valid variable_name "sales_tax_city"
         When get_variable action is executed
         Then the variable is a Variable object
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert result.get("variable") is not None
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert isinstance(result['variable'], Variable), f"Expected result['variable'] to be Variable, but got {type(result['variable'])}"
 
-    def test_when_get_variable_fails_then_result_contains_success_false(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_variable_fails_then_result_contains_success_false(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given an invalid variable_name "nonexistent_var"
         When get_variable action is executed
         Then the result contains key "success" with value False
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="nonexistent_var")
-        assert result.get("success") is False
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_nonexistent"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert result['success'] is False, f"Expected result['success'] to be False, but got {result['success']}"
 
-    def test_when_get_variable_fails_then_result_contains_error_key(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_variable_fails_then_result_contains_error_key(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given an invalid variable_name "nonexistent_var"
         When get_variable action is executed
         Then the result contains key "error"
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="nonexistent_var")
-        assert "error" in result
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_nonexistent"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        expected_key = 'error'
+        assert expected_key in result, f"Expected 'error' key in result, but got {list(result.keys())}"
 
-    def test_when_get_variable_fails_then_error_indicates_variable_not_found(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_variable_fails_then_error_indicates_variable_not_found(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given an invalid variable_name "nonexistent_var"
         When get_variable action is executed
         Then the error indicates "Variable not found"
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="nonexistent_var")
-        assert "Variable not found" in result.get("error", "")
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_nonexistent"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        expected_msg = "variable not found"
+        actual_msg = result['error'].lower()
+        assert expected_msg in actual_msg, f"Expected 'variable not found' in error message, but got {actual_msg}"
 
 
 class TestVariableStructureContainsRequiredFields:
@@ -234,79 +396,48 @@ class TestVariableStructureContainsRequiredFields:
     
     Production method: VariableCodebook.run("get_variable", variable_name=...)
     """
-    def test_when_variable_is_retrieved_then_it_has_label_field(self, variable_codebook_fixture):
+    @pytest.mark.parametrize("field_name,kwargs_key", [
+        ("label", "get_variable_property_tax"),
+        ("item_name", "get_variable_property_tax"),
+        ("description", "get_variable_property_tax"),
+        ("units", "get_variable_property_tax"),
+        ("assumptions", "get_variable_property_tax"),
+        ("prompt_decision_tree", "get_variable_income_tax"),
+    ]) # NOTE: Done
+    def test_when_variable_is_retrieved_then_it_has_required_field(self, variable_codebook_fixture, valid_args, valid_kwargs, field_name, kwargs_key):
         """
-        Given a variable "sales_tax_city" exists
+        Given a variable exists
         When the variable is retrieved
-        Then the variable has field "label"
+        Then the variable has the required field
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert "label" in result.get("variable", {})
+        args, kwargs = valid_args["get_variable"], valid_kwargs[kwargs_key]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        variable = result["variable"]
+        assert hasattr(variable, field_name), f"Expected variable to have '{field_name}' attribute, but attributes are {dir(variable)}"
 
-    def test_when_variable_is_retrieved_then_it_has_item_name_field(self, variable_codebook_fixture):
-        """
-        Given a variable "sales_tax_city" exists
-        When the variable is retrieved
-        Then the variable has field "item_name"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert "item_name" in result.get("variable", {})
-
-    def test_when_variable_is_retrieved_then_it_has_description_field(self, variable_codebook_fixture):
-        """
-        Given a variable "sales_tax_city" exists
-        When the variable is retrieved
-        Then the variable has field "description"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert "description" in result.get("variable", {})
-
-    def test_when_variable_is_retrieved_then_it_has_units_field(self, variable_codebook_fixture):
-        """
-        Given a variable "sales_tax_city" exists
-        When the variable is retrieved
-        Then the variable has field "units"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert "units" in result.get("variable", {})
-
-    def test_when_variable_is_retrieved_then_it_may_have_assumptions_field(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_variable_has_assumptions_then_it_is_assumptions_object(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a variable "property_tax" exists
         When the variable is retrieved
-        Then the variable may have field "assumptions"
+        Then assumptions is an Assumptions object
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="property_tax")
-        assert "assumptions" in result.get("variable", {})
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_property_tax"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        variable = result["variable"]["assumptions"]
+        assert isinstance(variable.assumptions, Assumptions), f"Expected variable.assumptions to be Assumptions, but got {type(variable.assumptions)}"
 
-    def test_when_variable_has_assumptions_then_it_is_assumptions_object(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_variable_has_prompt_decision_tree_then_it_is_digraph_object(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a variable "property_tax" exists
         When the variable is retrieved
-        Then if assumptions exist, it is an Assumptions object
+        Then prompt_decision_tree is a DiGraph object
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="property_tax")
-        assumptions = result.get("variable", {}).get("assumptions")
-        assert assumptions is None or isinstance(assumptions, dict)
-
-    def test_when_variable_is_retrieved_then_it_may_have_prompt_decision_tree_field(self, variable_codebook_fixture):
-        """
-        Given a variable "income_tax" exists
-        When the variable is retrieved
-        Then the variable may have field "prompt_decision_tree"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="income_tax")
-        assert "prompt_decision_tree" in result.get("variable", {})
-
-    def test_when_variable_has_prompt_decision_tree_then_it_is_digraph_object(self, variable_codebook_fixture):
-        """
-        Given a variable "income_tax" exists
-        When the variable is retrieved
-        Then if prompt_decision_tree exists, it is a DiGraph object
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="income_tax")
-        tree = result.get("variable", {}).get("prompt_decision_tree")
-        assert tree is None or isinstance(tree, dict)
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_property_tax"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        tree = result["variable"].prompt_decision_tree.tree
+        assert isinstance(tree, PromptDecisionTree), f"Expected tree to be PromptDecisionTree, but got {type(tree).__name__}"
 
 
 class TestAssumptionsObjectContainsStructuredAssumptionData:
@@ -315,85 +446,44 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
     
     Production method: VariableCodebook.run("get_variable", variable_name=...)
     """
-    def test_when_assumptions_are_retrieved_then_may_contain_general_assumptions_list(self, variable_codebook_fixture):
+    @pytest.mark.parametrize("field_name,field_type,kwargs_key", [
+        ("general_assumptions", list, "get_variable_test"),
+        ("specific_assumptions", dict, "get_variable_test"),
+        ("business_owner", BusinessOwnerAssumptions, "get_variable_test"),
+        ("business", BusinessAssumptions, "get_variable_test"),
+        ("taxes", TaxesAssumptions, "get_variable_test"),
+    ]) # NOTE: Done
+    def test_when_assumptions_are_retrieved_then_has_expected_field_and_type(self, field_name, field_type, kwargs_key, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a variable with assumptions
         When assumptions are retrieved
-        Then assumptions may contain "general_assumptions" as a list of strings
+        Then assumptions has the expected field with the correct type
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assumptions = result.get("variable", {}).get("assumptions", {})
-        general = assumptions.get("general_assumptions")
-        assert general is None or isinstance(general, list)
+        args, kwargs = valid_args["get_variable"], valid_kwargs[kwargs_key]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assumptions = result["variable"]["assumptions"]
+        field_value = getattr(assumptions, field_name)
+        assert isinstance(field_value, field_type), f"Expected assumptions.{field_name} to be {field_type.__name__}, but got {type(field_value).__name__}"
 
-    def test_when_assumptions_are_retrieved_then_may_contain_specific_assumptions_dictionary(self, variable_codebook_fixture):
+
+    @pytest.mark.parametrize("assumption_type,field_name,kwargs_key", [
+        ("business_owner", "annual_gross_income", "get_variable_test"),
+        ("business", "year_of_operation", "get_variable_test"),
+        ("business", "gross_annual_revenue", "get_variable_test"),
+        ("business", "employees", "get_variable_test"),
+        ("taxes", "taxes_paid_period", "get_variable_test"),
+    ]) # NOTE: Done
+    def test_when_assumptions_exist_then_contains_expected_field(self, assumption_type, field_name, kwargs_key, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a variable with assumptions
         When assumptions are retrieved
-        Then assumptions may contain "specific_assumptions" as a dictionary
+        Then the assumption type contains the expected field
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assumptions = result.get("variable", {}).get("assumptions", {})
-        specific = assumptions.get("specific_assumptions")
-        assert specific is None or isinstance(specific, dict)
-
-    def test_when_assumptions_are_retrieved_then_may_contain_business_owner_field(self, variable_codebook_fixture):
-        """
-        Given a variable with business owner assumptions
-        When assumptions are retrieved
-        Then assumptions may contain "business_owner" field
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert "business_owner" in result.get("variable", {}).get("assumptions", {})
-
-    def test_when_business_owner_assumptions_exist_then_contains_has_annual_gross_income(self, variable_codebook_fixture):
-        """
-        Given a variable with business owner assumptions
-        When assumptions are retrieved
-        Then business_owner contains "has_annual_gross_income"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        business_owner = result.get("variable", {}).get("assumptions", {}).get("business_owner", {})
-        assert "has_annual_gross_income" in business_owner
-
-    def test_when_assumptions_are_retrieved_then_may_contain_business_field(self, variable_codebook_fixture):
-        """
-        Given a variable with business assumptions
-        When assumptions are retrieved
-        Then assumptions may contain "business" field
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert "business" in result.get("variable", {}).get("assumptions", {})
-
-    def test_when_business_assumptions_exist_then_contains_expected_fields(self, variable_codebook_fixture):
-        """
-        Given: a variable with business assumptions
-        When: assumptions are retrieved
-        Then: business contains fields like "year_of_operation", "gross_annual_revenue", "employees"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        business = result.get("variable", {}).get("assumptions", {}).get("business", {})
-        expected_fields = ["year_of_operation", "gross_annual_revenue", "employees"]
-        assert any(field in business for field in expected_fields)
-
-    def test_when_assumptions_are_retrieved_then_may_contain_taxes_field(self, variable_codebook_fixture):
-        """
-        Given a variable with tax assumptions
-        When assumptions are retrieved
-        Then assumptions may contain "taxes" field
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert "taxes" in result.get("variable", {}).get("assumptions", {})
-
-    def test_when_tax_assumptions_exist_then_contains_taxes_paid_period(self, variable_codebook_fixture):
-        """
-        Given a variable with tax assumptions
-        When assumptions are retrieved
-        Then taxes contains "taxes_paid_period"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        taxes = result.get("variable", {}).get("assumptions", {}).get("taxes", {})
-        assert "taxes_paid_period" in taxes
+        args, kwargs = valid_args["get_variable"], valid_kwargs[kwargs_key]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assumptions = result["variable"]["assumptions"]
+        assumption_obj = getattr(assumptions, assumption_type)
+        assert hasattr(assumption_obj, field_name), f"Expected assumptions.{assumption_type} to have '{field_name}' attribute, but attributes are {dir(assumption_obj)}"
 
 
 class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
@@ -402,42 +492,58 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
     
     Production method: VariableCodebook.run("get_prompt_sequence", variable_name=...)
     """
-    def test_when_get_prompt_sequence_is_called_then_exactly_n_prompts_are_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_prompt_sequence_is_called_then_exactly_n_prompts_are_returned(
+            self, expected_prompt_sequence, variable_codebook_fixture, valid_args, valid_kwargs):
         """
-        Given variable "sales_tax_city" has a prompt decision tree with 3 prompts
+        Given variable "sales_tax_city" has a prompt decision tree with an arbitrary number of prompts
         When get_prompt_sequence is called
-        Then exactly 3 prompts are returned
+        Then the number of prompts returned equals the number of prompts in the tree
         """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="sales_tax_city")
-        expected_count = 3
-        assert len(result.get("prompts", [])) == expected_count
+        expected_count = len(expected_prompt_sequence)
+        args, kwargs = valid_args["get_prompt_sequence"], valid_kwargs["get_prompt_sequence"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        actual_count = len(result['prompt_sequence'])
+        assert actual_count == expected_count, f"Expected {expected_count} prompts, but got {actual_count}"
 
-    def test_when_get_prompt_sequence_is_called_then_prompts_are_in_tree_traversal_order(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_get_prompt_sequence_is_called_then_prompts_are_in_tree_traversal_order(
+            self, expected_prompt_sequence, variable_codebook_fixture, valid_args, valid_kwargs):
         """
-        Given variable "sales_tax_city" has a prompt decision tree with 3 prompts
+        Given variable "sales_tax_city" has a prompt decision tree with prompts
         When get_prompt_sequence is called
-        Then prompts are in tree traversal order
+        Then prompts are in the same order as in tree traversal
         """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="sales_tax_city")
-        assert isinstance(result.get("prompts", []), list)
+        args, kwargs = valid_args["get_prompt_sequence"], valid_kwargs["get_prompt_sequence"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        prompts = result['prompt_sequence']
+        assert prompts == expected_prompt_sequence, f"Expected prompts to be '{expected_prompt_sequence}', but got '{prompts}'"
 
-    def test_when_variable_has_no_decision_tree_then_result_indicates_failure(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_variable_has_no_decision_tree_then_result_indicates_failure(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given variable "basic_var" has no prompt decision tree
         When get_prompt_sequence is called
         Then the result indicates failure
         """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="basic_var")
-        assert result.get("success") is False
+        args, kwargs = valid_args["get_prompt_sequence"], valid_kwargs["get_prompt_sequence_basic"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        success = result['success']
+        assert success is False, f"Expected result['success'] to be False, but got '{success}'"
 
-    def test_when_variable_has_no_decision_tree_then_error_message_states_no_tree_found(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_variable_has_no_decision_tree_then_error_message_states_no_tree_found(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given variable "basic_var" has no prompt decision tree
         When get_prompt_sequence is called
         Then error message states "No prompt decision tree found"
         """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="basic_var")
-        assert "No prompt decision tree found" in result.get("error", "")
+        expected_msg = "No prompt decision tree found"
+        args, kwargs = valid_args["get_prompt_sequence"], valid_kwargs["get_prompt_sequence_basic"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        
+        actual_msg = result['error']
+        assert expected_msg in actual_msg, f"Expected 'No prompt decision tree found' in error, but got '{actual_msg}'"
 
 
 class TestGetPromptSequenceforInputExtractsVariableName:
@@ -446,50 +552,81 @@ class TestGetPromptSequenceforInputExtractsVariableName:
     
     Production method: VariableCodebook.get_prompt_sequence_for_input(input_data_point)
     """
-    def test_when_input_is_about_sales_tax_then_variable_name_is_extracted(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_input_is_valid_then_returns_list_of_prompts(valid_inputs, variable_codebook_fixture):
+        """
+        Given input_data_point is "What is the sales tax rate?"
+        When get_prompt_sequence_for_input is called
+        Then the return is a list
+        """
+        input_data = valid_inputs["sales_tax"]
+        prompts = variable_codebook_fixture.get_prompt_sequence_for_input(input_data)
+        assert isinstance(prompts, list), f"Expected prompts to be a list, but got {type(prompts).__name__}"
+
+    # NOTE: Done
+    def test_when_input_is_valid_then_returns_list_of_prompts(valid_inputs, variable_codebook_fixture):
+        """
+        Given input_data_point is "What is the sales tax rate?"
+        When get_prompt_sequence_for_input is called
+        Then list matches expected length
+        """
+        expected_length = 4
+        input_data = valid_inputs["sales_tax"]
+        prompts = variable_codebook_fixture.get_prompt_sequence_for_input(input_data)
+        len_prompts = len(prompts)
+        assert len_prompts == expected_length, f"Expected prompts to be a length '{expected_length}', but got '{len_prompts}'"
+
+    # NOTE: Done
+    def test_when_input_is_about_sales_tax_then_variable_name_is_extracted(self, variable_codebook_fixture, valid_inputs):
         """
         Given input_data_point is "What is the sales tax rate?"
         When get_prompt_sequence_for_input is called
         Then the variable_name "sales_tax_city" is extracted
         """
-        result = variable_codebook_fixture.get_prompt_sequence_for_input("What is the sales tax rate?")
-        assert isinstance(result, list)
+        expected_string = "sales tax"
+        input_data = valid_inputs["sales_tax"]
+        prompts = variable_codebook_fixture.get_prompt_sequence_for_input(input_data)
+        assert expected_string in prompts, f"Expected {expected_string} to be prompts, but got {prompts}"
 
-    def test_when_input_is_about_sales_tax_then_prompts_for_sales_tax_city_are_returned(self, variable_codebook_fixture):
+    @pytest.mark.parametrize("input_key,expected_min_length", [
+        ("sales_tax", 0),
+        ("property_tax", 0),
+    ]) # NOTE: Done
+    def test_when_input_is_about_tax_then_prompts_are_returned(self, variable_codebook_fixture, valid_inputs, input_key, expected_min_length):
         """
-        Given input_data_point is "What is the sales tax rate?"
+        Given input_data_point is about tax
         When get_prompt_sequence_for_input is called
-        Then prompts for sales_tax_city are returned
+        Then prompts are returned with expected minimum length
         """
-        result = variable_codebook_fixture.get_prompt_sequence_for_input("What is the sales tax rate?")
-        assert isinstance(result, list)
+        input_data = valid_inputs[input_key]
+        prompts = variable_codebook_fixture.get_prompt_sequence_for_input(input_data)
+        len_prompts = len(prompts)
+        assert len_prompts > expected_min_length, f"Expected prompts length to be > {expected_min_length}, but got {len_prompts}"
 
-    def test_when_input_is_about_property_tax_then_variable_name_is_extracted(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_input_is_about_property_tax_then_variable_name_is_extracted(self, variable_codebook_fixture, valid_inputs):
         """
         Given input_data_point is "What is the property tax assessment?"
         When get_prompt_sequence_for_input is called
-        Then the variable_name "property_tax" is extracted
+        Then the property taxes are present in the prompts
         """
-        result = variable_codebook_fixture.get_prompt_sequence_for_input("What is the property tax assessment?")
-        assert isinstance(result, list)
+        expected_string = "property tax"
+        input_data = valid_inputs["property_tax"]
+        prompts = variable_codebook_fixture.get_prompt_sequence_for_input(input_data)
+        assert expected_string in prompts, f"Expected {expected_string} to be prompts, but got {prompts}"
 
-    def test_when_input_is_about_property_tax_then_prompts_for_property_tax_are_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_input_has_no_matching_keywords_then_default_variable_is_used(self, variable_codebook_fixture, valid_inputs):
         """
-        Given input_data_point is "What is the property tax assessment?"
+        Given input_data_point is a query with no matching variables
         When get_prompt_sequence_for_input is called
-        Then prompts for property_tax are returned
+        Then return an empty prompt sequence
         """
-        result = variable_codebook_fixture.get_prompt_sequence_for_input("What is the property tax assessment?")
-        assert isinstance(result, list)
-
-    def test_when_input_has_no_matching_keywords_then_default_variable_is_used(self, variable_codebook_fixture):
-        """
-        Given input_data_point is "What is the regulation?" with no matching keywords
-        When get_prompt_sequence_for_input is called
-        Then the default variable "generic_tax_information" is used
-        """
-        result = variable_codebook_fixture.get_prompt_sequence_for_input("What is the regulation?")
-        assert isinstance(result, list)
+        zero = 0
+        input_data = valid_inputs["no_match"]
+        prompts = variable_codebook_fixture.get_prompt_sequence_for_input(input_data)
+        len_prompts = len(prompts)
+        assert len_prompts == zero, f"Expected prompts to equal {zero}, but got {len_prompts}"
 
 
 class TestAddVariablePersistsNewVariabletoCodebook:
@@ -498,51 +635,75 @@ class TestAddVariablePersistsNewVariabletoCodebook:
     
     Production method: VariableCodebook.run("add_variable", variable=...)
     """
-    def test_when_add_variable_is_executed_then_variable_is_added_to_variables_dictionary(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_add_variable_is_executed_then_success_status_is_true(self, variable_codebook_fixture, valid_args, valid_kwargs):
+        """
+        Given a Variable object with label "new_var" that does not exist in the codebook
+        When add_variable action is executed
+        Then success status is returned as True
+        """
+        args, kwargs = valid_args["add_variable"], valid_kwargs["add_variable_new"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert result['success'] is True, f"Expected result['success'] to be True, but got {result['success']}"
+
+    # NOTE: Done
+    def test_when_add_variable_is_executed_then_variable_is_added_to_variables_dictionary(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a Variable object with label "new_var" that does not exist in the codebook
         When add_variable action is executed
         Then the variable is added to self.variables dictionary
         """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "new_var", "item_name": "new_var"})
-        assert result.get("success") is True
+        var_name = valid_kwargs["add_variable_new"]["item_name"]
+        args, kwargs = valid_args["add_variable"], valid_kwargs["add_variable_new"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        vars = variable_codebook_fixture.variables
+        assert var_name in vars, f"Expected '{var_name}' to be in variables, but got {list(vars.keys())}"
 
-    def test_when_add_variable_is_executed_then_variable_is_persisted_to_storage(self, variable_codebook_fixture):
-        """
-        Given a Variable object with label "new_var" that does not exist in the codebook
-        When add_variable action is executed
-        Then the variable is persisted to storage if configured
-        """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "new_var", "item_name": "new_var"})
-        assert result.get("success") is True
 
-    def test_when_add_variable_is_executed_then_success_status_is_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    # TODO: This should be confirmable without resorting to checking the mock call history
+    @pytest.mark.parametrize("action_key,kwargs_key,storage_method", [
+        ("add_variable", "add_variable_new", "save"),
+        ("update_variable", "update_variable", "save"),
+    ])
+    def test_when_variable_operation_is_executed_then_variable_is_persisted_to_storage(
+            self, storage_service, variable_codebook_fixture, valid_args, valid_kwargs, action_key, kwargs_key, storage_method):
         """
-        Given a Variable object with label "new_var" that does not exist in the codebook
-        When add_variable action is executed
-        Then success status is returned
+        Given a Variable object operation (add or update)
+        When the operation is executed with persistence enabled
+        Then the variable is persisted to storage
         """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "new_var", "item_name": "new_var"})
-        assert result.get("success") is True
+        args, kwargs = valid_args[action_key], valid_kwargs[kwargs_key]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        storage_method_mock = getattr(variable_codebook_fixture.storage_service, storage_method)
+        assert storage_method_mock.called, f"Expected storage_service.{storage_method} to be called, but called={storage_method_mock.called}"
 
-    def test_when_adding_duplicate_variable_then_error_is_raised_or_returned(self, variable_codebook_fixture):
+
+    # NOTE: Done
+    def test_when_adding_duplicate_variable_then_error_key_in_result(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a Variable object with label "existing_var" that already exists in the codebook
         When add_variable action is executed
-        Then an error is raised or returned
+        Then an error is in returned result
         """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "existing_var", "item_name": "existing_var"})
-        assert result.get("success") is False
+        expected_key = 'error'
+        args, kwargs = valid_args["add_variable"], valid_kwargs["add_variable_duplicate"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert expected_key in result, f"Expected '{expected_key}' key in result, but got {list(result.keys())}"
 
-    def test_when_adding_duplicate_variable_then_error_indicates_duplicate(self, variable_codebook_fixture):
+
+    # NOTE: Done
+    def test_when_adding_duplicate_variable_then_error_indicates_duplicate(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a Variable object with label "existing_var" that already exists in the codebook
         When add_variable action is executed
         Then the error indicates duplicate variable
         """
-        result = variable_codebook_fixture.run("add_variable", variable={"label": "existing_var", "item_name": "existing_var"})
-        error = result.get("error", "").lower()
-        assert "already exists" in error or "duplicate" in error
+        expected_msg = "already present in codebook"
+        args, kwargs = valid_args["add_variable"], valid_kwargs["add_variable_duplicate"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        error = result["error"]
+        assert expected_msg in error, f"Expected '{error}' in error message, but got {error}"
 
 
 class TestUpdateVariableModifiesExistingVariable:
@@ -551,194 +712,111 @@ class TestUpdateVariableModifiesExistingVariable:
     
     Production method: VariableCodebook.run("update_variable", variable_name=..., variable=...)
     """
-    def test_when_update_variable_is_executed_then_variable_in_self_variables_is_updated(self, variable_codebook_fixture):
-        """
-        Given variable "sales_tax_city" exists with an updated Variable object
-        When update_variable action is executed
-        Then the variable in self.variables is updated
-        """
-        result = variable_codebook_fixture.run("update_variable", variable_name="sales_tax_city", variable={"description": "updated description"})
-        assert result.get("success") is True
-
-    def test_when_update_variable_is_executed_then_updated_variable_is_persisted_to_storage(self, variable_codebook_fixture):
-        """
-        Given variable "sales_tax_city" exists with an updated Variable object
-        When update_variable action is executed
-        Then the updated variable is persisted to storage
-        """
-        result = variable_codebook_fixture.run("update_variable", variable_name="sales_tax_city", variable={"description": "updated description"})
-        assert result.get("success") is True
-
-    def test_when_update_variable_is_executed_then_success_status_is_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_update_variable_is_executed_then_success_status_is_returned(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given variable "sales_tax_city" exists with an updated Variable object
         When update_variable action is executed
         Then success status is returned
         """
-        result = variable_codebook_fixture.run("update_variable", variable_name="sales_tax_city", variable={"description": "updated description"})
-        assert result.get("success") is True
+        args, kwargs = valid_args["update_variable"], valid_kwargs["update_variable"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert result['success'] is True, f"Expected result['success'] to be True, but got {result['success']}"
 
-    def test_when_updating_non_existent_variable_then_error_is_raised_or_returned(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_update_variable_is_executed_then_variable_in_self_variables_is_updated(self, variable_codebook_fixture, valid_args, valid_kwargs):
+        """
+        Given variable "sales_tax_city" exists with an updated Variable object
+        When update_variable action is executed
+        Then the variable in self.variables is updated
+        """
+        var_name = "sales_tax_city"
+        args, kwargs = valid_args["update_variable"], valid_kwargs["update_variable"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        updated_var = valid_kwargs["update_variable"]["variable"]["description"]
+        assert variable_codebook_fixture.variables[var_name] == updated_var, f"Expected variables['{var_name}'] to be {updated_var}, but got {variable_codebook_fixture.variables['sales_tax_city']}"
+
+    # NOTE: Done
+    def test_when_updating_non_existent_variable_then_error_is_raised_or_returned(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given variable_name "nonexistent_var" does not exist
         When update_variable action is executed
         Then an error is raised or returned
         """
-        result = variable_codebook_fixture.run("update_variable", variable_name="nonexistent_var", variable={"description": "new description"})
-        assert result.get("success") is False
+        expected_key = 'error'
+        args, kwargs = valid_args["update_variable"], valid_kwargs["update_variable_nonexistent"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        assert expected_key in result, f"Expected '{expected_key}' key in result, but got {list(result.keys())}"
 
-    def test_when_updating_non_existent_variable_then_error_indicates_variable_not_found(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_updating_non_existent_variable_then_error_indicates_variable_not_found(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given variable_name "nonexistent_var" does not exist
         When update_variable action is executed
         Then the error indicates variable not found
         """
-        result = variable_codebook_fixture.run("update_variable", variable_name="nonexistent_var", variable={"description": "new description"})
-        assert "not found" in result.get("error", "").lower()
+        expected_msg = 'variable not found'
+        args, kwargs = valid_args["update_variable"], valid_kwargs["update_variable_nonexistent"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        error_msg = result['error']
+        assert expected_msg in error_msg, f"Expected '{expected_msg}' in error message, but got {error_msg}"
 
 
 class TestVariablesAreLoadedfromFileWhenConfigured:
     """
     Tests for variable loading from file during initialization.
     
-    Production method: VariableCodebook.__init__(resources, configs)
+    Production method: make_variable_codebook()
     """
-    def test_when_load_from_file_is_true_then_variables_are_loaded_from_file(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_load_from_file_is_true_then_variables_are_loaded_from_file(
+            self, mock_resources, mock_configs_with_variable_file):
         """
         Given load_from_file is configured as True and a variables file exists
-        When VariableCodebook is initialized
+        When make_variable_codebook is called
         Then variables are loaded from the file
         """
-        assert isinstance(variable_codebook_fixture.variables, dict)
+        one = 1
+        new_codebook_instance = make_variable_codebook(resources=mock_resources, configs=mock_configs_with_variable_file)
+        vars = new_codebook_instance.variables
+        assert len(vars) == one, f"Expected variables length to equal {one}, but got {len(vars)}"
 
-    def test_when_variables_are_loaded_then_self_variables_contains_loaded_variables(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_variables_are_loaded_then_self_variables_contains_loaded_variable_keys(self, mock_resources, mock_configs_with_variable_file):
         """
         Given load_from_file is configured as True and a variables file exists
-        When VariableCodebook is initialized
-        Then self.variables contains the loaded variables
+        When make_variable_codebook is called
+        Then self.variables contains the keys for the loaded variables
         """
-        assert isinstance(variable_codebook_fixture.variables, dict)
+        expected_var = "sales_tax_city"
+        new_codebook_instance = make_variable_codebook(resources=mock_resources, configs=mock_configs_with_variable_file)
+        actual_vars = new_codebook_instance.variables
+        assert expected_var in actual_vars, f"Expected '{expected_var}' to be in variables, but got {list(actual_vars.keys())}"
 
-    def test_when_load_from_file_is_false_then_no_file_loading_occurs(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_variables_are_loaded_then_self_variables_values_are_variable_obj(self, mock_resources, mock_configs_with_variable_file):
+        """
+        Given load_from_file is configured as True and a variables file exists
+        When make_variable_codebook is called
+        Then the values in self.variables are Variable objects
+        """
+        expected_var = "sales_tax_city"
+        new_codebook_instance = make_variable_codebook(resources=mock_resources, configs=mock_configs_with_variable_file)
+        actual_vars = new_codebook_instance.variables
+        var_obj = actual_vars[expected_var]
+        assert isinstance(var_obj, Variable), f"Expected variables['{expected_var}'] to be Variable, but got {type(var_obj).__name__}"
+
+    # NOTE: Done
+    def test_when_load_from_file_is_false_then_self_variables_starts_empty(self, mock_resources, mock_configs_load_from_file_is_false):
         """
         Given load_from_file is configured as False
         When VariableCodebook is initialized
-        Then no file loading occurs
+        Then self.variables does not contain keys for that variable
         """
-        assert isinstance(variable_codebook_fixture.variables, dict)
-
-    def test_when_load_from_file_is_false_then_self_variables_starts_empty(self, variable_codebook_fixture):
-        """
-        Given load_from_file is configured as False
-        When VariableCodebook is initialized
-        Then self.variables starts empty
-        """
-        assert isinstance(variable_codebook_fixture.variables, dict)
-
-
-class TestCacheServiceIsUsedWhenEnabled:
-    """
-    Tests for cache service integration.
-    
-    Production method: VariableCodebook.run("get_variable", variable_name=...)
-    """
-    def test_when_cache_is_enabled_and_variable_in_cache_then_variable_is_returned_from_cache(self, variable_codebook_fixture):
-        """
-        Given cache_enabled is configured as True and variable "sales_tax_city" is in cache
-        When get_variable is called
-        Then the variable is returned from cache
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert result.get("success") is True
-
-    def test_when_cache_is_enabled_and_variable_in_cache_then_storage_service_is_not_queried(self, variable_codebook_fixture):
-        """
-        Given cache_enabled is configured as True and variable "sales_tax_city" is in cache
-        When get_variable is called
-        Then storage service is not queried
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="sales_tax_city")
-        assert result.get("success") is True
-
-    def test_when_cache_is_enabled_and_variable_not_in_cache_then_variable_is_added_to_cache(self, variable_codebook_fixture):
-        """
-        Given cache_enabled is configured as True and variable "property_tax" is not in cache
-        When get_variable retrieves from storage
-        Then the variable is added to cache
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="property_tax")
-        assert result.get("success") is True
-
-    def test_when_cache_is_enabled_and_variable_cached_then_cache_ttl_is_set(self, variable_codebook_fixture):
-        """
-        Given cache_enabled is configured as True and variable "property_tax" is not in cache
-        When get_variable retrieves from storage
-        Then cache TTL is set to cache_ttl_seconds
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="property_tax")
-        assert result.get("success") is True
-
-    def test_when_cache_is_disabled_then_cache_is_not_checked(self, variable_codebook_fixture):
-        """
-        Given cache_enabled is configured as False
-        When get_variable is called
-        Then cache is not checked
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert result.get("success") is True
-
-    def test_when_cache_is_disabled_then_variable_is_always_retrieved_from_storage(self, variable_codebook_fixture):
-        """
-        Given cache_enabled is configured as False
-        When get_variable is called
-        Then variable is always retrieved from storage
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert result.get("success") is True
-
-
-class TestDefaultAssumptionsAreAppliedWhenEnabled:
-    """
-    Tests for default assumptions application.
-    
-    Production method: VariableCodebook.run("get_variable", variable_name=...)
-    """
-    def test_when_default_assumptions_enabled_then_default_business_assumptions_are_applied(self, variable_codebook_fixture):
-        """
-        Given default_assumptions_enabled is configured as True and a variable without business assumptions
-        When the variable is retrieved
-        Then default business assumptions are applied
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert result.get("success") is True
-
-    def test_when_default_assumptions_enabled_then_assumptions_include_default_values(self, variable_codebook_fixture):
-        """
-        Given default_assumptions_enabled is configured as True and a variable without business assumptions
-        When the variable is retrieved
-        Then assumptions include default values
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert result.get("success") is True
-
-    def test_when_default_assumptions_disabled_then_no_default_assumptions_are_added(self, variable_codebook_fixture):
-        """
-        Given default_assumptions_enabled is configured as False and a variable without assumptions
-        When the variable is retrieved
-        Then no default assumptions are added
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        variable = result.get("variable", {})
-        assert variable.get("assumptions") is None or isinstance(variable.get("assumptions"), dict)
-
-    def test_when_default_assumptions_disabled_then_variable_retains_original_assumptions(self, variable_codebook_fixture):
-        """
-        Given default_assumptions_enabled is configured as False and a variable without assumptions
-        When the variable is retrieved
-        Then the variable retains its original assumptions
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert result.get("success") is True
+        absent_key = "sales_tax_city"
+        new_codebook_instance = make_variable_codebook(resources=mock_resources, configs=mock_configs_load_from_file_is_false)
+        actual_vars = new_codebook_instance.variables
+        assert absent_key not in actual_vars, f"Expected '{absent_key}' to not be in variables, but got {list(actual_vars.keys())}"
 
 
 class TestPromptDecisionTreeIsRepresentedasDiGraph:
@@ -747,122 +825,52 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
     
     Production method: VariableCodebook.run("get_variable", variable_name=...)
     """
-    def test_when_decision_tree_is_accessed_then_it_is_nx_digraph_object(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_decision_tree_is_accessed_then_it_is_nx_digraph_object(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a variable with a prompt decision tree
         When the decision tree is accessed
-        Then it is a nx.DiGraph object
+        Then it is a PromptDecisionTree object
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        tree = result.get("variable", {}).get("prompt_decision_tree")
-        assert tree is not None or isinstance(tree, dict)
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_test"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        tree = result["variable"]["prompt_decision_tree"]
+        assert isinstance(tree, PromptDecisionTree), f"Expected decision_tree to be PromptDecisionTree, but got {type(tree).__name__}"
 
-    def test_when_decision_tree_is_accessed_then_it_contains_nodes_and_edges(self, variable_codebook_fixture):
+    # NOTE: Done
+    def test_when_decision_tree_is_accessed_then_it_contains_nodes_and_edges(self, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a variable with a prompt decision tree
         When the decision tree is accessed
         Then it contains nodes and edges
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        tree = result.get("variable", {}).get("prompt_decision_tree", {})
-        assert "nodes" in tree or "edges" in tree
+        zero = 0
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_test"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        tree = result["variable"]["prompt_decision_tree"]
+        assert len(tree.nodes) > 0, f"Expected decision_tree.nodes length to be > 0, but got {len(tree.nodes)}"
 
-    def test_when_tree_nodes_are_examined_then_each_node_has_prompt_attribute(self, variable_codebook_fixture):
+    @pytest.mark.parametrize("idx", [1, 2, 3, 4, 5]) # NOTE: Done
+    def test_when_tree_nodes_are_examined_then_each_node_has_prompt_attribute(self, idx, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a decision tree for a variable
         When tree nodes are examined
         Then each node has a "prompt" attribute
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        nodes = result.get("variable", {}).get("prompt_decision_tree", {}).get("nodes", [])
-        assert isinstance(nodes, list)
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_test"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        node = result["variable"]["prompt_decision_tree"]["nodes"][idx]
+        assert hasattr(node, 'prompt'), f"Expected node {idx} to have 'prompt' attribute, but attributes are {dir(node)}"
 
-    def test_when_tree_nodes_are_examined_then_prompts_are_strings(self, variable_codebook_fixture):
+    @pytest.mark.parametrize("idx", [1, 2, 3, 4, 5]) # NOTE: Done
+    def test_when_tree_nodes_are_examined_then_prompts_are_strings(self, idx, variable_codebook_fixture, valid_args, valid_kwargs):
         """
         Given a decision tree for a variable
         When tree nodes are examined
         Then prompts are strings
         """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        nodes = result.get("variable", {}).get("prompt_decision_tree", {}).get("nodes", [])
-        assert isinstance(nodes, list)
-
-    def test_when_variable_is_serialized_then_decision_tree_is_serialized_to_dict(self, variable_codebook_fixture):
-        """
-        Given: a variable with a decision tree
-        When: the variable is serialized to dict and the dict is deserialized back to Variable
-        Then: the decision tree is serialized to dict format
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        tree = result.get("variable", {}).get("prompt_decision_tree")
-        assert tree is None or isinstance(tree, dict)
-
-    def test_when_dict_is_deserialized_then_decision_tree_is_restored_as_digraph(self, variable_codebook_fixture):
-        """
-        Given: a variable with a decision tree
-        When: the variable is serialized to dict and the dict is deserialized back to Variable
-        Then: the decision tree is restored as a DiGraph
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        tree = result.get("variable", {}).get("prompt_decision_tree")
-        assert tree is None or isinstance(tree, dict)
-
-
-class TestKeywordMatchingMapsInputtoVariables:
-    """
-    Tests for keyword matching for variable extraction.
-    
-    Production method: VariableCodebook.get_prompt_sequence_for_input(input_data_point)
-    """
-    def test_when_keyword_is_in_input_then_correct_variable_name_is_extracted(self, variable_codebook_fixture):
-        """
-        Given: input contains keyword "<keyword>"
-        When: variable is extracted from input
-        Then: the variable_name is "<variable_name>"
-        """
-        # Arrange
-        input_with_keyword = "What is the sales tax rate?"
-        expected_var = "sales_tax_city"
-        variable_codebook_fixture.get_prompt_sequence_for_input = lambda x: ["prompt"]
-        
-        # Act
-        result = variable_codebook_fixture.get_prompt_sequence_for_input(input_with_keyword)
-        
-        # Assert
-        assert isinstance(result, list), f"Expected prompts list for input containing keyword but got {type(result).__name__} for expected var '{expected_var}'"
-        variable_codebook_fixture.get_prompt_sequence_for_input.assert_called_once_with(input_with_keyword)
-
-
-class TestCodebookOperationsAreLogged:
-    """
-    Tests for logging of codebook operations.
-    
-    Production method: VariableCodebook.run(action, **kwargs)
-    """
-    def test_when_run_is_called_then_log_message_indicates_operation_start(self, variable_codebook_fixture):
-        """
-        Given: any action is executed
-        When: run is called
-        Then: a log message indicates "Starting variable codebook operation: <action>"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="test_var")
-        assert result.get("success") is not None
-
-    def test_when_variable_not_found_then_warning_is_logged(self, variable_codebook_fixture):
-        """
-        Given: variable_name "missing_var" does not exist
-        When: get_variable is called
-        Then: a warning is logged indicating "Variable not found: missing_var"
-        """
-        result = variable_codebook_fixture.run("get_variable", variable_name="missing_var")
-        assert "Variable not found" in result.get("error", "") or result.get("success") is False
-
-    def test_when_decision_tree_is_missing_then_warning_is_logged(self, variable_codebook_fixture):
-        """
-        Given a variable without prompt decision tree
-        When get_prompt_sequence is called
-        Then a warning is logged indicating "No prompt decision tree found"
-        """
-        result = variable_codebook_fixture.run("get_prompt_sequence", variable_name="test_var")
-        assert "No prompt decision tree found" in result.get("error", "") or result.get("success") is False
+        args, kwargs = valid_args["get_variable"], valid_kwargs["get_variable_test"]
+        result = variable_codebook_fixture.run(*args, **kwargs)
+        node = result["variable"]["prompt_decision_tree"]["nodes"][idx]
+        assert isinstance(node.prompt, str), f"Expected prompts in node to be str, but got {type(node.prompt).__name__}"
 

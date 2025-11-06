@@ -2,7 +2,7 @@
 
 ## Install test dependencies
 
-`pip install -r tests-unit/requirements.txt`
+`pip install -r tests_unit/requirements.txt`
 
 ## Run tests
-`pytest tests-unit/`
+`pytest tests_unit/`

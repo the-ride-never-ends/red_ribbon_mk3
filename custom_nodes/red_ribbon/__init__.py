@@ -1,16 +1,18 @@
 """
 Red Ribbon - A collection of custom nodes for ComfyUI
 """
-try:
-    import easy_nodes
-except AttributeError:
-    from ._easy_nodes import easy_nodes
+from .custom_easy_nodes import easy_nodes
+
 
 import os
 from .__version__ import __version__
 
-# NOTE This only needs to be called once.
-easy_nodes.initialize_easy_nodes(default_category="Red Ribbon", auto_register=False)
+# Initialize Easy Nodes (has built-in protection against multiple calls)
+try:
+    easy_nodes.initialize_easy_nodes(default_category="Red Ribbon", auto_register=False)
+except Exception as e:
+    print(f"Error initializing Easy Nodes: {e}")
+    raise e
 
 # Import all modules - this must come after calling initialize_easy_nodes
 from .main import *  # noqa: F403, E402

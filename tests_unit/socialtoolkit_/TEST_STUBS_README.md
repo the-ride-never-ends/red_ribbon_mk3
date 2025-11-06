@@ -15,7 +15,7 @@ Each `.feature` file has a corresponding `test_*.py` file containing pytest test
 ## Structure
 
 ```
-tests-unit/socialtoolkit_/
+tests_unit/socialtoolkit_/
 ├── architecture/
 │   ├── document_retrieval_from_websites.feature
 │   ├── test_document_retrieval_from_websites.py (641 lines, 54 tests)
@@ -133,7 +133,7 @@ To implement these test stubs:
 2. **Implement fixtures** to set up test dependencies
 3. **Add assertions** based on the Then/And steps in docstrings
 4. **Add setup/teardown** as needed for test isolation
-5. **Run tests** with `pytest tests-unit/socialtoolkit_/`
+5. **Run tests** with `pytest tests_unit/socialtoolkit_/`
 
 ## Example Implementation Pattern
 
@@ -186,29 +186,29 @@ All test stub files have been validated for:
 Run all tests (will currently pass as they only contain `pass`):
 
 ```bash
-pytest tests-unit/socialtoolkit_/
+pytest tests_unit/socialtoolkit_/
 ```
 
 Run specific architecture tests:
 
 ```bash
-pytest tests-unit/socialtoolkit_/architecture/
+pytest tests_unit/socialtoolkit_/architecture/
 ```
 
 Run specific resource tests:
 
 ```bash
-pytest tests-unit/socialtoolkit_/resources/
+pytest tests_unit/socialtoolkit_/resources/
 ```
 
 Run a specific test file:
 
 ```bash
-pytest tests-unit/socialtoolkit_/architecture/test_cache_manager.py
+pytest tests_unit/socialtoolkit_/architecture/test_cache_manager.py
 ```
 
 Run with verbose output to see all test names:
 
 ```bash
-pytest tests-unit/socialtoolkit_/ -v
+pytest tests_unit/socialtoolkit_/ -v
 ```

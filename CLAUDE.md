@@ -7,12 +7,12 @@
 - Your working directory for this project is `custom_nodes/red_ribbon`.
 
 ## Testing Red Ribbon Modules
-- Run all Red Ribbon tests: `pytest tests-unit/ -k "red_ribbon"`
-- Test specific module: `pytest tests-unit/custom_nodes/red_ribbon/path/to/test.py`
-- Test specific class: `pytest tests-unit/custom_nodes/red_ribbon/path/to/test.py::TestClassName`
-- Test specific method: `pytest tests-unit/custom_nodes/red_ribbon/path/to/test.py::TestClassName::test_method_name`
-- Debug with verbosity: `pytest -vv tests-unit/custom_nodes/red_ribbon/`
-- Show print output: `pytest -s tests-unit/custom_nodes/red_ribbon/`
+- Run all Red Ribbon tests: `pytest tests_unit/ -k "red_ribbon"`
+- Test specific module: `pytest tests_unit/custom_nodes/red_ribbon/path/to/test.py`
+- Test specific class: `pytest tests_unit/custom_nodes/red_ribbon/path/to/test.py::TestClassName`
+- Test specific method: `pytest tests_unit/custom_nodes/red_ribbon/path/to/test.py::TestClassName::test_method_name`
+- Debug with verbosity: `pytest -vv tests_unit/custom_nodes/red_ribbon/`
+- Show print output: `pytest -s tests_unit/custom_nodes/red_ribbon/`
 
 ## Red Ribbon Code Style
 - Type hints required for all parameters and returns

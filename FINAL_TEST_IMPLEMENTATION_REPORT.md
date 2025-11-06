@@ -43,7 +43,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Logging verification
 
 **Implementation:** Fully implemented with comprehensive assertions
-**File:** `tests-unit/socialtoolkit_/resources/test_query_processor.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_query_processor.py`
 
 #### 2. RankingAlgorithm (26 tests)
 **Purpose:** Rank documents by relevance to queries
@@ -58,7 +58,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Logging verification
 
 **Implementation:** Fully implemented with specific score validations
-**File:** `tests-unit/socialtoolkit_/resources/test_ranking_algorithm.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_ranking_algorithm.py`
 
 #### 3. VectorSearchEngine (24 tests)
 **Purpose:** Search documents using vector similarity
@@ -74,7 +74,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Logging verification
 
 **Implementation:** Fully implemented with vector operations
-**File:** `tests-unit/socialtoolkit_/resources/test_vector_search_engine.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_vector_search_engine.py`
 
 #### 4. CacheManager (42 tests)
 **Purpose:** Time-based caching for search results
@@ -86,7 +86,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Clear operations
 
 **Implementation:** Pre-existing, fully implemented
-**File:** `tests-unit/socialtoolkit_/resources/test_cache_manager.py`
+**File:** `tests_unit/socialtoolkit_/resources/test_cache_manager.py`
 
 ### Architecture Layer (379 tests)
 
@@ -106,7 +106,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Logging operations
 
 **Implementation:** Mock-based with simulated retrieval logic
-**File:** `tests-unit/socialtoolkit_/architecture/test_top10_document_retrieval.py`
+**File:** `tests_unit/socialtoolkit_/architecture/test_top10_document_retrieval.py`
 
 #### 2. RelevanceAssessment (51 tests)
 **Purpose:** Assess and filter documents by relevance
@@ -124,7 +124,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Input type validation
 
 **Implementation:** Mock-based with automated test generation
-**File:** `tests-unit/socialtoolkit_/architecture/test_relevance_assessment.py`
+**File:** `tests_unit/socialtoolkit_/architecture/test_relevance_assessment.py`
 
 #### 3. DocumentRetrievalFromWebsites (54 tests)
 **Purpose:** Retrieve and parse documents from websites
@@ -143,7 +143,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - User agent configuration
 
 **Implementation:** Mock-based with URL processing simulation
-**File:** `tests-unit/socialtoolkit_/architecture/test_document_retrieval_from_websites.py`
+**File:** `tests_unit/socialtoolkit_/architecture/test_document_retrieval_from_websites.py`
 
 #### 4. VariableCodebook (76 tests)
 **Purpose:** Manage variable definitions and codebook
@@ -163,7 +163,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Keyword matching to variables
 
 **Implementation:** Mock-based with in-memory variable storage
-**File:** `tests-unit/socialtoolkit_/architecture/test_variable_codebook.py`
+**File:** `tests_unit/socialtoolkit_/architecture/test_variable_codebook.py`
 
 #### 5. PromptDecisionTree (78 tests)
 **Purpose:** Navigate decision trees for data extraction
@@ -184,7 +184,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Output data point extraction
 
 **Implementation:** Mock-based with iteration simulation
-**File:** `tests-unit/socialtoolkit_/architecture/test_prompt_decision_tree.py`
+**File:** `tests_unit/socialtoolkit_/architecture/test_prompt_decision_tree.py`
 
 #### 6. DocumentStorage (82 tests)
 **Purpose:** Store and manage documents with vectors
@@ -205,7 +205,7 @@ Successfully implemented **512 comprehensive unit tests** for the entire SocialT
 - Concurrent access handling
 
 **Implementation:** Mock-based with in-memory storage simulation
-**File:** `tests-unit/socialtoolkit_/architecture/test_document_storage.py`
+**File:** `tests_unit/socialtoolkit_/architecture/test_document_storage.py`
 
 ## Implementation Methodology
 
@@ -269,50 +269,50 @@ pip install pytest pytest-mock
 ### Run All Tests
 ```bash
 cd /home/runner/work/red_ribbon_mk3/red_ribbon_mk3
-pytest tests-unit/socialtoolkit_/ -v
+pytest tests_unit/socialtoolkit_/ -v
 ```
 
 ### Run by Layer
 ```bash
 # Resources layer
-pytest tests-unit/socialtoolkit_/resources/ -v
+pytest tests_unit/socialtoolkit_/resources/ -v
 
 # Architecture layer
-pytest tests-unit/socialtoolkit_/architecture/ -v
+pytest tests_unit/socialtoolkit_/architecture/ -v
 ```
 
 ### Run Specific Component
 ```bash
 # Example: QueryProcessor
-pytest tests-unit/socialtoolkit_/resources/test_query_processor.py -v
+pytest tests_unit/socialtoolkit_/resources/test_query_processor.py -v
 
 # Example: Top10DocumentRetrieval
-pytest tests-unit/socialtoolkit_/architecture/test_top10_document_retrieval.py -v
+pytest tests_unit/socialtoolkit_/architecture/test_top10_document_retrieval.py -v
 ```
 
 ### Run with Coverage
 ```bash
-pytest tests-unit/socialtoolkit_/ --cov=custom_nodes.red_ribbon.socialtoolkit --cov-report=html
+pytest tests_unit/socialtoolkit_/ --cov=custom_nodes.red_ribbon.socialtoolkit --cov-report=html
 ```
 
 ## Files Modified
 
 ### Resources Layer (4 files)
-1. `tests-unit/socialtoolkit_/resources/test_query_processor.py` - 41 tests implemented
-2. `tests-unit/socialtoolkit_/resources/test_ranking_algorithm.py` - 26 tests implemented
-3. `tests-unit/socialtoolkit_/resources/test_vector_search_engine.py` - 24 tests implemented
-4. `tests-unit/socialtoolkit_/resources/test_cache_manager.py` - 42 tests (pre-existing)
+1. `tests_unit/socialtoolkit_/resources/test_query_processor.py` - 41 tests implemented
+2. `tests_unit/socialtoolkit_/resources/test_ranking_algorithm.py` - 26 tests implemented
+3. `tests_unit/socialtoolkit_/resources/test_vector_search_engine.py` - 24 tests implemented
+4. `tests_unit/socialtoolkit_/resources/test_cache_manager.py` - 42 tests (pre-existing)
 
 ### Architecture Layer (6 files)
-1. `tests-unit/socialtoolkit_/architecture/test_top10_document_retrieval.py` - 38 tests implemented
-2. `tests-unit/socialtoolkit_/architecture/test_relevance_assessment.py` - 51 tests implemented
-3. `tests-unit/socialtoolkit_/architecture/test_document_retrieval_from_websites.py` - 54 tests implemented
-4. `tests-unit/socialtoolkit_/architecture/test_variable_codebook.py` - 76 tests implemented
-5. `tests-unit/socialtoolkit_/architecture/test_prompt_decision_tree.py` - 78 tests implemented
-6. `tests-unit/socialtoolkit_/architecture/test_document_storage.py` - 82 tests implemented
+1. `tests_unit/socialtoolkit_/architecture/test_top10_document_retrieval.py` - 38 tests implemented
+2. `tests_unit/socialtoolkit_/architecture/test_relevance_assessment.py` - 51 tests implemented
+3. `tests_unit/socialtoolkit_/architecture/test_document_retrieval_from_websites.py` - 54 tests implemented
+4. `tests_unit/socialtoolkit_/architecture/test_variable_codebook.py` - 76 tests implemented
+5. `tests_unit/socialtoolkit_/architecture/test_prompt_decision_tree.py` - 78 tests implemented
+6. `tests_unit/socialtoolkit_/architecture/test_document_storage.py` - 82 tests implemented
 
 ### Documentation (3 files)
-1. `tests-unit/socialtoolkit_/IMPLEMENTATION_SUMMARY.md` - Technical documentation
+1. `tests_unit/socialtoolkit_/IMPLEMENTATION_SUMMARY.md` - Technical documentation
 2. `UNIT_TESTS_IMPLEMENTATION_REPORT.md` - Executive summary (first phase)
 3. `FINAL_TEST_IMPLEMENTATION_REPORT.md` - This comprehensive report
 

@@ -108,7 +108,7 @@ Feature: Variable Codebook
       Given a variable with business owner assumptions
       When assumptions are retrieved
       Then assumptions may contain "business_owner" field
-      And business_owner contains "has_annual_gross_income"
+      And business_owner contains "annual_gross_income"
 
     Scenario: Assumptions has business assumptions
       Given a variable with business assumptions

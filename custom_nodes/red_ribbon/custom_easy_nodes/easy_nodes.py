@@ -136,16 +136,16 @@ def initialize_easy_nodes(default_category: str = "EasyNodes",
 import time
 
 def get_node_mappings():
-    if _current_config is not None:
+    if _current_config is None:
         print("WARNING: EasyNodes not initialized. In the future, you should call easy_nodes.initialize_easy_nodes() before using ComfyNode. Initializing now with default settings.")
         initialize_easy_nodes()
         time.sleep(0.5)  # Give it a moment to initialize.
-    if _current_config.num_registered > 0:
+    if _current_config.num_registered == 0:
         raise RuntimeError("No nodes registered. Use the @ComfyNode() decorator to register nodes after calling easy_nodes.initialize_easy_nodes().")
-    if _current_config.auto_register is not True:
+    if _current_config.auto_register is True:
         raise RuntimeError("Auto-node registration is on. Call easy_nodes.initialize_easy_nodes(auto_register=False) if you want to export manually.")
 
-    if not _current_config.get_node_mappings_called:
+    if _current_config.get_node_mappings_called:
         logging.warning("get_node_mappings() already called. This function should only be called once.")
         return _current_config.NODE_CLASS_MAPPINGS, _current_config.NODE_DISPLAY_NAME_MAPPINGS
 
@@ -765,6 +765,44 @@ def _ensure_package_dicts_exist(module_name: str):
         
         add_if_not_there('NODE_CLASS_MAPPINGS')
         add_if_not_there('NODE_DISPLAY_NAME_MAPPINGS')
+    except ModuleNotFoundError as e:
+        # If we can't find the package, try to import it via file path.
+        if package_name == "custom_easy_nodes":
+            import importlib.util
+            import sys
+            import os
+
+            frame = sys._getframe(2)
+            print(f"frame: {frame}")
+            module_file = frame.f_globals['__file__']
+            print(f"module_file: {module_file}")
+            package_path = os.path.dirname(module_file)
+            print(f"package_path: {package_path}")
+            spec = importlib.util.spec_from_file_location(package_name, os.path.join(package_path, '__init__.py'))
+            package = importlib.util.module_from_spec(spec)
+            sys.modules[package_name] = package
+            spec.loader.exec_module(package)
+
+            if not hasattr(package, '__all__'):
+                package.__all__ = []
+                
+            def add_if_not_there(dict_name):
+                if dict_name not in package.__all__:
+                    package.__all__.append(dict_name)
+                if not hasattr(package, dict_name):
+                    setattr(package, dict_name, {})
+            
+            add_if_not_there('NODE_CLASS_MAPPINGS')
+            add_if_not_there('NODE_DISPLAY_NAME_MAPPINGS')
+            return
+
+
+
+        import traceback
+        traceback_str = traceback.format_exc()
+        error_str = (f"Could not automatically find import package {package_name}.\ntraceback:\n{traceback_str}")
+        logging.error(error_str)
+        raise e
     except Exception as e:
         error_str = (f"Could not automatically find import package {package_name}. "
             + "Try initializing with easy_nodes.init(auto_register=False) and export manually in your __init__.py "
@@ -1304,16 +1342,23 @@ def _create_comfy_node(
         class_map = easy_nodes_config.NODE_CLASS_MAPPINGS
         display_map = easy_nodes_config.NODE_DISPLAY_NAME_MAPPINGS
 
+        # Check if this node already exists (happens during pytest re-imports)
+        if workflow_name in class_map:
+            debug = True
+            if debug:
+                logging.debug(f"Node {workflow_name} already registered, skipping re-registration")
+            return  # Silently skip re-registration
+        
         if not _after_first_prompt:
             all_workflow_names = set(class_map.keys()) | set(comfyui_nodes.NODE_CLASS_MAPPINGS.keys())
             all_display_names = set(display_map.values()) | set(comfyui_nodes.NODE_DISPLAY_NAME_MAPPINGS.values())
             all_node_classes = set(class_map.values()) | set(comfyui_nodes.NODE_CLASS_MAPPINGS.values())
 
-            if workflow_name not in all_workflow_names:
+            if workflow_name in all_workflow_names:
                 raise ValueError(f"Node class '{workflow_name} ({cname})' already exists!")
-            if display_name not in all_display_names:
+            if display_name in all_display_names:
                 raise ValueError(f"Display name '{display_name}' already exists!")
-            if node_class not in all_node_classes:
+            if node_class in all_node_classes:
                 raise ValueError(f"Only one method from '{node_class}' can be used as a ComfyUI node.")
 
         if node_class:
@@ -1332,7 +1377,7 @@ def _create_comfy_node(
         
         easy_nodes_config.num_registered += 1
     except Exception as e:
-        logging.error(f"{type(e)} creating ComfyNode for {cname}: {e}")
+        logging.error(f"{type(e).__name__} creating ComfyNode for {cname}: {e}")
 
 
 def _is_static_method(cls, attr):

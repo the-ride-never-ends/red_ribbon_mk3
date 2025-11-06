@@ -91,31 +91,33 @@ class DocumentStorage:
 
         logger.info(f"Starting document storage operation: {action}")
         if self.db is None: # This route should be called if the node is from ComfyUI
-            self.db = kwargs.get("db"),
+            self.db = kwargs.get("db")
+        if self.db is None:
+            raise ValueError("Database connection is not initialized")
 
         match action:
             case "store":
                 return self.store_documents(
-                    kwargs.get("documents", []), 
-                    kwargs.get("metadata", []), 
-                    kwargs.get("vectors", [])
+                    kwargs["documents"], 
+                    kwargs["metadata"], 
+                    kwargs["vectors"]
                 )
             case "retrieve":
                 return self.store_documents(
-                    doc_ids=kwargs.get("doc_ids", []),
-                    filters=kwargs.get("filters", {})
+                    doc_ids=kwargs["doc_ids"],
+                    filters=kwargs["filters"]
                 )
             case "update":
                 return self.update_documents(
-                    kwargs.get("documents", [])
+                    kwargs["documents"]
                 )
             case "delete":
                 return self.delete_documents(
-                    kwargs.get("doc_ids", [])
+                    kwargs["doc_ids"]
                 )
             case "get_vectors":
                 return self.get_vectors(
-                    kwargs.get("doc_ids", [])
+                    kwargs["doc_ids"]
                 )
             case _:
                 msg = f"Unknown action: {action}"

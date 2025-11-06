@@ -96,20 +96,20 @@ class BusinessOwnerAssumptions(BaseModel):
     Model representing assumptions about business ownership characteristics.
 
 Attributes:
-    has_annual_gross_income (str, optional): The assumed annual gross income
+    annual_gross_income (str, optional): The assumed annual gross income
         of the business owner. Defaults to "$70,000".
 
 Attributes:
-    has_annual_gross_income (str): Business owner's assumed annual gross income
+    annual_gross_income (str): Business owner's assumed annual gross income
         formatted as a currency string.
 
 Examples:
     >>> assumptions = BusinessOwnerAssumptions()
-    >>> print(assumptions.has_annual_gross_income)
+    >>> print(assumptions.annual_gross_income)
     '$70,000'
     >>> 
     >>> custom_assumptions = BusinessOwnerAssumptions(
-    ...     has_annual_gross_income="$85,000"
+    ...     annual_gross_income="$85,000"
     ... )
     """
 ```

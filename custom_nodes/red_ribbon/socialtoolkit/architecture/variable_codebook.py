@@ -20,45 +20,46 @@ from pydantic import BaseModel, PlainSerializer, PlainValidator
 # Define serializer/deserializer functions
 def serialize_digraph(graph: nx.DiGraph) -> dict:
     """
-        Serialize a NetworkX DiGraph into a dictionary format for storage or transmission.
+    Serialize a NetworkX DiGraph into a dictionary format for storage or transmission.
 
-        This function converts a NetworkX directed graph into a dictionary representation
-        that preserves all node attributes, edge attributes, and graph-level attributes.
-        The resulting dictionary can be used for JSON serialization, database storage,
-        or transmission between systems.
+    This function converts a NetworkX directed graph into a dictionary representation
+    that preserves all node attributes, edge attributes, and graph-level attributes.
+    The resulting dictionary can be used for JSON serialization, database storage,
+    or transmission between systems.
 
-        Args:
-            graph (nx.DiGraph): The NetworkX directed graph to serialize.
-                Must be a valid DiGraph instance with or without node/edge attributes.
+    Args:
+        graph (nx.DiGraph): The NetworkX directed graph to serialize.
+            Must be a valid DiGraph instance with or without node/edge attributes.
 
-        Returns:
-            dict: A dictionary containing the serialized graph data with the following structure:
-                - nodes (list): List of tuples containing (node_id, attributes_dict)
-                - edges (list): List of tuples containing (source, target, attributes_dict)
-                - graph_attrs (dict): Dictionary of graph-level attributes
+    Returns:
+        dict: A dictionary containing the serialized graph data with the following structure:
+            - nodes (list): List of tuples containing (node_id, attributes_dict)
+            - edges (list): List of tuples containing (source, target, attributes_dict)
+            - graph_attrs (dict): Dictionary of graph-level attributes
 
-        Raises:
-            TypeError: If graph is not a NetworkX DiGraph instance.
-            AttributeError: If the graph object is missing required NetworkX methods.
+    Raises:
+        TypeError: If graph is not a NetworkX DiGraph instance.
+        AttributeError: If the graph object is missing required NetworkX methods.
 
-        Examples:
-            >>> import networkx as nx
-            >>> G = nx.DiGraph()
-            >>> G.add_node("A", label="Node A")
-            >>> G.add_edge("A", "B", weight=1.5)
-            >>> serialized = serialize_digraph(G)
-            >>> print(serialized)
-            {
-                'nodes': [('A', {'label': 'Node A'}), ('B', {})],
-                'edges': [('A', 'B', {'weight': 1.5})],
-                'graph_attrs': {}
-            }
+    Examples:
+        >>> import networkx as nx
+        >>> G = nx.DiGraph()
+        >>> G.add_node("A", label="Node A")
+        >>> G.add_edge("A", "B", weight=1.5)
+        >>> serialized = serialize_digraph(G)
+        >>> print(serialized)
+        {
+            'nodes': [('A', {'label': 'Node A'}), ('B', {})],
+            'edges': [('A', 'B', {'weight': 1.5})],
+            'graph_attrs': {}
+        }
     """
     return {
         'nodes': [(n, dict(attr)) for n, attr in graph.nodes(data=True)],
         'edges': [(u, v, dict(attr)) for u, v, attr in graph.edges(data=True)],
         'graph_attrs': dict(graph.graph)
     }
+
 
 def validate_digraph(v: Any) -> nx.DiGraph:
     """
@@ -98,16 +99,18 @@ def validate_digraph(v: Any) -> nx.DiGraph:
         ... }
         >>> validated = validate_digraph(graph_dict)
     """
-    if isinstance(v, nx.DiGraph):
-        return v
-    if isinstance(v, dict):
-        G = nx.DiGraph(**v.get('graph_attrs', {}))
-        for node, attrs in v.get('nodes', []):
-            G.add_node(node, **attrs)
-        for u, v, attrs in v.get('edges', []):
-            G.add_edge(u, v, **attrs)
-        return G
-    raise ValueError("Must be a NetworkX DiGraph or serialized graph dict")
+    match v:
+        case nx.DiGraph():
+            return v
+        case dict():
+            G = nx.DiGraph(**v.get('graph_attrs', {}))
+            for node, attrs in v.get('nodes', []):
+                G.add_node(node, **attrs)
+            for u, v, attrs in v.get('edges', []):
+                G.add_edge(u, v, **attrs)
+            return G
+        case _:
+            raise TypeError(f"Must be a NetworkX DiGraph or serialized graph dict, got {type(v).__name__}")
 
 # Create an annotated type
 # DiGraph = Annotated[
@@ -121,23 +124,23 @@ class BusinessOwnerAssumptions(BaseModel):
     Model representing assumptions about business ownership characteristics.
 
     Attributes:
-        has_annual_gross_income (str, optional): The assumed annual gross income
+        annual_gross_income (str, optional): The assumed annual gross income
             of the business owner. Defaults to "$70,000".
 
     Attributes:
-        has_annual_gross_income (str): Business owner's assumed annual gross income
+        annual_gross_income (str): Business owner's assumed annual gross income
             formatted as a currency string.
 
     Examples:
         >>> assumptions = BusinessOwnerAssumptions()
-        >>> print(assumptions.has_annual_gross_income)
+        >>> print(assumptions.annual_gross_income)
         '$70,000'
         >>> 
         >>> custom_assumptions = BusinessOwnerAssumptions(
-        ...     has_annual_gross_income="$85,000"
+        ...     annual_gross_income="$85,000"
         ... )
     """
-    has_annual_gross_income: str = "$70,000"
+    annual_gross_income: str = "$70,000"
 
 
 
@@ -489,9 +492,6 @@ class PromptDecisionTree(BaseModel):
             ... )
             >>> codebook = VariableCodebook(resources, configs)
         """
-        for key in {'nodes', 'edges'}:
-            if key not in data:
-                raise ValueError(f"PromptDecisionTree requires '{key}' field")
         nodes = data.pop('nodes', [])
         edges = data.pop('edges', [])
 
@@ -594,39 +594,37 @@ class CodeBook(BaseModel):
 
 class VariableCodebookConfigs(BaseModel):
     """
-        Configuration model for Variable Codebook system initialization and behavior.
+    Configuration model for Variable Codebook system initialization and behavior.
 
-        Attributes:
-            variables_path (str, optional): Path to the variables data file for
-                loading and saving operations. Defaults to "variables.json".
-            load_from_file (bool, optional): Whether to load variables from file
-                during initialization. Defaults to True.
-            cache_enabled (bool, optional): Whether to enable caching for variable
-                operations and lookups. Defaults to True.
-            cache_ttl_seconds (int, optional): Cache time-to-live in seconds for
-                cached variable data. Defaults to 3600 (1 hour).
-            default_assumptions_enabled (bool, optional): Whether to load default
-                assumptions when no file data is available. Defaults to True.
+    Attributes:
+        variables_path (str, optional): Path to the variables data file for
+            loading and saving operations. Defaults to "variables.json".
+        load_from_file (bool, optional): Whether to load variables from file
+            during initialization. Defaults to True.
+        cache_enabled (bool, optional): Whether to enable caching for variable
+            operations and lookups. Defaults to True.
+        cache_ttl_seconds (int, optional): Cache time-to-live in seconds for
+            cached variable data. Defaults to 3600 (1 hour).
+        default_assumptions_enabled (bool, optional): Whether to load default
+            assumptions when no file data is available. Defaults to True.
 
-        Examples:
-            >>> # Default configuration
-            >>> config = VariableCodebookConfigs()
-            >>> print(config.variables_path)
-            variables.json
-            >>> print(config.cache_ttl_seconds)
-            3600
-            >>> 
-            >>> # Custom configuration for development
-            >>> dev_config = VariableCodebookConfigs(
-            ...     variables_path="/dev/test_variables.json",
-            ...     cache_enabled=False,
-            ...     default_assumptions_enabled=False
-            ... )
+    Examples:
+        >>> # Default configuration
+        >>> config = VariableCodebookConfigs()
+        >>> print(config.variables_path)
+        variables.json
+        >>> print(config.cache_ttl_seconds)
+        3600
+        >>> 
+        >>> # Custom configuration for development
+        >>> dev_config = VariableCodebookConfigs(
+        ...     variables_path="/dev/test_variables.json",
+        ...     cache_enabled=False,
+        ...     default_assumptions_enabled=False
+        ... )
     """
     variables_path: str = "variables.json"
     load_from_file: bool = True
-    cache_enabled: bool = True
-    cache_ttl_seconds: int = 3600
     default_assumptions_enabled: bool = True
 
 
@@ -753,9 +751,9 @@ class VariableCodebook:
 
         # Extract needed services from resources
         self.storage_service = resources.get("storage_service")
-        self.cache_service = resources.get("cache_service")
-        
+
         # Initialize variables dictionary
+        # NOTE This also serves as the in-memory cache
         self.variables: dict[str, Variable] = {}
         
         # Load variables if configured
@@ -894,10 +892,6 @@ class VariableCodebook:
                 return self._get_prompt_sequence(variable_name=variable_name, input_data_point=input_data_point)
             case "get_assumptions":
                 self._get_assumptions(variable_name=variable_name)
-            case "add_variable":
-                return self._add_variable(variable=variable)
-            case "update_variable":
-                return self._update_variable(variable_name=variable_name, variable=variable)
             case "add_variable":
                 return self._add_variable(variable=variable)
             case "update_variable":
@@ -1091,8 +1085,8 @@ class VariableCodebook:
         
         # Save to storage if available
         if self.storage_service:
-            self.storage_service.save_variable(variable)
-        
+            self.storage_service.save(variable)
+
         return {
             "success": True,
             "variable": variable

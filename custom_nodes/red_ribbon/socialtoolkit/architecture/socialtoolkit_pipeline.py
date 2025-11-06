@@ -75,7 +75,7 @@ class SocialtoolkitPipeline:
 
     def execute(self, query: str) -> dict[str, str] | list[dict[str, str]]:
         """
-        Execute the control flow based.
+        Execute the socialtoolkit pipeline based on an input query.
 
         Args:
             query: The question or information request. 
@@ -93,12 +93,13 @@ class SocialtoolkitPipeline:
             urls: list[str] = self.document_retrieval_from_websites.get_urls(query)
 
             # Step 2: Retrieve documents from websites
-            documents, metadata, vectors = self.document_retrieval_from_websites.retrieve_documents(urls)
             documents: list[tuple[str, ...]]
             metadata: list[dict[str, Any]]
             vectors: list[dict[str, list[float]]]
+            documents, metadata, vectors = self.document_retrieval_from_websites.retrieve_documents(urls)
 
             # Step 3: Store documents in document storage
+            action = "store_documents"
             storage_successful: bool = self.document_storage.execute(documents, metadata, vectors)
             if storage_successful:
                 self.logger.info("Documents stored successfully")
@@ -118,7 +119,8 @@ class SocialtoolkitPipeline:
         )
 
         # Step 6: Get variable definition from codebook
-        variable: Variable = self.variable_codebook.execute(llm=self.llm, query=query)
+        action = "get_variable"
+        variable: Variable = self.variable_codebook.execute(action, llm=self.llm, query=query)
 
         # Step 7: Perform relevance assessment
         relevant_documents: list[tuple[str, ...]] = self.relevance_assessment.execute(

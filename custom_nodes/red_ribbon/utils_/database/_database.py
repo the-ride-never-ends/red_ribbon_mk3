@@ -9,6 +9,14 @@ Class = TypeVar('Class')
 ClassInstance = TypeVar('ClassInstance')
 
 
+class InitializationError(Exception):
+    """
+    Custom exception for initialization errors.
+    """
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
 class DatabaseApiError(Exception):
     """
     Custom exception for database API errors.
@@ -89,10 +97,17 @@ def make_duckdb_database(
     """
     from custom_nodes.red_ribbon.utils_.database.resources.duckdb import DuckDB
 
-    _resources = {
-        "logger": resources.get("logger", logging.getLogger("DatabaseAPI")),
-        "_enter": resources.get("_enter", DuckDB._enter),
-        "_execute": resources.get("_execute", DuckDB._execute),
-        "_exit": resources.get("_exit", DuckDB._exit),
-    }
-    return DatabaseAPI(resources=_resources, configs=configs)
+    try:
+        resources = {
+            "logger": resources.get("logger", logging.getLogger("DatabaseAPI")),
+            "_enter": resources.get("_enter", DuckDB._enter),
+            "_execute": resources.get("_execute", DuckDB._execute),
+            "_exit": resources.get("_exit", DuckDB._exit),
+        }
+    except Exception as e:
+        raise InitializationError(f"Failed to create DuckDB resources: {e}") from e
+
+    try:
+        return DatabaseAPI(resources=resources, configs=configs)
+    except Exception as e:
+        raise InitializationError(f"Failed to initialize DuckDB DatabaseAPI: {e}") from e
