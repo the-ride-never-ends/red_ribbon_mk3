@@ -16,22 +16,20 @@ Feature: Variable Codebook
       Given action parameter is "get_variable"
       And variable_name is "sales_tax_city"
       When I call run with the action
-      Then the variable is retrieved
-      And a dictionary with the variable is returned
+      Then a dictionary with the variable is returned
 
     Scenario: Control flow with "get_prompt_sequence" action
       Given action parameter is "get_prompt_sequence"
       And variable_name is "sales_tax_city"
       And input_data_point is "What is the sales tax rate?"
       When I call run with the action
-      Then the prompt sequence is retrieved
-      And a list of prompts is returned
+      Then a prompt decision tree is returned
 
     Scenario: Control flow with "get_assumptions" action
       Given action parameter is "get_assumptions"
       And variable_name is "property_tax"
       When I call run with the action
-      Then assumptions for the variable are retrieved
+      Then assumptions for the variable is returned
 
     Scenario: Control flow with "add_variable" action
       Given action parameter is "add_variable"

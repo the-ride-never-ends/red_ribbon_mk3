@@ -13,6 +13,7 @@ from .variable_codebook import VariableCodebook
 
 from custom_nodes.red_ribbon.utils_ import make_logger
 from custom_nodes.red_ribbon.utils_.database import DatabaseAPI
+from custom_nodes.red_ribbon.utils_.llm import LLM
 
 
 def make_variable_codebook(

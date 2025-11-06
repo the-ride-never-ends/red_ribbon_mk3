@@ -75,7 +75,7 @@ class SocialtoolkitPipeline:
 
     def execute(self, query: str) -> dict[str, str] | list[dict[str, str]]:
         """
-        Execute the control flow based on the mermaid chart
+        Execute the control flow based.
 
         Args:
             query: The question or information request. 
@@ -106,23 +106,22 @@ class SocialtoolkitPipeline:
                 self.logger.warning("Failed to store documents")
 
         # Step 4: Retrieve documents and document vectors
-        stored_docs, stored_vectors = self.document_retrieval.execute(query)
+        stored_docs, stored_vectors = self.document_storage.execute(query)
         stored_docs: list[tuple[str, ...]]
         stored_vectors: list[dict[str, list[float]]]
 
         # Step 5: Perform top-10 document retrieval
-        potentially_relevant_docs = self.top10_document_retrieval.execute(
+        potentially_relevant_docs: list[tuple[str, ...]] = self.top10_document_retrieval.execute(
             query, 
             stored_docs, 
             stored_vectors
         )
-        potentially_relevant_docs: list[tuple[str, ...]]
 
         # Step 6: Get variable definition from codebook
-        variable: Variable = self.variable_codebook.execute(self.llm, query)
+        variable: Variable = self.variable_codebook.execute(llm=self.llm, query=query)
 
         # Step 7: Perform relevance assessment
-        relevant_documents = self.relevance_assessment.execute(
+        relevant_documents: list[tuple[str, ...]] = self.relevance_assessment.execute(
             potentially_relevant_docs,
             variable,
         )

@@ -59,7 +59,7 @@ class TestControlFlowMethodAcceptsActionParameter:
     """
     Rule: Control Flow Method Accepts Action Parameter
     """
-    def test_control_flow_with_get_variable_action(self, mock_variable_codebook):
+    def test_control_flow_with_get_variable_action(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "get_variable" action
           Given action parameter is "get_variable"
@@ -72,12 +72,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_get_variable_action_1(self, mock_variable_codebook):
+    def test_control_flow_with_get_variable_action_1(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "get_variable" action
           Given action parameter is "get_variable"
@@ -90,12 +90,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_get_prompt_sequence_action(self, mock_variable_codebook):
+    def test_control_flow_with_get_prompt_sequence_action(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "get_prompt_sequence" action
           Given action parameter is "get_prompt_sequence"
@@ -109,12 +109,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_get_prompt_sequence_action_1(self, mock_variable_codebook):
+    def test_control_flow_with_get_prompt_sequence_action_1(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "get_prompt_sequence" action
           Given action parameter is "get_prompt_sequence"
@@ -128,12 +128,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_get_assumptions_action(self, mock_variable_codebook):
+    def test_control_flow_with_get_assumptions_action(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "get_assumptions" action
           Given action parameter is "get_assumptions"
@@ -146,12 +146,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_add_variable_action(self, mock_variable_codebook):
+    def test_control_flow_with_add_variable_action(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "add_variable" action
           Given action parameter is "add_variable"
@@ -164,12 +164,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_add_variable_action_1(self, mock_variable_codebook):
+    def test_control_flow_with_add_variable_action_1(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "add_variable" action
           Given action parameter is "add_variable"
@@ -182,12 +182,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_update_variable_action(self, mock_variable_codebook):
+    def test_control_flow_with_update_variable_action(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "update_variable" action
           Given action parameter is "update_variable"
@@ -201,12 +201,12 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_with_update_variable_action_1(self, mock_variable_codebook):
+    def test_control_flow_with_update_variable_action_1(self, variable_codebook_fixture):
         """
         Scenario: Control flow with "update_variable" action
           Given action parameter is "update_variable"
@@ -220,7 +220,7 @@ class TestControlFlowMethodAcceptsActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -229,7 +229,7 @@ class TestControlFlowValidatesActionParameter:
     """
     Rule: Control Flow Validates Action Parameter
     """
-    def test_control_flow_rejects_unknown_action(self, mock_variable_codebook):
+    def test_control_flow_rejects_unknown_action(self, variable_codebook_fixture):
         """
         Scenario: Control flow rejects unknown action
           Given action parameter is "unknown_action"
@@ -241,12 +241,12 @@ class TestControlFlowValidatesActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_control_flow_rejects_unknown_action_1(self, mock_variable_codebook):
+    def test_control_flow_rejects_unknown_action_1(self, variable_codebook_fixture):
         """
         Scenario: Control flow rejects unknown action
           Given action parameter is "unknown_action"
@@ -258,7 +258,7 @@ class TestControlFlowValidatesActionParameter:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -268,7 +268,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
     """
     Rule: Control Flow Returns Dictionary with Operation Results
     """
-    def test_successful_get_variable_returns_success_flag(self, mock_variable_codebook):
+    def test_successful_get_variable_returns_success_flag(self, variable_codebook_fixture):
         """
         Scenario: Successful get_variable returns success flag
           Given a valid variable_name "sales_tax_city"
@@ -280,12 +280,12 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_successful_get_variable_returns_success_flag_1(self, mock_variable_codebook):
+    def test_successful_get_variable_returns_success_flag_1(self, variable_codebook_fixture):
         """
         Scenario: Successful get_variable returns success flag
           Given a valid variable_name "sales_tax_city"
@@ -297,12 +297,12 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_successful_get_variable_returns_success_flag_2(self, mock_variable_codebook):
+    def test_successful_get_variable_returns_success_flag_2(self, variable_codebook_fixture):
         """
         Scenario: Successful get_variable returns success flag
           Given a valid variable_name "sales_tax_city"
@@ -314,12 +314,12 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_failed_get_variable_returns_error(self, mock_variable_codebook):
+    def test_failed_get_variable_returns_error(self, variable_codebook_fixture):
         """
         Scenario: Failed get_variable returns error
           Given an invalid variable_name "nonexistent_var"
@@ -331,12 +331,12 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_failed_get_variable_returns_error_1(self, mock_variable_codebook):
+    def test_failed_get_variable_returns_error_1(self, variable_codebook_fixture):
         """
         Scenario: Failed get_variable returns error
           Given an invalid variable_name "nonexistent_var"
@@ -348,12 +348,12 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_failed_get_variable_returns_error_2(self, mock_variable_codebook):
+    def test_failed_get_variable_returns_error_2(self, variable_codebook_fixture):
         """
         Scenario: Failed get_variable returns error
           Given an invalid variable_name "nonexistent_var"
@@ -365,7 +365,7 @@ class TestControlFlowReturnsDictionarywithOperationResults:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -375,7 +375,7 @@ class TestVariableStructureContainsRequiredFields:
     """
     Rule: Variable Structure Contains Required Fields
     """
-    def test_variable_has_all_required_fields(self, mock_variable_codebook):
+    def test_variable_has_all_required_fields(self, variable_codebook_fixture):
         """
         Scenario: Variable has all required fields
           Given a variable "sales_tax_city" exists
@@ -387,12 +387,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_all_required_fields_1(self, mock_variable_codebook):
+    def test_variable_has_all_required_fields_1(self, variable_codebook_fixture):
         """
         Scenario: Variable has all required fields
           Given a variable "sales_tax_city" exists
@@ -404,12 +404,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_all_required_fields_2(self, mock_variable_codebook):
+    def test_variable_has_all_required_fields_2(self, variable_codebook_fixture):
         """
         Scenario: Variable has all required fields
           Given a variable "sales_tax_city" exists
@@ -421,12 +421,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_all_required_fields_3(self, mock_variable_codebook):
+    def test_variable_has_all_required_fields_3(self, variable_codebook_fixture):
         """
         Scenario: Variable has all required fields
           Given a variable "sales_tax_city" exists
@@ -438,12 +438,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_optional_assumptions_field(self, mock_variable_codebook):
+    def test_variable_has_optional_assumptions_field(self, variable_codebook_fixture):
         """
         Scenario: Variable has optional assumptions field
           Given a variable "property_tax" exists
@@ -455,12 +455,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_optional_assumptions_field_1(self, mock_variable_codebook):
+    def test_variable_has_optional_assumptions_field_1(self, variable_codebook_fixture):
         """
         Scenario: Variable has optional assumptions field
           Given a variable "property_tax" exists
@@ -472,12 +472,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_optional_prompt_decision_tree_field(self, mock_variable_codebook):
+    def test_variable_has_optional_prompt_decision_tree_field(self, variable_codebook_fixture):
         """
         Scenario: Variable has optional prompt_decision_tree field
           Given a variable "income_tax" exists
@@ -489,12 +489,12 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_has_optional_prompt_decision_tree_field_1(self, mock_variable_codebook):
+    def test_variable_has_optional_prompt_decision_tree_field_1(self, variable_codebook_fixture):
         """
         Scenario: Variable has optional prompt_decision_tree field
           Given a variable "income_tax" exists
@@ -506,7 +506,7 @@ class TestVariableStructureContainsRequiredFields:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -516,7 +516,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
     """
     Rule: Assumptions Object Contains Structured Assumption Data
     """
-    def test_assumptions_has_general_assumptions_list(self, mock_variable_codebook):
+    def test_assumptions_has_general_assumptions_list(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has general assumptions list
           Given a variable with assumptions
@@ -528,12 +528,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_specific_assumptions_dictionary(self, mock_variable_codebook):
+    def test_assumptions_has_specific_assumptions_dictionary(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has specific assumptions dictionary
           Given a variable with assumptions
@@ -545,12 +545,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_business_owner_assumptions(self, mock_variable_codebook):
+    def test_assumptions_has_business_owner_assumptions(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has business owner assumptions
           Given a variable with business owner assumptions
@@ -562,12 +562,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_business_owner_assumptions_1(self, mock_variable_codebook):
+    def test_assumptions_has_business_owner_assumptions_1(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has business owner assumptions
           Given a variable with business owner assumptions
@@ -579,12 +579,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_business_assumptions(self, mock_variable_codebook):
+    def test_assumptions_has_business_assumptions(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has business assumptions
           Given a variable with business assumptions
@@ -596,12 +596,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_business_assumptions_1(self, mock_variable_codebook):
+    def test_assumptions_has_business_assumptions_1(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has business assumptions
           Given a variable with business assumptions
@@ -613,12 +613,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_tax_assumptions(self, mock_variable_codebook):
+    def test_assumptions_has_tax_assumptions(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has tax assumptions
           Given a variable with tax assumptions
@@ -630,12 +630,12 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_assumptions_has_tax_assumptions_1(self, mock_variable_codebook):
+    def test_assumptions_has_tax_assumptions_1(self, variable_codebook_fixture):
         """
         Scenario: Assumptions has tax assumptions
           Given a variable with tax assumptions
@@ -647,7 +647,7 @@ class TestAssumptionsObjectContainsStructuredAssumptionData:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -657,7 +657,7 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
     """
     Rule: Get Prompt Sequence Extracts Prompts from Decision Tree
     """
-    def test_prompt_sequence_is_extracted_from_decision_tree(self, mock_variable_codebook):
+    def test_prompt_sequence_is_extracted_from_decision_tree(self, variable_codebook_fixture):
         """
         Scenario: Prompt sequence is extracted from decision tree
           Given variable "sales_tax_city" has a prompt decision tree
@@ -670,12 +670,12 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_prompt_sequence_is_extracted_from_decision_tree_1(self, mock_variable_codebook):
+    def test_prompt_sequence_is_extracted_from_decision_tree_1(self, variable_codebook_fixture):
         """
         Scenario: Prompt sequence is extracted from decision tree
           Given variable "sales_tax_city" has a prompt decision tree
@@ -688,12 +688,12 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_without_decision_tree_returns_error(self, mock_variable_codebook):
+    def test_variable_without_decision_tree_returns_error(self, variable_codebook_fixture):
         """
         Scenario: Variable without decision tree returns error
           Given variable "basic_var" has no prompt decision tree
@@ -705,12 +705,12 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_without_decision_tree_returns_error_1(self, mock_variable_codebook):
+    def test_variable_without_decision_tree_returns_error_1(self, variable_codebook_fixture):
         """
         Scenario: Variable without decision tree returns error
           Given variable "basic_var" has no prompt decision tree
@@ -722,7 +722,7 @@ class TestGetPromptSequenceExtractsPromptsfromDecisionTree:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -732,7 +732,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
     """
     Rule: Get Prompt Sequence for Input Extracts Variable Name
     """
-    def test_input_about_sales_tax_maps_to_sales_tax_city_variable(self, mock_variable_codebook):
+    def test_input_about_sales_tax_maps_to_sales_tax_city_variable(self, variable_codebook_fixture):
         """
         Scenario: Input about sales tax maps to sales_tax_city variable
           Given input_data_point is "What is the sales tax rate?"
@@ -744,12 +744,12 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_input_about_sales_tax_maps_to_sales_tax_city_variable_1(self, mock_variable_codebook):
+    def test_input_about_sales_tax_maps_to_sales_tax_city_variable_1(self, variable_codebook_fixture):
         """
         Scenario: Input about sales tax maps to sales_tax_city variable
           Given input_data_point is "What is the sales tax rate?"
@@ -761,12 +761,12 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_input_about_property_tax_maps_to_property_tax_variable(self, mock_variable_codebook):
+    def test_input_about_property_tax_maps_to_property_tax_variable(self, variable_codebook_fixture):
         """
         Scenario: Input about property tax maps to property_tax variable
           Given input_data_point is "What is the property tax assessment?"
@@ -778,12 +778,12 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_input_about_property_tax_maps_to_property_tax_variable_1(self, mock_variable_codebook):
+    def test_input_about_property_tax_maps_to_property_tax_variable_1(self, variable_codebook_fixture):
         """
         Scenario: Input about property tax maps to property_tax variable
           Given input_data_point is "What is the property tax assessment?"
@@ -795,12 +795,12 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_input_with_no_matching_keywords_uses_default_variable(self, mock_variable_codebook):
+    def test_input_with_no_matching_keywords_uses_default_variable(self, variable_codebook_fixture):
         """
         Scenario: Input with no matching keywords uses default variable
           Given input_data_point is "What is the regulation?"
@@ -813,7 +813,7 @@ class TestGetPromptSequenceforInputExtractsVariableName:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -823,7 +823,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
     """
     Rule: Add Variable Persists New Variable to Codebook
     """
-    def test_new_variable_is_added_successfully(self, mock_variable_codebook):
+    def test_new_variable_is_added_successfully(self, variable_codebook_fixture):
         """
         Scenario: New variable is added successfully
           Given a Variable object with label "new_var"
@@ -836,12 +836,12 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_new_variable_is_added_successfully_1(self, mock_variable_codebook):
+    def test_new_variable_is_added_successfully_1(self, variable_codebook_fixture):
         """
         Scenario: New variable is added successfully
           Given a Variable object with label "new_var"
@@ -854,12 +854,12 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_new_variable_is_added_successfully_2(self, mock_variable_codebook):
+    def test_new_variable_is_added_successfully_2(self, variable_codebook_fixture):
         """
         Scenario: New variable is added successfully
           Given a Variable object with label "new_var"
@@ -872,12 +872,12 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_adding_duplicate_variable_is_rejected(self, mock_variable_codebook):
+    def test_adding_duplicate_variable_is_rejected(self, variable_codebook_fixture):
         """
         Scenario: Adding duplicate variable is rejected
           Given a Variable object with label "existing_var"
@@ -890,12 +890,12 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_adding_duplicate_variable_is_rejected_1(self, mock_variable_codebook):
+    def test_adding_duplicate_variable_is_rejected_1(self, variable_codebook_fixture):
         """
         Scenario: Adding duplicate variable is rejected
           Given a Variable object with label "existing_var"
@@ -908,7 +908,7 @@ class TestAddVariablePersistsNewVariabletoCodebook:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -918,7 +918,7 @@ class TestUpdateVariableModifiesExistingVariable:
     """
     Rule: Update Variable Modifies Existing Variable
     """
-    def test_existing_variable_is_updated_successfully(self, mock_variable_codebook):
+    def test_existing_variable_is_updated_successfully(self, variable_codebook_fixture):
         """
         Scenario: Existing variable is updated successfully
           Given variable "sales_tax_city" exists
@@ -931,12 +931,12 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_existing_variable_is_updated_successfully_1(self, mock_variable_codebook):
+    def test_existing_variable_is_updated_successfully_1(self, variable_codebook_fixture):
         """
         Scenario: Existing variable is updated successfully
           Given variable "sales_tax_city" exists
@@ -949,12 +949,12 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_existing_variable_is_updated_successfully_2(self, mock_variable_codebook):
+    def test_existing_variable_is_updated_successfully_2(self, variable_codebook_fixture):
         """
         Scenario: Existing variable is updated successfully
           Given variable "sales_tax_city" exists
@@ -967,12 +967,12 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_updating_non_existent_variable_fails(self, mock_variable_codebook):
+    def test_updating_non_existent_variable_fails(self, variable_codebook_fixture):
         """
         Scenario: Updating non-existent variable fails
           Given variable_name "nonexistent_var"
@@ -985,12 +985,12 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_updating_non_existent_variable_fails_1(self, mock_variable_codebook):
+    def test_updating_non_existent_variable_fails_1(self, variable_codebook_fixture):
         """
         Scenario: Updating non-existent variable fails
           Given variable_name "nonexistent_var"
@@ -1003,7 +1003,7 @@ class TestUpdateVariableModifiesExistingVariable:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1013,7 +1013,7 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
     """
     Rule: Variables Are Loaded from File When Configured
     """
-    def test_variables_are_loaded_on_initialization(self, mock_variable_codebook):
+    def test_variables_are_loaded_on_initialization(self, variable_codebook_fixture):
         """
         Scenario: Variables are loaded on initialization
           Given load_from_file is configured as True
@@ -1026,12 +1026,12 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variables_are_loaded_on_initialization_1(self, mock_variable_codebook):
+    def test_variables_are_loaded_on_initialization_1(self, variable_codebook_fixture):
         """
         Scenario: Variables are loaded on initialization
           Given load_from_file is configured as True
@@ -1044,12 +1044,12 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_loading_is_skipped_when_disabled(self, mock_variable_codebook):
+    def test_variable_loading_is_skipped_when_disabled(self, variable_codebook_fixture):
         """
         Scenario: Variable loading is skipped when disabled
           Given load_from_file is configured as False
@@ -1061,12 +1061,12 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_loading_is_skipped_when_disabled_1(self, mock_variable_codebook):
+    def test_variable_loading_is_skipped_when_disabled_1(self, variable_codebook_fixture):
         """
         Scenario: Variable loading is skipped when disabled
           Given load_from_file is configured as False
@@ -1078,7 +1078,7 @@ class TestVariablesAreLoadedfromFileWhenConfigured:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1088,7 +1088,7 @@ class TestCacheServiceIsUsedWhenEnabled:
     """
     Rule: Cache Service Is Used When Enabled
     """
-    def test_cache_is_checked_before_retrieving_variable(self, mock_variable_codebook):
+    def test_cache_is_checked_before_retrieving_variable(self, variable_codebook_fixture):
         """
         Scenario: Cache is checked before retrieving variable
           Given cache_enabled is configured as True
@@ -1101,12 +1101,12 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_cache_is_checked_before_retrieving_variable_1(self, mock_variable_codebook):
+    def test_cache_is_checked_before_retrieving_variable_1(self, variable_codebook_fixture):
         """
         Scenario: Cache is checked before retrieving variable
           Given cache_enabled is configured as True
@@ -1119,12 +1119,12 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_cache_is_populated_after_storage_retrieval(self, mock_variable_codebook):
+    def test_cache_is_populated_after_storage_retrieval(self, variable_codebook_fixture):
         """
         Scenario: Cache is populated after storage retrieval
           Given cache_enabled is configured as True
@@ -1136,12 +1136,12 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_cache_is_populated_after_storage_retrieval_1(self, mock_variable_codebook):
+    def test_cache_is_populated_after_storage_retrieval_1(self, variable_codebook_fixture):
         """
         Scenario: Cache is populated after storage retrieval
           Given cache_enabled is configured as True
@@ -1154,12 +1154,12 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_cache_is_bypassed_when_disabled(self, mock_variable_codebook):
+    def test_cache_is_bypassed_when_disabled(self, variable_codebook_fixture):
         """
         Scenario: Cache is bypassed when disabled
           Given cache_enabled is configured as False
@@ -1171,12 +1171,12 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_cache_is_bypassed_when_disabled_1(self, mock_variable_codebook):
+    def test_cache_is_bypassed_when_disabled_1(self, variable_codebook_fixture):
         """
         Scenario: Cache is bypassed when disabled
           Given cache_enabled is configured as False
@@ -1188,7 +1188,7 @@ class TestCacheServiceIsUsedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1198,7 +1198,7 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
     """
     Rule: Default Assumptions Are Applied When Enabled
     """
-    def test_default_assumptions_are_added_to_variable(self, mock_variable_codebook):
+    def test_default_assumptions_are_added_to_variable(self, variable_codebook_fixture):
         """
         Scenario: Default assumptions are added to variable
           Given default_assumptions_enabled is configured as True
@@ -1211,12 +1211,12 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_default_assumptions_are_added_to_variable_1(self, mock_variable_codebook):
+    def test_default_assumptions_are_added_to_variable_1(self, variable_codebook_fixture):
         """
         Scenario: Default assumptions are added to variable
           Given default_assumptions_enabled is configured as True
@@ -1229,12 +1229,12 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_default_assumptions_are_not_applied_when_disabled(self, mock_variable_codebook):
+    def test_default_assumptions_are_not_applied_when_disabled(self, variable_codebook_fixture):
         """
         Scenario: Default assumptions are not applied when disabled
           Given default_assumptions_enabled is configured as False
@@ -1247,12 +1247,12 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_default_assumptions_are_not_applied_when_disabled_1(self, mock_variable_codebook):
+    def test_default_assumptions_are_not_applied_when_disabled_1(self, variable_codebook_fixture):
         """
         Scenario: Default assumptions are not applied when disabled
           Given default_assumptions_enabled is configured as False
@@ -1265,7 +1265,7 @@ class TestDefaultAssumptionsAreAppliedWhenEnabled:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1275,7 +1275,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
     """
     Rule: Prompt Decision Tree Is Represented as DiGraph
     """
-    def test_decision_tree_is_a_networkx_digraph(self, mock_variable_codebook):
+    def test_decision_tree_is_a_networkx_digraph(self, variable_codebook_fixture):
         """
         Scenario: Decision tree is a NetworkX DiGraph
           Given a variable with a prompt decision tree
@@ -1287,12 +1287,12 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_decision_tree_is_a_networkx_digraph_1(self, mock_variable_codebook):
+    def test_decision_tree_is_a_networkx_digraph_1(self, variable_codebook_fixture):
         """
         Scenario: Decision tree is a NetworkX DiGraph
           Given a variable with a prompt decision tree
@@ -1304,12 +1304,12 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_decision_tree_nodes_have_prompt_attributes(self, mock_variable_codebook):
+    def test_decision_tree_nodes_have_prompt_attributes(self, variable_codebook_fixture):
         """
         Scenario: Decision tree nodes have prompt attributes
           Given a decision tree for a variable
@@ -1321,12 +1321,12 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_decision_tree_nodes_have_prompt_attributes_1(self, mock_variable_codebook):
+    def test_decision_tree_nodes_have_prompt_attributes_1(self, variable_codebook_fixture):
         """
         Scenario: Decision tree nodes have prompt attributes
           Given a decision tree for a variable
@@ -1338,12 +1338,12 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_decision_tree_can_be_serialized_and_deserialized(self, mock_variable_codebook):
+    def test_decision_tree_can_be_serialized_and_deserialized(self, variable_codebook_fixture):
         """
         Scenario: Decision tree can be serialized and deserialized
           Given a variable with a decision tree
@@ -1356,12 +1356,12 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_decision_tree_can_be_serialized_and_deserialized_1(self, mock_variable_codebook):
+    def test_decision_tree_can_be_serialized_and_deserialized_1(self, variable_codebook_fixture):
         """
         Scenario: Decision tree can be serialized and deserialized
           Given a variable with a decision tree
@@ -1374,7 +1374,7 @@ class TestPromptDecisionTreeIsRepresentedasDiGraph:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1384,7 +1384,7 @@ class TestKeywordMatchingMapsInputtoVariables:
     """
     Rule: Keyword Matching Maps Input to Variables
     """
-    def test_keyword_in_input_maps_to_correct_variable(self, mock_variable_codebook):
+    def test_keyword_in_input_maps_to_correct_variable(self, variable_codebook_fixture):
         """
         Scenario: Keyword in input maps to correct variable
           Given input contains keyword "<keyword>"
@@ -1396,7 +1396,7 @@ class TestKeywordMatchingMapsInputtoVariables:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
@@ -1406,7 +1406,7 @@ class TestCodebookOperationsAreLogged:
     """
     Rule: Codebook Operations Are Logged
     """
-    def test_control_flow_logs_operation_start(self, mock_variable_codebook):
+    def test_control_flow_logs_operation_start(self, variable_codebook_fixture):
         """
         Scenario: Control flow logs operation start
           Given any action is executed
@@ -1418,12 +1418,12 @@ class TestCodebookOperationsAreLogged:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_variable_not_found_is_logged_as_warning(self, mock_variable_codebook):
+    def test_variable_not_found_is_logged_as_warning(self, variable_codebook_fixture):
         """
         Scenario: Variable not found is logged as warning
           Given variable_name "missing_var" does not exist
@@ -1435,12 +1435,12 @@ class TestCodebookOperationsAreLogged:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)
 
-    def test_missing_decision_tree_is_logged_as_warning(self, mock_variable_codebook):
+    def test_missing_decision_tree_is_logged_as_warning(self, variable_codebook_fixture):
         """
         Scenario: Missing decision tree is logged as warning
           Given a variable without prompt decision tree
@@ -1452,7 +1452,7 @@ class TestCodebookOperationsAreLogged:
         action = "get_variable"
         
         # Act
-        result = mock_variable_codebook.run(action, variable_name="sales_tax_rate")
+        result = variable_codebook_fixture.run(action, variable_name="sales_tax_rate")
         
         # Assert
         assert isinstance(result, dict)

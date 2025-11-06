@@ -15,6 +15,7 @@ class SocialtoolkitConfigs(BaseModel):
     document_retrieval_threshold: int = 10
     relevance_threshold: float = 0.7
     output_format: str = "json"
+    enable_human_review: bool = True
 
     codebook: Optional[dict[str, Any]] = None
     document_retrieval: Optional[dict[str, Any]] = None
