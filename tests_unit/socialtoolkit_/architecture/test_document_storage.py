@@ -54,6 +54,7 @@ def an_id_generator_service_is_available():
     And an ID generator service is available
     """
     pass
+
 class TestExecuteMethodAcceptsActionParameter:
     """
     Rule: Execute Method Accepts Action Parameter

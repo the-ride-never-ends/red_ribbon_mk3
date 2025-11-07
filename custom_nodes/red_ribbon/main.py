@@ -25,7 +25,7 @@ import importlib
 import importlib.util as importlib_util
 
 
-from .utils_.database import DuckDB
+from .utils_.database import DatabaseAPI, make_duckdb_database
 
 
 class RedRibbonError(Exception):
@@ -82,7 +82,7 @@ from .plug_in_play_transformer.plug_in_play_transformer import TransformerAPI
 
 # Utility functions
 from .utils_.configs import Configs # TODO figure out what the hell is up with imports. It makes EasyNodes not so easy to debug!
-from .utils_ import DatabaseAPI
+from .utils_ import make_duckdb_database
 from .utils_ import LLM
 from .utils_ import make_logger
 from .utils_.main_.red_ribbon_banner import get_red_ribbon_banner
@@ -146,7 +146,7 @@ class Resources(BaseModel):
 
     @cached_property
     def database(self):
-        return DatabaseAPI(self.resources, configs)
+        return make_duckdb_database(self.resources, configs)
 
     @cached_property
     def socialtoolkit(self):
@@ -419,7 +419,7 @@ def database_enter(
         # Select the database type and initialize is as a DatabaseAPI
         match type:
             case "duckdb": # TODO add the rest of the cases
-                database_api: DatabaseAPI = DuckDB(configs=configs)
+                database_api: DatabaseAPI = make_duckdb_database(configs=configs)
             case _:
                 raise NotImplementedError(f"Database type '{type}' is not supported yet. Sorry!")
     print("Database initialized successfully.")

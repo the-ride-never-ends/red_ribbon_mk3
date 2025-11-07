@@ -91,16 +91,21 @@ class RelevanceAssessment:
             llm_api: LLM API instance
             
         Returns:
-            Dictionary containing relevant documents and page numbers
+            Dictionary containing relevant documents and page numbers.
+            Keys are the following:
+                - "relevant_pages": list[str] list of relevant document contents
+                - "relevant_doc_ids": (list[str]) list of document IDs deemed relevant
+                - "page_numbers": (int) dict mapping document IDs to lists of relevant page numbers
+                - "relevance_scores": (list[dict[str, Any]]) list of dicts with relevance scores and metadata
         """
         # Input validation
         if not isinstance(potentially_relevant_docs, list):
             raise TypeError("potentially_relevant_docs must be a list")
         if not isinstance(variable_definition, dict):
             raise TypeError("variable_definition must be a dict")
-            
+
         self.logger.info(f"Starting relevance assessment for {len(potentially_relevant_docs)} documents")
-        
+
         # Step 1: Assess document relevance
         assessment_results = self._assess_document_relevance(
             potentially_relevant_docs, 

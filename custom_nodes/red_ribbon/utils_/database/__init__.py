@@ -1,6 +1,18 @@
 
+# Importing them should cause the database to be initialized and the tables to be created.
+from .setup.setup_citation_db import setup_citation_db
+from .setup.setup_embeddings_db import setup_embeddings_db
+from .setup.setup_html_db import setup_html_db
+from ._database import Database
+from .factory import make_duckdb_database
 
-from ._database import DatabaseAPI, DatabaseApiError, make_duckdb_database
-from .resources.duckdb import DuckDB
+DatabaseAPI = Database
 
-__all__ = ["DatabaseAPI", "DatabaseApiError", "make_duckdb_database", "DuckDB"]
+__all__ = [
+    "setup_citation_db",
+    "setup_embeddings_db",
+    "setup_html_db",
+    "make_duckdb_database",
+    "Database",
+    "DatabaseAPI",
+]

@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 
 
-from pydantic import BaseModel, DirectoryPath, Field, FilePath
+from pydantic import BaseModel, DirectoryPath, Field, FilePath, PositiveInt
 import yaml
 
 
@@ -14,15 +14,20 @@ from ..common.get_value_from_base_model import get_value_from_base_model
 from ..common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
 import custom_nodes.red_ribbon.main as main_module
 
+_VERSION_DIR = Path(main_module.__file__).parent
 
 class DatabaseConfigs(BaseModel):
-    pass
+    AMERICAN_LAW_DATA_DIR:            DirectoryPath = _VERSION_DIR / "data"
+    DATABASE_CONNECTION_POOL_SIZE:    PositiveInt = 10
+    DATABASE_CONNECTION_TIMEOUT:      PositiveInt = 30
+    DATABASE_CONNECTION_MAX_OVERFLOW: PositiveInt = 20
+    DATABASE_CONNECTION_MAX_AGE:      PositiveInt = 300
 
 
 class Paths(BaseModel):
     THIS_FILE:         DirectoryPath = Path(__file__).resolve()
     THIS_DIR:          DirectoryPath = THIS_FILE.parent
-    VERSION_DIR:       DirectoryPath = Path(main_module.__file__).parent
+    VERSION_DIR:       DirectoryPath = _VERSION_DIR
     CUSTOM_NODES_DIR:  DirectoryPath = THIS_DIR.parent
     COMFYUI_DIR:       DirectoryPath = CUSTOM_NODES_DIR.parent
     LLM_OUTPUTS_DIR:   DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
@@ -30,6 +35,7 @@ class Paths(BaseModel):
     SOCIALTOOLKIT_DIR: DirectoryPath = VERSION_DIR / "socialtoolkit"
     DATABASE_DIR:      DirectoryPath = VERSION_DIR / "database"
     DB_PATH:           FilePath = VERSION_DIR / "red_ribbon.db"
+    
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
@@ -56,7 +62,7 @@ class VariableCodebookConfigs(BaseModel):
 
 
 class Configs(BaseModel):
-    database:          DatabaseConfigs = None
+    database:          DatabaseConfigs = Field(default_factory=DatabaseConfigs)
     paths:             Paths = Field(default_factory=Paths)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
 
@@ -80,7 +86,10 @@ class Configs(BaseModel):
     def get(self, key: str, default: Any = None) -> Optional[Any]:
         return get_value_with_default_from_base_model(self, key, default)
 
-configs = Configs()
+try:
+    configs = Configs()
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize Configs: {e}") from e
 
 # class Paths(BaseModel):
 #     THIS_FILE = Path(__file__).resolve()

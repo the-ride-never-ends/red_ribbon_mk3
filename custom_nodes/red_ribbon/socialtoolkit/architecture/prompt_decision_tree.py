@@ -8,6 +8,7 @@ import networkx as nx
 from pydantic import BaseModel, PositiveFloat, Field, PositiveInt, NonNegativeInt
 
 
+from .top10_document_retrieval import Document, Section
 from .variable_codebook import Variable
 from ._errors import InitializationError
 from ..configs_.socialtoolkit_configs import SocialtoolkitConfigs
@@ -20,6 +21,7 @@ class PromptDecisionTreeConfigs(BaseModel):
     max_iterations: NonNegativeInt = 5
     confidence_threshold: NonNegativeInt = Field(default=0.7, ge=0.0, le=1.0)
     context_window_size: PositiveInt = 8192  # Maximum context window size for LLM
+    enable_human_review: bool = True
 
 
 class PromptDecisionTreeNodeType(str, Enum):
@@ -38,7 +40,7 @@ class PromptDecisionTreeNode(BaseModel):
     id: str
     type: PromptDecisionTreeNodeType
     prompt: str
-    edges: Optional[List[PromptDecisionTreeEdge]] = None
+    edges: Optional[list[PromptDecisionTreeEdge]] = None
     is_final: bool = False
 
 
@@ -85,7 +87,7 @@ class PromptDecisionTree:
     Executes a decision tree of prompts to extract information from documents
     """
 
-    def __init__(self, 
+    def __init__(self, *,
                  resources: dict[str, Callable], 
                  configs: PromptDecisionTreeConfigs
                 ):
@@ -103,6 +105,7 @@ class PromptDecisionTree:
         self.logger: logging.Logger = resources['logger']
         self.llm = resources["llm"]
         self.variable_codebook = resources["variable_codebook"]
+        self.extract_text_from_html = resources["extract_text_from_html"]
 
         self.logger.info("PromptDecisionTree initialized.")
 
@@ -111,59 +114,96 @@ class PromptDecisionTree:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def run(self, relevant_pages: List[Any], variable: Variable) -> Dict[str, Any]:
+    def run(self, relevant_sections: list[Section], variable: Variable) -> Dict[str, Any]:
         """
         Execute the prompt decision tree and return detailed results.
         
         Args:
-            relevant_pages: List of relevant document pages
+            relevant_sections: List of relevant document pages
             variable: Pydantic model containing a variable codebook entry 
             llm_api: LLM API instance
             
         Returns:
-            Dictionary containing the output data point
+            Dictionary containing the output data point.
+
+        Raises:
+            TypeError: If relevant_sections is not a list of Sections or variable is not Variable
+            ValueError: If relevant_sections is empty or contains invalid Section data, or if variable data is invalid
         """
-        self.logger.info(f"Starting prompt decision tree with {len(relevant_pages)} pages")
+        self.logger.info(f"Starting prompt decision tree with {len(relevant_sections)} pages")
+        
+        # Validate inputs
+        if not isinstance(relevant_sections, list):
+            raise TypeError(f"relevant_sections must be a list, got {type(relevant_sections).__name__}")
+        if not isinstance(variable, Variable):
+            raise TypeError(f"variable must be an instance of Variable, got {type(variable).__name__}")
+        else:
+            try:
+                variable.model_validate()
+            except Exception as e:
+                raise ValueError(f"Invalid Variable data: {e}") from e
+
+        if not relevant_sections:
+            raise ValueError("relevant_sections cannot be empty")
+
+        for idx, section in enumerate(relevant_sections):
+            if not isinstance(section, Section):
+                raise TypeError(f"section {idx} must be type Section, got {type(section).__name__}")
+            else:
+                try:
+                    section.model_validate()
+                except Exception as e:
+                    raise ValueError(f"Invalid Section data for section {idx}: {e}") from e
 
         # Step 1: Concatenate pages
-        concatenated_pages = self._concatenate_pages(relevant_pages)
+        concatenated_pages = self._format_pages(relevant_sections)
 
-        # Step 2: Get desired data point codebook entry & prompt sequence
-        # (Already provided as input parameter)
-
-        # Step 3: Execute prompt decision tree
+        # Step 2: Execute prompt decision tree
         result = self._execute_decision_tree(concatenated_pages, variable)
 
-        # Step 4: Handle errors and unforeseen edge-cases if needed
-        if result.get("error") and self.configs.enable_human_review:
-            result = self._request_human_review(result, concatenated_pages)
+        # Step 3: Flag errors for review if enabled
+        if result['success'] == False:
+            if self.configs.enable_human_review:
+                result = self._request_human_review(result, concatenated_pages)
 
-        self.logger.info("Completed prompt decision tree execution")
+        self.logger.info(f"Completed prompt decision tree execution. Result Status: {result['success']}")
         return result
 
-    def execute(self, relevant_pages: List[Any], prompt_sequence: List[str]) -> str:
+    def execute(self, relevant_sections: list[Any], variable: Variable) -> dict:
         """
         Public method to execute prompt decision tree
         
         Args:
-            relevant_pages: List of relevant document pages
-            prompt_sequence: List of prompts in the decision tree
+            relevant_sections: List of relevant document pages
+            variable: Pydantic model containing a variable codebook entry 
             llm_api: LLM API instance
             
         Returns:
-            str: Output data point as a string.
+            dict: Result dictionary. Contains the following keys:
+                - success: bool indicating if execution was successful, or false if an error occurred
+                - msg: (str) Message describing the result or error
+                - document_text: list[Section] Concatenated document text used for decision tree
+                - output_data_point: Extracted data point as a string
+                - responses: List of LLM responses at each node
+                - iterations: Number of iterations taken to reach final node
 
         Example:
-            >>> relevant_pages = [{"content": "Tax rate is 5%", "title": "Sample Title", "url": "http://example.com"}]
-            >>> prompt_sequence = ["What is the tax rate mentioned in the document?"]
-            >>> result = prompt_decision_tree.execute(relevant_pages, prompt_sequence)
+            >>> relevant_sections = [{"content": "Property tax rate is 5%", "title": "Sample Title", "url": "http://example.com"}]
+            >>> variable = = Variable(
+            ...     label="Property Tax Rate",
+            ...     item_name="property_tax_rate",
+            ...     description="Annual property tax assessment rate",
+            ...     units="Double (Percent)",
+            ...     assumptions=Assumptions(business=BusinessAssumptions()),
+            ...     prompt_decision_tree=PromptDecisionTree(nodes=[], edges=[])
+            ... )
+            >>> result = prompt_decision_tree.execute(relevant_sections, variable)
         """
-        result = self.run(relevant_pages, prompt_sequence)
-        return result.get("output_data_point", "")
+        return self.run(relevant_sections, variable)
     
-    def _concatenate_pages(self, pages: List[Any]) -> str:
+    def _format_pages(self, pages: list[Section]) -> str:
         """
-        Concatenate pages into a single document
+        Format pages into a single document
         
         Args:
             pages: List of pages to concatenate
@@ -171,44 +211,64 @@ class PromptDecisionTree:
         Returns:
             Concatenated document text
         """
-        # Limit number of pages to avoid context window issues
-        pages_to_use = pages[:self.configs.max_pages_to_concatenate]
-        
         concatenated_text = ""
-        
-        for i, page in enumerate(pages_to_use):
-            default_title = f"Document {i+1}"
-            content = page.get("content", "")
-            title = page.get("title", default_title)
-            url = page.get("url", "")
+
+        for idx, page in enumerate(pages, start=1):
+            title = page.get("title", f"Relevant Document {idx}")
+            citation = page.get("bluebook_citation")
+            assert citation is not None, "Bluebook citation is required in each page."
+
+            html = page.get("html")
+            assert html is not None, "HTML content is required in each page."
+            content = self.extract_text_from_html(html)
             
             page_text = f"""
+<document {idx}>
 # {title}
-## Source: {url}
+## Citation: {citation}
 ## Content:
 {content}
+</doc>
 """
             concatenated_text += page_text
-            
+
+        # Tokenize the text to see if it's within context window
+        tokens = self.llm.tokenizer.tokenize(concatenated_text)
+        if tokens > self.configs.context_window_size:
+            self.logger.warning(
+                f"Concatenated document exceeds context window size "
+                f"({len(tokens)} tokens > {self.configs.context_window_size} tokens). "
+                f"Truncating to fit."
+            )
+            # Truncate to fit context window
+            truncated_tokens = tokens[:self.configs.context_window_size]
+            concatenated_text = self.llm.tokenizer.decode(truncated_tokens)
+
         return concatenated_text.strip()
     
     def _execute_decision_tree(self, 
                              document_text: str, 
-                             prompt_sequence: List[str], 
+                             variable: list[str], 
                              ) -> Dict[str, Any]:
         """
         Execute the prompt decision tree
-        
+
         Args:
             document_text: Concatenated document text
-            prompt_sequence: List of prompts in the decision tree
+            variable: List of prompts in the decision tree
             llm_api: LLM API instance
-            
+
         Returns:
-            Dictionary containing the execution result
+            dict: Result dictionary. Contains the following keys:
+                - success: bool indicating if execution was successful, or false if an error occurred
+                - msg: (str) Message describing the result or error
+                - document_text: list[Section] Concatenated document text used for decision tree
+                - output_data_point: Extracted data point as a string
+                - responses: List of LLM responses at each node
+                - iterations: Number of iterations taken to reach final node
         """
         # Create a simplified decision tree from the prompt sequence
-        decision_tree = self._create_decision_tree(prompt_sequence)
+        decision_tree = self._create_decision_tree(variable)
         iteration = 0
         responses = []
         output_data_point = None
@@ -266,12 +326,13 @@ class PromptDecisionTree:
         else:
             output_dict.update({
                 "output_data_point": output_data_point,
+                "document_text": document_text,
                 "responses": responses,
                 "iterations": iteration
             })
             return output_dict
     
-    def _create_decision_tree(self, prompt_sequence: List[str]) -> List[PromptDecisionTreeNode]:
+    def _create_decision_tree(self, variable: list[str]) -> list[PromptDecisionTreeNode]:
         """
         Create a decision tree from a prompt sequence
         
@@ -279,24 +340,24 @@ class PromptDecisionTree:
         In a real system, this would create a proper tree structure with branches.
         
         Args:
-            prompt_sequence: List of prompts
+            variable: List of prompts
             
         Returns:
             List of nodes in the decision tree
         """
         nodes = []
         
-        for i, prompt in enumerate(prompt_sequence):
+        for i, prompt in enumerate(variable):
             # Create a node for each prompt
             node = PromptDecisionTreeNode(
                 id=f"node_{i}",
                 type=PromptDecisionTreeNodeType.QUESTION,
                 prompt=prompt,
-                is_final=(i == len(prompt_sequence) - 1)  # Last node is final
+                is_final=(i == len(variable) - 1)  # Last node is final
             )
             
             # Add edges if not the last node
-            if i < len(prompt_sequence) - 1:
+            if i < len(variable) - 1:
                 node.edges = [
                     PromptDecisionTreeEdge(
                         condition="default",
@@ -342,7 +403,7 @@ Your answer should be concise, factual, and directly address the question.
 """
         return prompt
         
-    def _determine_next_node(self, response: str, edges: List[PromptDecisionTreeEdge]) -> str:
+    def _determine_next_node(self, response: str, edges: list[PromptDecisionTreeEdge]) -> str:
         """
         Determine the next node based on the response
         
@@ -412,9 +473,9 @@ Your answer should be concise, factual, and directly address the question.
                 "document_text": document_text,
                 "responses": result.get("responses", [])
             }
-            
+
             human_review_result = self.human_review.review(review_request)
-            
+
             if human_review_result.get("success"):
                 result["output_data_point"] = human_review_result.get("output_data_point", "")
                 result["human_reviewed"] = True
@@ -428,22 +489,17 @@ logger = logging.getLogger(__name__)
 
 
 def _make_prompt_decision_tree(
-        resources: Optional[dict[str, Callable]] = None,
-        configs: Optional[BaseModel] = None,
+        resources: Optional[dict[str, Callable]] = {},
+        configs: Optional[BaseModel] = SocialtoolkitConfigs(),
         ) -> PromptDecisionTree:
     """
     Factory function to create PromptDecisionTree instance.
     """
-
-
-    resources = resources or {}
-    configs = configs or SocialtoolkitConfigs()
-
-    _resources_ = {
+    _resources = {
         "llm": resources.get("llm"),
+        "extract_text_from_html": resources.get("extract_text_from_html"),
     }
-
     try:
-        return PromptDecisionTree(resources=_resources_, configs=configs)
+        return PromptDecisionTree(resources=_resources, configs=configs)
     except Exception as e:
         raise InitializationError(f"Failed to initialize PromptDecisionTree: {e}") from e

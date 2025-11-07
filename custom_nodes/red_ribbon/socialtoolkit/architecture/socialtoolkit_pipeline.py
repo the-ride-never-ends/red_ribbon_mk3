@@ -7,7 +7,7 @@ import openai
 
 from .variable_codebook import VariableCodebook, Variable
 from .document_storage import DocumentStorage
-from .top10_document_retrieval import Top10DocumentRetrieval
+from .top10_document_retrieval import Top10DocumentRetrieval, Document, Vector
 from .relevance_assessment import RelevanceAssessment
 from .prompt_decision_tree import PromptDecisionTree
 from .document_retrieval_from_websites import DocumentRetrievalFromWebsites
@@ -88,17 +88,21 @@ class SocialtoolkitPipeline:
         """
         self.logger.info(f"Starting high level control flow with input: {query}")
 
+        # Step 1: Get variable definition from codebook
+        action = "get_variable"
+        variable: Variable = self.variable_codebook.execute(action, llm=self.llm, query=query)
+
         if self.configs.approved_document_sources:
-            # Step 1: Get domain URLs from pre-approved sources
+            # Step 2: Get domain URLs from pre-approved sources
             urls: list[str] = self.document_retrieval_from_websites.get_urls(query)
 
-            # Step 2: Retrieve documents from websites
-            documents: list[tuple[str, ...]]
+            # Step 3: Retrieve documents from websites
+            documents: list[dict[str, Any]]
             metadata: list[dict[str, Any]]
             vectors: list[dict[str, list[float]]]
             documents, metadata, vectors = self.document_retrieval_from_websites.retrieve_documents(urls)
 
-            # Step 3: Store documents in document storage
+            # Step 4: Store documents in document storage
             action = "store_documents"
             storage_successful: bool = self.document_storage.execute(documents, metadata, vectors)
             if storage_successful:
@@ -106,36 +110,32 @@ class SocialtoolkitPipeline:
             else:
                 self.logger.warning("Failed to store documents")
 
-        # Step 4: Retrieve documents and document vectors
+        # Step 5: Retrieve documents and document vectors
+        stored_docs: list[Document]
+        stored_vectors: list[Vector]
         stored_docs, stored_vectors = self.document_storage.execute(query)
-        stored_docs: list[tuple[str, ...]]
-        stored_vectors: list[dict[str, list[float]]]
 
-        # Step 5: Perform top-10 document retrieval
-        potentially_relevant_docs: list[tuple[str, ...]] = self.top10_document_retrieval.execute(
+        # Step 6: Perform top-10 document retrieval
+        potentially_relevant_docs: dict[str, Document] = self.top10_document_retrieval.execute(
             query, 
             stored_docs, 
             stored_vectors
         )
 
-        # Step 6: Get variable definition from codebook
-        action = "get_variable"
-        variable: Variable = self.variable_codebook.execute(action, llm=self.llm, query=query)
-
         # Step 7: Perform relevance assessment
-        relevant_documents: list[tuple[str, ...]] = self.relevance_assessment.execute(
+        relevant_documents: dict[str, Document] = self.relevance_assessment.execute(
             potentially_relevant_docs,
             variable,
         )
 
         # Step 8: Execute prompt decision tree
-        result: dict[str, str] | list[dict[str, str]] = self.prompt_decision_tree.execute(
+        result: dict[str, str] = self.prompt_decision_tree.execute(
             relevant_documents,
             variable,
         )
 
-        if result is None:
-            self.logger.warning("Failed to execute prompt decision tree")
+        if result['success'] == False:
+            self.logger.warning(f"Prompt decision tree failed to produce a valid result for query '{query}'")
             return {}
         if not result:
             self.logger.warning(f"Result for '{query}' is empty")

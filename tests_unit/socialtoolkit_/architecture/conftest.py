@@ -22,10 +22,12 @@ from custom_nodes.red_ribbon.utils_.database import DatabaseAPI
 from custom_nodes.red_ribbon.utils_.logger import logger
 from custom_nodes.red_ribbon.utils_.configs import Configs, configs as real_configs
 
+import traceback
 
 class FixtureError(Exception):
     """Custom exception for fixture errors."""
     def __init__(self, msg: str):
+        msg = f"{msg}\n*********\nTRACEBACK\n*********\n{traceback.print_exc()}"
         super().__init__(msg)
 
 @pytest.fixture

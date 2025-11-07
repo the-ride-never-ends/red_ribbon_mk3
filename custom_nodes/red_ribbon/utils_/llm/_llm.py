@@ -23,6 +23,12 @@ from ._engine_wrapper import EngineWrapper
 from ._pipeline_step import PipelineStep
 
 
+class LLMError(RuntimeError):
+    """Custom exception for LLM errors."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
 
 class LLM:
 

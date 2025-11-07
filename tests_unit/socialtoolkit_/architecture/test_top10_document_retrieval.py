@@ -10,6 +10,7 @@ Feature: Top-10 Document Retrieval
     And a vector search engine is available
     And a document storage service is available
 """
+# NOTE: Current test function count: 23
 import pytest
 from typing import Any
 from unittest.mock import MagicMock
@@ -19,7 +20,7 @@ from custom_nodes.red_ribbon.socialtoolkit.architecture.top10_document_retrieval
     make_top10_document_retrieval,
 )
 from custom_nodes.red_ribbon.utils_ import DatabaseAPI
-
+from .conftest import FixtureError
 
 @pytest.fixture
 def constants() -> dict[str, Any]:
@@ -68,9 +69,24 @@ def mock_db() -> MagicMock:
     return MagicMock(spec=DatabaseAPI)
 
 @pytest.fixture
-def make_top10_retrieval(mock_db):
-    resources = {"database": mock_db}
-    return make_top10_document_retrieval(resources=resources)
+def mock_encode_query() -> MagicMock:
+    """Mock encoder that returns a simple vector."""
+    mock = MagicMock()
+    mock.return_value = [0.1, 0.2, 0.3]  # Simple 3D vector
+    return mock
+
+@pytest.fixture
+def make_top10_retrieval(mock_db, mock_encode_query):
+    def _make_top10_retrieval():
+        resources = {
+            "database": mock_db,
+            "_encode_query": mock_encode_query
+        }
+        try:
+            return make_top10_document_retrieval(resources=resources)
+        except Exception as e:
+            raise FixtureError(f"Failed to create Top10DocumentRetrieval: {e}") from e
+    return _make_top10_retrieval
 
 @pytest.fixture
 def top10_retrieval(make_top10_retrieval) -> Top10DocumentRetrieval:
@@ -241,6 +257,7 @@ def valid_args(documents, vectors, constants) ->  dict[str, Any]:
 class TestExecuteMethodAlwaysReturnsDictionarywithRequiredKeys:
     """Tests for Top10DocumentRetrieval execute method return structure."""
 
+    # NOTE: Done
     def test_when_execute_is_called_with_valid_args_then_returns_dictionary(
         self, num_docs, top10_retrieval, valid_args):
         """
@@ -251,7 +268,9 @@ class TestExecuteMethodAlwaysReturnsDictionarywithRequiredKeys:
         result = top10_retrieval.execute(**valid_args[num_docs])
         assert isinstance(result, dict), f"Expected dict but got {type(result)}"
 
-    @pytest.mark.parametrize("key", ["relevant_documents", "scores", "top_doc_ids"])
+    @pytest.mark.parametrize("key", [
+        "relevant_documents", "scores", "top_doc_ids"
+    ]) # NOTE: Done
     def test_when_execute_is_called_with_valid_args_then_contains_required_key(
         self, num_docs, key, top10_retrieval, valid_args):
         """
@@ -266,7 +285,7 @@ class TestExecuteMethodAlwaysReturnsDictionarywithRequiredKeys:
         ("relevant_documents", list),
         ("scores", dict),
         ("top_doc_ids", list)
-    ])
+    ]) # NOTE: Done
     def test_when_execute_is_called_with_valid_args_then_result_key_is_expected_type(
         self, num_docs, key, expected_type, top10_retrieval, valid_args):
         """
@@ -283,7 +302,7 @@ class TestExecuteMethodAlwaysReturnsDictionarywithRequiredKeys:
     ("relevant_documents", []),
     ("scores", {}),
     ("top_doc_ids", [])
-])
+]) # NOTE: Done
 def test_when_execute_is_called_with_empty_documents_then_result_key_is_empty(
     key, expected_value, top10_retrieval, constants):
     """
@@ -307,7 +326,7 @@ class TestExecuteMethodReturnsAtMostNDocumentsWhereNisretrievalcount:
     ])
     def test_when_execute_is_called_with_docs_then_returns_expected_count(
         self, top10_retrieval, constants, doc_fixture, query_key, expected_count, result_key, request
-    ):
+    ): # NOTE: Done
         """
         GIVEN retrieval_count is configured and documents are available
         WHEN execute is called with a query
@@ -325,8 +344,9 @@ class TestExecuteMethodReturnsAtMostNDocumentsWhereNisretrievalcount:
 class TestDocumentsAreRankedbySimilarityScoreinDescendingOrder:
     """Tests for Top10DocumentRetrieval execute similarity score ranking."""
 
+    # NOTE: Done
     def test_when_execute_is_called_with_multiple_documents_then_first_has_highest_score(
-        self, num_docs, top10_retrieval, documents, constants):
+        self, num_docs, top10_retrieval: Top10DocumentRetrieval, documents, constants):
         """
         GIVEN multiple documents with varying similarity scores
         WHEN execute is called with a query
@@ -341,6 +361,7 @@ class TestDocumentsAreRankedbySimilarityScoreinDescendingOrder:
         assert first_score == max(all_scores), \
             f"First score {first_score} not highest among {all_scores}"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_multiple_documents_then_scores_descend(
         self, num_docs, top10_retrieval, documents, constants):
         """
@@ -357,6 +378,7 @@ class TestDocumentsAreRankedbySimilarityScoreinDescendingOrder:
         assert scores == sorted_desc_scores, \
             f"Scores not in descending order: '{scores}' vs '{sorted_desc_scores}'"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_multiple_documents_then_all_doc_ids_have_scores(
         self, num_docs, top10_retrieval, documents, constants):
         """
@@ -379,7 +401,7 @@ class TestDocumentsAreRankedbySimilarityScoreinDescendingOrder:
 class TestSimilarityScoresRespectConfiguredThreshold:
     """Tests for Top10DocumentRetrieval execute similarity threshold filtering."""
 
-
+    # NOTE: Done
     def test_when_execute_is_called_with_threshold_configured_then_only_above_threshold_returned(
         self, num_docs, top10_retrieval_similarity_threshold_is_point_six, valid_args, constants):
         """
@@ -394,17 +416,18 @@ class TestSimilarityScoresRespectConfiguredThreshold:
         assert min_score > threshold, \
             f"Expected min_score to be greater than '{threshold}' but got '{min_score}'"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_threshold_configured_then_at_least_minimum_documents_returned(
         self, num_docs, top10_retrieval_similarity_threshold_is_point_six, documents, constants):
         """
         GIVEN similarity_threshold is configured
         WHEN execute is called with a query
-        THEN expect at least minimum documents in results.
+        THEN expect at least 10 documents in results.
         """
         # TODO: Find a way to get the minimum expected based on actual similarity scores
         result = top10_retrieval_similarity_threshold_is_point_six.execute(**valid_args[num_docs])
         actual_count = len(result[constants["KEY_RELEVANT_DOCS"]])
-        minimum_expected = len(documents[num_docs]) // 4  # At least 25% expected
+        minimum_expected = 10
         assert actual_count >= minimum_expected, \
             f"Expected at least {minimum_expected} but got {actual_count}"
 
@@ -415,6 +438,7 @@ class TestSimilarityScoresRespectConfiguredThreshold:
 class TestExecuteValidatesInputTypes:
     """Tests for Top10DocumentRetrieval execute input validation."""
 
+    # NOTE: Done
     @pytest.mark.parametrize("invalid_query", [12345, None, 12.34, [], {}, set()])
     def test_when_execute_is_called_with_invalid_query_type_then_raises_type_error(
         self, num_docs, invalid_query, top10_retrieval, valid_args):
@@ -429,6 +453,7 @@ class TestExecuteValidatesInputTypes:
         with pytest.raises(TypeError, match=r"input_data_point must be a string"):
             top10_retrieval.execute(**invalid_args)
 
+    # NOTE: Done
     @pytest.mark.parametrize("invalid_docs", [12345, None, 12.34, "invalid", {}, set()])
     def test_when_execute_is_called_with_invalid_documents_type_then_raises_type_error(
         self, num_docs, invalid_docs, top10_retrieval, valid_args):
@@ -443,6 +468,7 @@ class TestExecuteValidatesInputTypes:
         with pytest.raises(TypeError, match=r"documents must be a list"):
             top10_retrieval.execute(**invalid_args)
 
+    # NOTE: Done
     @pytest.mark.parametrize("invalid_vectors", [12345, None, 12.34, "invalid", {}, set()])
     def test_when_execute_is_called_with_invalid_vectors_type_then_raises_type_error(
         self, num_docs, invalid_vectors, top10_retrieval, valid_args):
@@ -464,6 +490,7 @@ class TestExecuteValidatesInputTypes:
 class TestExecuteHandlesDocumentandVectorParameters:
     """Tests for Top10DocumentRetrieval execute document and vector parameter handling."""
 
+    # NOTE: Done
     def test_when_execute_is_called_with_explicit_documents_and_vectors_then_returns_limited_results(
         self, num_docs, top10_retrieval, valid_args, constants
     ):
@@ -478,6 +505,7 @@ class TestExecuteHandlesDocumentandVectorParameters:
         actual_count = len(result[constants["KEY_RELEVANT_DOCS"]])
         assert actual_count <= max_expected, f"Expected <= {max_expected} but got {actual_count}"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_explicit_documents_and_vectors_then_returns_list(
         self, num_docs, top10_retrieval, constants, valid_args
     ):
@@ -490,6 +518,7 @@ class TestExecuteHandlesDocumentandVectorParameters:
         relevant_docs = result[constants["KEY_RELEVANT_DOCS"]]
         assert isinstance(relevant_docs, list), f"Expected list but got {type(relevant_docs).__name__}"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_documents_parameter_is_none_then_returns_dict(
         self, num_docs, top10_retrieval, constants):
         """
@@ -500,6 +529,7 @@ class TestExecuteHandlesDocumentandVectorParameters:
         result = top10_retrieval.execute(constants["TEST_QUERY"])
         assert isinstance(result, dict), f"Expected dict but got {type(result)}"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_documents_parameter_is_none_then_contains_relevant_documents_key(
         self, num_docs, top10_retrieval, constants):
         """
@@ -520,7 +550,7 @@ class TestRankingMethodConfigurationAffectsScoreCalculation:
 
     @pytest.mark.parametrize("ranking_method", [
         "RANKING_METHOD_IS_COSINE", "RANKING_METHOD_IS_DOT_PRODUCT", "RANKING_METHOD_IS_EUCLIDEAN"
-    ])
+    ]) # NOTE: Done
     def test_when_execute_is_called_with_ranking_method_configured_then_contains_scores(
         self, num_docs, ranking_method, retrieval_instances, constants, valid_args):
         """
@@ -533,6 +563,7 @@ class TestRankingMethodConfigurationAffectsScoreCalculation:
         key = constants["KEY_SCORES"]
         assert key in result, f"Missing {key} key in {list(result.keys())}"
 
+    # NOTE: Done
     def test_when_execute_is_called_with_cosine_similarity_then_scores_above_expected_min(
         self, num_docs, retrieval_instances, constants, valid_args):
         """
@@ -546,6 +577,7 @@ class TestRankingMethodConfigurationAffectsScoreCalculation:
         min_score = min(list(result[constants["KEY_SCORES"]].values()))
         assert min_score >= expected_min, f"Expected min_score >= {expected_min} but got {min_score}."
 
+    # NOTE: Done
     def test_when_execute_is_called_with_cosine_similarity_then_scores_below_expected_max(
         self, num_docs, retrieval_instances, constants, valid_args):
         """
@@ -559,7 +591,7 @@ class TestRankingMethodConfigurationAffectsScoreCalculation:
         max_score = max(list(result[constants["KEY_SCORES"]].values()))
         assert max_score <= expected_max, f"Expected max_score <= {expected_max} but got {max_score}."
 
-
+    # NOTE: Done
     def test_when_execute_is_called_with_ranking_method_doc_product_then_scores_is_dict(
         self, num_docs, constants, valid_args, retrieval_instances):
         """
@@ -572,7 +604,7 @@ class TestRankingMethodConfigurationAffectsScoreCalculation:
         key_scores = result[constants["KEY_SCORES"]]
         assert isinstance(key_scores, dict), f"Expected dict but got {type(key_scores).__name__}"
 
-
+    # NOTE: Done
     def test_when_execute_is_called_with_ranking_method_euclidean_then_scores_are_positive(
         self, num_docs, retrieval_instances, constants, valid_args):
         """
@@ -594,7 +626,7 @@ class TestResultDocumentsContainRequiredMetadata:
     @pytest.mark.parametrize("key", ["url", "title"])
     def test_when_execute_is_called_with_documents_with_metadata_then_all_have_required_field(
         self, key, top10_retrieval, constants, valid_args
-    ):
+    ): # NOTE: Done
         """
         GIVEN documents with metadata fields
         WHEN execute is called with a query
