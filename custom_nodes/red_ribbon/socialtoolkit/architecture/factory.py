@@ -35,6 +35,8 @@ def make_document_retrieval_from_websites(
     configs: SocialtoolkitConfigs = lambda: SocialtoolkitConfigs(),
 ) -> DocumentRetrievalFromWebsites:
     """Factory function to create DocumentRetrievalFromWebsites instance"""
+    if isinstance(configs, Configs):
+        configs = configs.socialtoolkit
     try:
         return DocumentRetrievalFromWebsites(resources=resources, configs=configs)
     except Exception as e:

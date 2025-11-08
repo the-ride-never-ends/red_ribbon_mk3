@@ -34,7 +34,7 @@ class Paths(BaseModel):
     LLM_MODELS_DIR:    DirectoryPath = COMFYUI_DIR / "models" / "llm_models"
     SOCIALTOOLKIT_DIR: DirectoryPath = VERSION_DIR / "socialtoolkit"
     DATABASE_DIR:      DirectoryPath = VERSION_DIR / "database"
-    DB_PATH:           FilePath = VERSION_DIR / "red_ribbon.db"
+    DB_PATH:           FilePath      = VERSION_DIR / "red_ribbon.db"
     
 
     def __getitem__(self, key: str) -> Optional[Any]:

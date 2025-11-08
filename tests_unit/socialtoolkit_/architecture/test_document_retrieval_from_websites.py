@@ -15,9 +15,14 @@ Feature: Document Retrieval from Websites
     And a document storage service is available
     And a URL path generator is available
 """
-import pytest
+# NOTE: 36 test functions
+import sqlite3
 from unittest.mock import Mock
 from datetime import datetime
+
+
+import pytest
+from requests.exceptions import HTTPError, Timeout
 
 
 # Import the actual class being tested
@@ -27,36 +32,48 @@ from custom_nodes.red_ribbon.socialtoolkit.architecture.document_retrieval_from_
     WebpageType
 )
 
-import sqlite3
 
-from requests.exceptions import HTTPError
 from .conftest import FixtureError
+
+@pytest.fixture
+def valid_config_values():
+    return {
+        "timeout_seconds": 30,
+        "max_retries": 3,
+        "batch_size": 10,
+        "follow_links": False,
+        "max_depth": 1
+    }
+
 
 # Mock constants fixture to avoid hardcoded values
 @pytest.fixture
-def mock_constants():
+def constants(valid_config_values):
     """Fixture providing mock constants for tests"""
+    base_url = "https://example.com"
     return {
         # URLs
-        "BASE_URL": "https://example.com",
-        "DYNAMIC_URL": "https://example.com/app",
-        "TEST_URL_2": "https://test.org",
-        "STATIC_PAGE_URL": "https://example.com/static-page.html",
-        "PAGE1_URL": "https://example.com/page1",
-        "TIMEOUT_URL": "https://example.com/timeout",
-        "SUCCESS_URL": "https://example.com/success",
-        "NOT_FOUND_URL": "https://example.com/not-found",
+        "BASE_URL": base_url,
+        "DYNAMIC_URL": f"{base_url}/app",
+        "TEST_DOT_ORG_URL": "https://test.org",
+        "STATIC_PAGE_URL": f"{base_url}/static-page.html",
+        "PAGE1_URL": f"{base_url}/page1",
+        "PAGE2_URL": f"{base_url}/page2",
+        "TIMEOUT_URL": f"{base_url}/timeout",
+        "SUCCESS_URL": f"{base_url}/success",
+        "NOT_FOUND_URL": f"{base_url}/not-found",
+        "ABOUT_URL": f"{base_url}/about",
         "INVALID_URL": "not-a-valid-url",
         "CUSTOM_USER_AGENT": "CustomBot/1.0",
         "SINGLE_TEXT_CONTENT": "Single text content",
         
         # Generated URLs for path generator
         "GENERATED_URLS": [
-            "https://example.com",
-            "https://example.com/page1",
-            "https://example.com/page2",
-            "https://example.com/about",
-            "https://example.com/contact"
+            base_url,
+            f"{base_url}/page1",
+            f"{base_url}/page2",
+            f"{base_url}/about",
+            f"{base_url}/contact"
         ],
         
         # HTML Content
@@ -91,109 +108,92 @@ def mock_constants():
         "SOURCE_DOMAIN": "example.com",
         
         # Configuration values
-        "TIMEOUT_SECONDS": 30,
-        "MAX_RETRIES": 3,
-        "BATCH_SIZE": 10,
-        "MAX_DEPTH": 1
+        "TIMEOUT_SECONDS": valid_config_values["timeout_seconds"],
+        "MAX_RETRIES": valid_config_values["max_retries"],
+        "BATCH_SIZE": valid_config_values["batch_size"],
+        "MAX_DEPTH": valid_config_values["max_depth"],
+        "FOLLOW_LINKS": valid_config_values["follow_links"]
     }
 
-# Main mock fixture that all tests use
 @pytest.fixture
-def mock_document_retrieval(
-    mock_constants,
-    static_webpage_parser,
-    a_dynamic_webpage_parser_is_available, 
-    data_extractor,
-    vector_generator,
-    metadata_generator,
-    a_document_storage_service_is_available,
-    a_url_path_generator_is_available
-):
-    """
-    GIVEN a DocumentRetrievalFromWebsites instance is initialized
-    """
-    # Create mock timestamp service
-    mock_timestamp_service = Mock()
-    mock_timestamp_service.now.return_value = mock_constants["MOCK_TIMESTAMP"]
-    
-    resources = {
-        "static_webpage_parser": static_webpage_parser,
-        "dynamic_webpage_parser": a_dynamic_webpage_parser_is_available,
-        "data_extractor": data_extractor,
-        "vector_generator": vector_generator,
-        "metadata_generator": metadata_generator,
-        "document_storage_service": a_document_storage_service_is_available,
-        "url_path_generator": a_url_path_generator_is_available,
-        "timestamp_service": mock_timestamp_service
-    }
-    
-    configs = DocumentRetrievalConfigs(
-        timeout_seconds=mock_constants["TIMEOUT_SECONDS"],
-        max_retries=mock_constants["MAX_RETRIES"],
-        batch_size=mock_constants["BATCH_SIZE"],
-        follow_links=False,
-        max_depth=mock_constants["MAX_DEPTH"]
-    )
-    
-    return DocumentRetrievalFromWebsites(resources=resources, configs=configs)
+def make_mock_configs(valid_config_values):
+    def _make_configs(overrides={}):
+        config_values = valid_config_values.copy()
+        config_values.update(overrides)
+        try:
+            return DocumentRetrievalConfigs(**config_values)
+        except Exception as e:
+            raise FixtureError(f"Failed to create mock configs: {e}") from e
+    return _make_configs
+
+@pytest.fixture
+def mock_configs(make_mock_configs):
+    return make_mock_configs()
 
 
 @pytest.fixture
-def static_webpage_parser(mock_constants):
+def mock_timestamp_service(constants):
+    mock_service = Mock()
+    mock_service.now.return_value = constants["MOCK_TIMESTAMP"]
+    return mock_service
+
+
+@pytest.fixture
+def mock_static_webpage_parser(constants):
     """
     And a static webpage parser is available
     """
     mock_parser = Mock()
     mock_parser.parse.return_value = {
-        "url": mock_constants["BASE_URL"],
-        "html_content": mock_constants["STATIC_HTML_CONTENT"],
-        "status_code": mock_constants["HTTP_STATUS_OK"],
-        "headers": {"Content-Type": mock_constants["HTML_CONTENT_TYPE"]}
+        "url": constants["BASE_URL"],
+        "html_content": constants["STATIC_HTML_CONTENT"],
+        "status_code": constants["HTTP_STATUS_OK"],
+        "headers": {"Content-Type": constants["HTML_CONTENT_TYPE"]}
     }
     return mock_parser
 
 
 @pytest.fixture
-def a_dynamic_webpage_parser_is_available(mock_constants):
+def mock_dynamic_webpage_parser(constants):
     """
     And a dynamic webpage parser is available
     """
     mock_parser = Mock()
     mock_parser.parse.return_value = {
-        "url": mock_constants["DYNAMIC_URL"],
-        "html_content": mock_constants["DYNAMIC_HTML_CONTENT"],
-        "status_code": mock_constants["HTTP_STATUS_OK"],
-        "headers": {"Content-Type": mock_constants["HTML_CONTENT_TYPE"]}
+        "url": constants["DYNAMIC_URL"],
+        "html_content": constants["DYNAMIC_HTML_CONTENT"],
+        "status_code": constants["HTTP_STATUS_OK"],
+        "headers": {"Content-Type": constants["HTML_CONTENT_TYPE"]}
     }
     return mock_parser
 
 
 @pytest.fixture
-def data_extractor(mock_constants):
+def mock_data_extractor(constants):
     """
     And a data extractor is available
     """
     mock_extractor = Mock()
-    mock_extractor.extract.return_value = mock_constants["EXTRACTED_TEXT_CONTENT"]
+    mock_extractor.extract.return_value = constants["EXTRACTED_TEXT_CONTENT"]
     return mock_extractor
 
 
 @pytest.fixture
-def vector_generator(mock_constants):
+def mock_vector_generator(constants):
     """
     And a vector generator is available
     """
-    mock_generator = Mock()
-    mock_generator.generate.return_value = [
-        {"embedding": mock_constants["DOC_EMBEDDINGS"]["doc_1"] * mock_constants["VECTOR_DIMENSION"], "doc_id": "doc_1"},  # 1536 dimensions
-        {"embedding": mock_constants["DOC_EMBEDDINGS"]["doc_2"] * mock_constants["VECTOR_DIMENSION"], "doc_id": "doc_2"},
-        {"embedding": mock_constants["DOC_EMBEDDINGS"]["doc_3"] * mock_constants["VECTOR_DIMENSION"], "doc_id": "doc_3"}
+    mock_embeddings = [
+        {"embedding": constants["DOC_EMBEDDINGS"][f"doc_{idx}"] * constants["VECTOR_DIMENSION"], "doc_id": f"doc_{idx}"} 
+        for idx in range(1, 4)
     ]
+    mock_generator = Mock()
+    mock_generator.generate.return_value = mock_embeddings
     return mock_generator
 
 
 @pytest.fixture
-def metadata_generator(mock_constants):
+def mock_metadata_generator(constants):
     """
     And a metadata generator is available
     """
@@ -201,15 +201,62 @@ def metadata_generator(mock_constants):
     mock_generator.generate.return_value = [
         {
             "doc_id": doc_id,
-            "source_url": mock_constants["BASE_URL"],
-            "creation_time": mock_constants["MOCK_TIMESTAMP"],
-            "content_length": mock_constants["CONTENT_LENGTH"],
-            "source_domain": mock_constants["SOURCE_DOMAIN"]
+            "source_url": constants["BASE_URL"],
+            "creation_time": constants["MOCK_TIMESTAMP"],
+            "content_length": constants["CONTENT_LENGTH"],
+            "source_domain": constants["SOURCE_DOMAIN"]
         }
-        for doc_id in mock_constants["DOC_IDS"]
+        for doc_id in constants["DOC_IDS"]
     ]
     return mock_generator
 
+
+@pytest.fixture
+def mock_resources(
+    mock_timestamp_service,
+    mock_static_webpage_parser,
+    mock_dynamic_webpage_parser, 
+    mock_data_extractor,
+    mock_vector_generator,
+    mock_metadata_generator,
+    mock_document_storage,
+    mock_url_path_generator,
+    ):
+    return {
+        "static_parser": mock_static_webpage_parser,
+        "dynamic_parser": mock_dynamic_webpage_parser,
+        "data_extractor": mock_data_extractor,
+        "vector_generator": mock_vector_generator,
+        "metadata_generator": mock_metadata_generator,
+        "document_storage_service": mock_document_storage,
+        "url_path_generator": mock_url_path_generator,
+        "timestamp_service": mock_timestamp_service
+    }
+
+
+@pytest.fixture
+def make_document_retrieval_fixture(mock_resources, mock_configs):
+    def _make_fixture(custom_resources=None, custom_configs=None):
+        resource_dict = mock_resources.copy()
+        configs = mock_configs
+        if custom_resources is not None:
+            resource_dict.update(custom_resources)
+        if custom_configs is not None:
+            configs = custom_configs
+        try:
+            return DocumentRetrievalFromWebsites(resources=resource_dict, configs=configs)
+        except Exception as e:
+            raise FixtureError(f"Failed to create DocumentRetrievalFromWebsites fixture: {e}") from e
+    return _make_fixture
+
+
+# Main mock fixture
+@pytest.fixture
+def document_retrieval_fixture(make_document_retrieval_fixture):
+    """
+    GIVEN a DocumentRetrievalFromWebsites instance is initialized
+    """
+    return make_document_retrieval_fixture()
 
 
 @pytest.fixture
@@ -249,11 +296,12 @@ def sql_statements():
 
 
 @pytest.fixture
-def a_document_storage_service_is_available(tmp_path, sql_statements):
+def mock_document_storage(tmp_path, sql_statements):
     """
     And a document storage service is available
     """
     conn = None
+    db_path = None
     try:
         # Create a temporary SQLite database
         db_path = tmp_path / "test_documents.db"
@@ -274,80 +322,80 @@ def a_document_storage_service_is_available(tmp_path, sql_statements):
         # Cleanup
         if conn is not None:
             conn.close()
+        if db_path is not None and db_path.exists():
+            db_path.unlink()
 
 
 @pytest.fixture
-def a_url_path_generator_is_available(mock_constants):
+def mock_url_path_generator(constants):
     """
     And a URL path generator is available
     """
     mock_generator = Mock()
-    mock_generator.generate.return_value = mock_constants["GENERATED_URLS"]
+    mock_generator.generate.return_value = constants["GENERATED_URLS"]
     return mock_generator
 
 
 @pytest.fixture
-def base_domain_urls(mock_constants):
+def base_domain_url(constants):
     """Fixture providing base domain URL list for tests"""
-    return [mock_constants["BASE_URL"]]
+    return [constants["BASE_URL"]]
 
+def two_domain_urls(constants):
+    """Fixture providing two domain URLs for tests"""
+    return [constants["BASE_URL"], constants["TEST_DOT_ORG_URL"]]
 
 @pytest.fixture
-def single_page_url(mock_constants):
+def single_page_url(constants):
     """Fixture providing a single page URL"""
-    return mock_constants["BASE_URL"] + "/page1"
+    return [constants["PAGE1_URL"]]
+
+@pytest.fixture
+def timeout_urls(constants):
+    """Fixture providing timeout URL list"""
+    return [constants["TIMEOUT_URL"]]
+
+@pytest.fixture
+def urls_max_depth_is_one(constants):
+    """Fixture providing shallow URLs for testing max depth"""
+    return [
+        constants["BASE_URL"],  # depth 0
+        constants["PAGE1_URL"],  # depth 1
+        constants["ABOUT_URL"],  # depth 1
+    ]
 
 
 @pytest.fixture
-def mock_document_retrieval_url_generator(mock_document_retrieval, single_page_url):
-    """Fixture to configure URL generator to return a single page URL"""
-    mock_document_retrieval.url_path_generator.generate.return_value = [single_page_url]
-    return mock_document_retrieval
-
-
-@pytest.fixture
-def mock_document_retrieval_single_text_extraction(mock_document_retrieval, mock_constants):
-    """Fixture to configure data extractor to return single text content"""
-    mock_document_retrieval.data_extractor.extract.return_value = [mock_constants["SINGLE_TEXT_CONTENT"]]
-    return mock_document_retrieval
-
-
-@pytest.fixture
-def timeout_exception():
+def timeout_error():
     """Fixture providing Timeout exception"""
-    from requests.exceptions import Timeout
     return Timeout("Request timed out")
 
 
 @pytest.fixture
 def http_error_404():
     """Fixture providing 404 HTTPError exception"""
-
     return HTTPError("404 Not Found")
 
 
 @pytest.fixture
-def success_and_timeout_urls(mock_constants):
-    """Fixture providing success and timeout URL pair"""
+def exceptions(timeout_error, http_error_404):
+    """Fixture providing a list of URL errors for testing"""
     return {
-        "timeout": mock_constants["BASE_URL"] + "/timeout",
-        "success": mock_constants["BASE_URL"] + "/success"
+        "TIMEOUT_ERROR": timeout_error,
+        "HTTP_404_ERROR": http_error_404
     }
 
 
 @pytest.fixture
-def success_and_not_found_urls(mock_constants):
-    """Fixture providing success and not-found URL pair"""
-    return {
-        "not_found": mock_constants["BASE_URL"] + "/not-found",
-        "success": mock_constants["BASE_URL"] + "/success"
-    }
+def two_domain_urls(constants):
+    """Fixture providing two domain URLs for storage tests"""
+    return [constants["BASE_URL"], constants["TEST_DOT_ORG_URL"]]
 
 
 @pytest.fixture
-def multiple_domain_urls(mock_constants):
+def multiple_domain_urls(constants):
     """Fixture providing multiple domain URLs for tests"""
-    return [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
+    return [constants["BASE_URL"], constants["TEST_DOT_ORG_URL"]]
 
 
 @pytest.fixture
@@ -357,29 +405,135 @@ def empty_domain_urls():
 
 
 @pytest.fixture
-def dynamic_url_list(mock_constants):
+def dynamic_url_list(constants):
     """Fixture providing a list with dynamic URL"""
-    return [mock_constants["DYNAMIC_URL"]]
+    return [constants["DYNAMIC_URL"]]
 
 
 @pytest.fixture
-def mock_vectors_5_docs():
+def mock_vectors_5_docs(constants):
     """Fixture providing 5 mock vectors for testing"""
+    embedding = constants["VECTOR_DIMENSION"] * 3 * [0.1]
     return [
-        {"embedding": [0.1] * 1536, "doc_id": f"doc_{i}"}
-        for i in range(5)
+        {"embedding": embedding, "doc_id": f"doc_{idx}"} for idx in range(5)
     ]
 
+
 @pytest.fixture
-def mock_document_retrieval_with_depth_1_urls(mock_document_retrieval, mock_constants):
+def document_retrieval_fixture_single_url_generated(make_document_retrieval_fixture, single_page_url):
+    """Fixture to configure URL generator to return a single page URL"""
+    document_retrieval_fixture = make_document_retrieval_fixture()
+    document_retrieval_fixture.url_path_generator.generate.return_value = [single_page_url]
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def document_retrieval_fixture_single_text_extraction(make_document_retrieval_fixture, constants):
+    """Fixture to configure data extractor to return single text content"""
+    document_retrieval_fixture = make_document_retrieval_fixture()
+    document_retrieval_fixture.data_extractor.extract.return_value = [constants["SINGLE_TEXT_CONTENT"]]
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def document_retrieval_fixture_no_text_extracted(make_document_retrieval_fixture, constants):
+    """Fixture to configure data extractor to return single text content"""
+    document_retrieval_fixture = make_document_retrieval_fixture()
+    document_retrieval_fixture.data_extractor.extract.return_value = []
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def document_retrieval_fixture_depth_1_urls(make_document_retrieval_fixture, make_mock_configs, urls_max_depth_is_one):
     """Fixture to configure URL generator to return depth 1 URLs"""
-    depth_1_urls = [
-        mock_constants["BASE_URL"],  # depth 0
-        mock_constants["BASE_URL"] + "/page1",  # depth 1
-        mock_constants["BASE_URL"] + "/about"  # depth 1
-    ]
-    mock_document_retrieval.url_path_generator.generate.return_value = depth_1_urls
-    return mock_document_retrieval
+    mock_configs = make_mock_configs(overrides={"max_depth": 1})
+    document_retrieval_fixture = make_document_retrieval_fixture(mock_configs)
+    document_retrieval_fixture.url_path_generator.generate.return_value = urls_max_depth_is_one
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def document_retrieval_fixture_follow_links_is_false(make_document_retrieval_fixture, make_mock_configs, single_page_url):
+    """Fixture to configure URL generator to return single page URL with follow_links=False"""
+    mock_configs = make_mock_configs(overrides={"follow_links": False})
+    document_retrieval_fixture = make_document_retrieval_fixture(mock_configs)
+    document_retrieval_fixture.url_path_generator.generate.return_value = [single_page_url]
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def make_static_parser_with_error(make_document_retrieval_fixture, constants, exceptions):
+    def _make_static_parser_with_error(exception_key):
+        try:
+            document_retrieval_fixture = make_document_retrieval_fixture()
+            document_retrieval_fixture.url_path_generator.generate.return_value = [constants["STATIC_PAGE_URL"]]
+            document_retrieval_fixture.static_parser.parse.side_effect = [exceptions[exception_key]]
+        except Exception as e:
+            raise FixtureError(f"Failed to create static parser: {e}") from e
+    return _make_static_parser_with_error
+
+
+
+@pytest.fixture
+def make_static_parser_with_error_then_success(make_document_retrieval_fixture, constants, exceptions):
+    def _make_static_parser(exception_key):
+        try:
+            timeout_url = constants["TIMEOUT_URL"]
+            success_url = constants["SUCCESS_URL"]
+            document_retrieval_fixture = make_document_retrieval_fixture()
+            document_retrieval_fixture.url_path_generator.generate.return_value = [timeout_url, success_url]
+            document_retrieval_fixture.static_parser.parse.side_effect = [
+                exceptions[exception_key],
+                {"url": success_url, "html_content": constants["STATIC_HTML_CONTENT"], "status_code": constants["HTTP_STATUS_OK"], "headers": {}}
+            ]
+            return document_retrieval_fixture
+        except Exception as e:
+            raise FixtureError(f"Failed to create static parser with error: {e}") from e
+    return _make_static_parser
+
+@pytest.fixture
+def document_retrieval_fixture_timeout_then_success(make_static_parser_with_error_then_success):
+    """Fixture to configure parser with timeout then success response"""
+    document_retrieval_fixture = make_static_parser_with_error_then_success('TIMEOUT_ERROR')
+    return document_retrieval_fixture
+
+pytest.fixture
+def document_retrieval_fixture_404_then_success(make_static_parser_with_error_then_success):
+    """Fixture to configure parser with 404 then success response"""
+    document_retrieval_fixture = make_static_parser_with_error_then_success('HTTP_404_ERROR')
+    return document_retrieval_fixture
+
+@pytest.fixture
+def document_retrieval_fixture_404(make_static_parser_with_error):
+    """Fixture to configure parser with 404 for single URL"""
+    document_retrieval_fixture = make_static_parser_with_error('HTTP_404_ERROR')
+    return document_retrieval_fixture
+
+@pytest.fixture
+def document_retrieval_fixture_timeout(make_static_parser_with_error):
+    """Fixture to configure parser with timeout for single URL"""
+    document_retrieval_fixture = make_static_parser_with_error('TIMEOUT_ERROR')
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def document_retrieval_fixture_10_docs(make_document_retrieval_fixture, constants):
+    """Fixture to configure document retrieval to generate 10 documents"""
+    document_retrieval_fixture = make_document_retrieval_fixture()
+    document_retrieval_fixture.url_path_generator.generate.return_value = [f"{constants['BASE_URL']}/page{i}" for i in range(10)]
+    document_retrieval_fixture.data_extractor.extract.return_value = [constants["SINGLE_TEXT_CONTENT"]]
+    return document_retrieval_fixture
+
+
+@pytest.fixture
+def document_retrieval_fixture_5_vectors(document_retrieval_fixture, mock_vectors_5_docs):
+    """Fixture to configure document retrieval to generate 5 vectors"""
+    document_retrieval_fixture.data_extractor.extract.return_value = ["Single text content"]
+    document_retrieval_fixture.mock_vector_generator.generate.return_value = mock_vectors_5_docs
+    return document_retrieval_fixture
+
+
+
 
 
 
@@ -387,60 +541,93 @@ class TestExecuteMethodAcceptsListofDomainURLs:
     """
     Rule: execute Method Accepts List of Domain URLs
     """
-    def test_when_execute_called_with_single_domain_url_then_execution_completes(self, mock_document_retrieval, base_domain_urls):
+    # NOTE: Done
+    def test_when_execute_called_with_single_domain_url_then_returns_dict(self, document_retrieval_fixture, base_domain_url):
         """
         Scenario: Execute with single domain URL
           GIVEN a single domain URL "https://example.com"
           WHEN I call execute with the domain URL list
-          THEN the execution completes successfully
+          THEN the execution returns a dictionary
         """
-        result = mock_document_retrieval.execute(base_domain_urls)
-        assert result is not None, f"Expected execute to return a result, but got None for domain_urls={base_domain_urls}"
+        result = document_retrieval_fixture.execute(base_domain_url)
+        assert isinstance(result, dict), f"Expected execute to return a dict, but {type(result).__name__}"
 
+    # NOTE: Done
+    @pytest.mark.parametrize("expected_key", ["documents", "metadata", "vectors"])
+    def test_when_execute_called_with_single_domain_url_then_dict_has_expected_keys(
+        self, expected_key, document_retrieval_fixture, base_domain_url):
+        """
+        Scenario: Execute with single domain URL
+          GIVEN a single domain URL "https://example.com"
+          WHEN I call execute with the domain URL list
+          THEN the returned dictionary has expected keys "documents", "metadata", and "vectors"
+        """
+        result = document_retrieval_fixture.execute(base_domain_url)
+        assert expected_key in result, f"Expected '{expected_key}' to be in result, but {list(result.keys())}"
 
-    def test_when_execute_called_with_single_domain_url_then_documents_retrieved(self, mock_document_retrieval, mock_constants, base_domain_urls):
+    @pytest.mark.parametrize("key,expected_value", [
+        ("documents", list), ("metadata", list), ("vectors", list)
+    ]) # NOTE: Done
+    def test_when_execute_called_with_single_domain_url_then_dict_has_expected_value_types(
+        self, key, expected_value, document_retrieval_fixture, base_domain_url):
+        """
+        Scenario: Execute with single domain URL
+          GIVEN a single domain URL "https://example.com"
+          WHEN I call execute with the domain URL list
+          THEN the dictionary keys have expected value types
+        """
+        result = document_retrieval_fixture.execute(base_domain_url)
+        actual_value = result[key]
+        assert isinstance(actual_value, expected_value), \
+            f"Expected '{key}' to be of type {expected_value.__name__}, but got {type(actual_value).__name__}"
+
+    # NOTE: Done
+    def test_when_execute_called_with_single_domain_url_then_documents_retrieved(self, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Execute with single domain URL
           GIVEN a single domain URL "https://example.com"
           WHEN I call execute with the domain URL list
           THEN documents are retrieved from the domain
         """
-        result = mock_document_retrieval.execute(base_domain_urls)
-        base_url = mock_constants["BASE_URL"]
-        first_doc_url = result["documents"][0]["url"]
-        assert  len(result["documents"]) > 0, \
-            f"Expected documents to be retrieved from {base_url}, but got no documents"
+        zero = 0
+        result = document_retrieval_fixture.execute(base_domain_url)
+        len_documents = len(result["documents"])
+        assert  len_documents > zero, \
+            f"Expected documents to be retrieved from '{base_domain_url}', but got {len_documents}"
 
-    def test_when_execute_called_with_multiple_domain_urls_then_documents_retrieved_from_all(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_execute_called_with_multiple_domain_urls_then_documents_retrieved_from_all(
+            self, document_retrieval_fixture, two_domain_urls):
         """
         Scenario: Execute with multiple domain URLs
           GIVEN multiple domain URLs ["https://example.com", "https://test.org"]
           WHEN I call execute with the domain URL list
           THEN documents are retrieved from all domains
         """
-        domain_urls = [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
-        result = mock_document_retrieval.execute(domain_urls)
-        expected_count = len(domain_urls)
+        expected_count = len(two_domain_urls)
+        result = document_retrieval_fixture.execute(two_domain_urls)
         actual_count = len(result["documents"])
-        assert actual_count == expected_count, f"Expected {expected_count} documents from {expected_count} domains, but got {actual_count}"
+        assert actual_count == expected_count, \
+            f"Expected {expected_count} documents from {expected_count} domains, but got {actual_count}"
 
-
-    def test_when_execute_called_with_multiple_domain_urls_then_results_aggregated(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_execute_called_with_multiple_domain_urls_then_results_aggregated(
+            self, document_retrieval_fixture, two_domain_urls):
         """
         Scenario: Execute with multiple domain URLs
           GIVEN multiple domain URLs ["https://example.com", "https://test.org"]
           WHEN I call execute with the domain URL list
           THEN results are aggregated across domains
         """
-        domain_urls = [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
-        result = mock_document_retrieval.execute(domain_urls)
+        result = document_retrieval_fixture.execute(two_domain_urls)
         doc_count = len(result["documents"])
         metadata_count = len(result["metadata"])
         vector_count = len(result["vectors"])
-        assert doc_count == metadata_count == vector_count, f"Expected equal counts for documents, metadata, and vectors, but got docs={doc_count}, metadata={metadata_count}, vectors={vector_count}"
+        assert doc_count == metadata_count == vector_count, \
+            f"Expected equal counts for documents, metadata, and vectors, but got docs={doc_count}, metadata={metadata_count}, vectors={vector_count}"
 
-
-    def test_when_execute_called_with_empty_url_list_then_no_documents_retrieved(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_execute_called_with_empty_url_list_then_no_documents_retrieved(self, document_retrieval_fixture, constants):
         """
         Scenario: Execute with empty URL list
           GIVEN an empty list of domain URLs
@@ -448,50 +635,10 @@ class TestExecuteMethodAcceptsListofDomainURLs:
           THEN no documents are retrieved
         """
         domain_urls = []
-        result = mock_document_retrieval.execute(domain_urls)
+        expected_count = 0
+        result = document_retrieval_fixture.execute(domain_urls)
         doc_count = len(result["documents"])
-        assert doc_count == 0, f"Expected 0 documents from empty URL list, but got {doc_count}"
-
-
-    def test_when_execute_called_with_empty_url_list_then_empty_collections_returned(self, mock_document_retrieval, mock_constants):
-        """
-        Scenario: Execute with empty URL list
-          GIVEN an empty list of domain URLs
-          WHEN I call execute with the empty list
-          THEN the returned dictionary has empty collections
-        """
-        domain_urls = []
-        result = mock_document_retrieval.execute(domain_urls)
-        documents = result["documents"]
-        assert documents == [], f"Expected empty documents list from empty URL list, but got {documents}"
-
-
-class TestExecuteReturnsDictionarywithRequiredKeys:
-    """
-    Rule: Execute Returns Dictionary with Required Keys
-    Tests for: DocumentRetrievalFromWebsites.execute()
-    """
-    def test_when_execute_called_then_dictionary_returned(self, mock_document_retrieval, base_domain_urls):
-        """
-        Scenario: Execute returns expected result structure
-          GIVEN a valid domain URL "https://example.com"
-          WHEN I call execute with the domain URL
-          THEN I receive a dictionary response
-        """
-        result = mock_document_retrieval.execute(base_domain_urls)
-        assert isinstance(result, dict), f"Expected execute to return dict, but got {type(result).__name__}"
-
-    @pytest.mark.parametrize("expected_key", ["documents", "metadata", "vectors"])
-    def test_when_execute_called_then_required_keys_present(self, mock_document_retrieval, base_domain_urls, expected_key):
-        """
-        Scenario: Execute returns expected result structure
-          GIVEN a valid domain URL "https://example.com"
-          WHEN I call execute with the domain URL
-          THEN the response contains required keys "documents", "metadata", and "vectors"
-        """
-        result = mock_document_retrieval.execute(base_domain_urls)
-        assert expected_key in result, f"Expected key '{expected_key}' to be in result, but got keys: {list(result.keys())}"
-
+        assert doc_count == expected_count, f"Expected {expected_count} documents from empty URL list, but got {doc_count}"
 
 
 class TestStaticandDynamicWebpagesAreParsedAppropriately:
@@ -499,56 +646,31 @@ class TestStaticandDynamicWebpagesAreParsedAppropriately:
     Rule: Static and Dynamic Webpages Are Parsed Appropriately
     Tests for: DocumentRetrievalFromWebsites.execute() - webpage parsing logic
     """
-    def test_when_static_webpage_processed_then_html_extracted(self, mock_document_retrieval, mock_constants, base_domain_urls):
-        """
-        Scenario: Static webpage is parsed with static parser
-          GIVEN a URL "https://example.com/static-page.html" identified as static
-          WHEN the URL is processed
-          THEN raw HTML data is extracted
-        """
-        result = mock_document_retrieval.execute(base_domain_urls)
-        html_content = mock_constants["STATIC_HTML_CONTENT"]
-        first_doc_content = result["documents"][0]["content"]
-        assert html_content in first_doc_content, f"Expected HTML content '{html_content}' in document content, but got '{first_doc_content}'"
 
-    def test_when_dynamic_webpage_processed_then_javascript_content_extracted(self, mock_document_retrieval, mock_constants):
+    @pytest.mark.parametrize("webpage_type,url_key,content_key", [
+        ("static", "BASE_URL", "STATIC_HTML_CONTENT"),
+        ("dynamic", "DYNAMIC_URL", "DYNAMIC_HTML_CONTENT")
+    ]) # NOTE: Done
+    def test_when_webpage_processed_then_appropriate_content_extracted(self, webpage_type, url_key, content_key, document_retrieval_fixture, constants):
         """
-        Scenario: Dynamic webpage is parsed with dynamic parser
-          GIVEN a URL "https://example.com/app" identified as dynamic
-          WHEN the URL is processed
-          THEN JavaScript-rendered content is extracted
+        Scenario: Webpages are parsed with appropriate parsers
+          GIVEN a URL identified as static or dynamic
+          WHEN execute is called with that URL
+          THEN expected content is extracted
         """
-        domain_urls = [mock_constants["DYNAMIC_URL"]]
-        result = mock_document_retrieval.execute(domain_urls)
-        dynamic_content = mock_constants["DYNAMIC_HTML_CONTENT"]
+        domain_urls = [constants[url_key]]
+        result = document_retrieval_fixture.execute(domain_urls)
+        expected_content = constants[content_key]
         first_doc_content = result["documents"][0]["content"]
-        assert dynamic_content in first_doc_content, f"Expected dynamic content '{dynamic_content}' in document, but got '{first_doc_content}'"
-
+        assert expected_content in first_doc_content, f"Expected {webpage_type} content '{expected_content}' in document content, but got '{first_doc_content}'"
 
 class TestURLGenerationExpandsDomainURLstoPageURLs:
     """
     Rule: URL Generation Expands Domain URLs to Page URLs
     Tests for: DocumentRetrievalFromWebsites.execute() - URL generation logic
     """
-    def test_when_single_domain_processed_then_url_generator_called_once(self, mock_document_retrieval, mock_constants, base_domain_urls):
-        """
-        Scenario: Single domain URL is expanded to multiple page URLs
-          GIVEN domain URL "https://example.com"
-          And URL path generator produces 5 page URLs
-          WHEN execute processes the domain
-          THEN extract is called 5 times.
-        """
-        # Act
-        expected_calls = 5
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        actual_calls = mock_document_retrieval.data_extractor.extract.call_count
-
-        assert actual_calls == expected_calls, \
-            f"Expected data extractor to be called {expected_calls} times, but got {actual_calls} calls."
-
-    @pytest.mark.parametrize("doc_index", range(5))
-    def test_single_domain_url_is_expanded_to_multiple_page_urls_1(self, mock_document_retrieval, mock_constants, base_domain_urls, doc_index):
+    @pytest.mark.parametrize("idx", [idx for idx in range(5)]) # NOTE: Done
+    def test_when_single_domain_url_processed_then_documents_retrieved_from_each_page(self, idx, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Single domain URL is expanded to multiple page URLs
           GIVEN domain URL "https://example.com"
@@ -556,16 +678,15 @@ class TestURLGenerationExpandsDomainURLstoPageURLs:
           WHEN execute processes the domain
           THEN documents are retrieved from each page
         """
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-
-        expected_url = mock_constants["GENERATED_URLS"][doc_index]
-        assert expected_url in result["documents"][doc_index]["url"], \
+        expected_url = constants["GENERATED_URLS"][idx]
+        result = document_retrieval_fixture.execute(base_domain_url)
+        actual_url = result["documents"][idx]["url"]
+        assert expected_url in actual_url, \
             f"Expected document URL '{expected_url}' to be in retrieved documents, but it was not found."
 
-
-
-    def test_url_generator_respects_max_depth_configuration(self, mock_document_retrieval_with_depth_1_urls, mock_constants, base_domain_urls):
+    # NOTE: Done
+    def test_when_max_depth_configured_then_only_depth_1_urls_processed(
+            self, document_retrieval_fixture_depth_1_urls, urls_max_depth_is_one, base_domain_url):
         """
         Scenario: URL generator respects max_depth configuration
           GIVEN domain URL "https://example.com"
@@ -573,27 +694,17 @@ class TestURLGenerationExpandsDomainURLstoPageURLs:
           WHEN execute processes the domain
           THEN only URLs at depth 1 or less are processed
         """
-        # Arrange
-        mock_document_retrieval = mock_document_retrieval_with_depth_1_urls
-        depth_1_urls = [
-            mock_constants["BASE_URL"],
-            mock_constants["BASE_URL"] + "/page1",
-            mock_constants["BASE_URL"] + "/about"
-        ]
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
+        expected_call_count = len(urls_max_depth_is_one)
 
-        # Verify max_depth configuration is respected
-        assert mock_document_retrieval.configs.max_depth == mock_constants["MAX_DEPTH"]
-        # Verify URL generator was called with the domain
-        mock_document_retrieval.url_path_generator.generate.assert_called_once_with(mock_constants["BASE_URL"])
-        # Verify only depth 1 URLs are processed (3 URLs in this case)
-        assert mock_document_retrieval.data_extractor.extract.call_count == len(depth_1_urls)
+        result = document_retrieval_fixture_depth_1_urls.execute(base_domain_url)
+        actual_call_count = document_retrieval_fixture_depth_1_urls.data_extractor.extract.call_count
 
-    def test_url_generator_respects_max_depth_configuration_1(self, mock_document_retrieval, mock_constants, base_domain_urls):
+        assert actual_call_count == expected_call_count, \
+            f"Expected '{expected_call_count}' URLs processed at depth 1, but got '{actual_call_count}'"
+
+    # NOTE: Done
+    def test_when_max_depth_configured_then_deeper_urls_not_followed(
+            self, document_retrieval_fixture_depth_1_urls, urls_max_depth_is_one, base_domain_url):
         """
         Scenario: URL generator respects max_depth configuration
           GIVEN domain URL "https://example.com"
@@ -601,29 +712,16 @@ class TestURLGenerationExpandsDomainURLstoPageURLs:
           WHEN execute processes the domain
           THEN deeper URLs are not followed
         """
-        # Arrange
-        # Mock URL generator to return only depth 0 and 1 URLs
-        shallow_urls = [
-            mock_constants["BASE_URL"],  # depth 0
-            mock_constants["BASE_URL"] + "/page1"  # depth 1
-        ]
-        mock_document_retrieval.url_path_generator.generate.return_value = shallow_urls
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
+        expected_url_count = len(urls_max_depth_is_one)
+        result = document_retrieval_fixture_depth_1_urls.execute(base_domain_url)
+        actual_url_count = len(result["documents"])
 
-        # Verify max_depth configuration is respected
-        assert mock_document_retrieval.configs.max_depth == 1
-        # Verify no deep URLs (depth > 1) were processed
-        for doc in result["documents"]:
-            # Count slashes to determine depth
-            url = doc["url"]
-            path_depth = url.replace(mock_constants["BASE_URL"], "").count("/")
-            assert path_depth <= 1
+        assert expected_url_count == actual_url_count, \
+            f"Expected '{expected_url_count}' URLs at depth <= 1, but got '{actual_url_count}'"
 
-    def test_url_generator_respects_follow_links_configuration(self, mock_document_retrieval, single_page_url, base_domain_urls):
+    # NOTE: Done
+    def test_when_follow_links_false_then_only_provided_urls_processed(
+            self, document_retrieval_fixture_follow_links_is_false, single_page_url, base_domain_url):
         """
         Scenario: URL generator respects follow_links configuration
           GIVEN domain URL "https://example.com/page1"
@@ -631,26 +729,15 @@ class TestURLGenerationExpandsDomainURLstoPageURLs:
           WHEN execute processes the domain
           THEN only the provided URLs are processed
         """
-        # Arrange
-        # Use "https://example.com/page1" as described in scenario
-        domain_urls = [single_page_url]
-        # The instance already has follow_links=False from fixture
-        # Mock URL generator to return only provided URL (no link following)
-        mock_document_retrieval.url_path_generator.generate.return_value = [single_page_url]
-        
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-        
-        # Assert
+        expected_call_count = 1
+        result = document_retrieval_fixture_follow_links_is_false.execute(single_page_url)
+        actual_call_count = document_retrieval_fixture_follow_links_is_false.data_extractor.extract.call_count
+        assert actual_call_count == expected_call_count, \
+            f"Expected {expected_call_count} URL processed with follow_links=False, but got {actual_call_count}"
 
-        # Verify follow_links is configured as False
-        assert mock_document_retrieval.configs.follow_links == False
-        # Verify URL generator was called with the provided URL
-        mock_document_retrieval.url_path_generator.generate.assert_called_once_with(single_page_url)
-        # Verify no additional link discovery occurred (only 1 URL processed)
-        assert mock_document_retrieval.data_extractor.extract.call_count == 1
-
-    def test_url_generator_respects_follow_links_configuration_1(self, mock_document_retrieval, single_page_url, base_domain_urls):
+    # NOTE: Done
+    def test_when_follow_links_false_then_no_additional_links_followed(
+            self, document_retrieval_fixture_follow_links_is_false, single_page_url, base_domain_url):
         """
         Scenario: URL generator respects follow_links configuration
           GIVEN domain URL "https://example.com/page1"
@@ -658,593 +745,419 @@ class TestURLGenerationExpandsDomainURLstoPageURLs:
           WHEN execute processes the domain
           THEN no additional links are followed
         """
-        # Arrange
-        domain_urls = [single_page_url]
-        # Mock URL generator to return only provided URL (no link following)
-        mock_document_retrieval.url_path_generator.generate.return_value = [single_page_url]
-        
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-
-        # Assert
-        # Verify only documents from the single URL exist (no followed links)
-        assert all(doc["url"] == single_page_url for doc in result["documents"])
+        expected_url = single_page_url[0]
+        result = document_retrieval_fixture_follow_links_is_false.execute(single_page_url)
+        actual_url = result["documents"][0]["url"]
+        assert actual_url == expected_url, \
+            f"Expected URL to be '{expected_url}', but got '{actual_url}'"
 
 
+@pytest.mark.parametrize("idx", [idx for idx in range(3)])
 class TestDataExtractionConvertsRawDatatoStructuredStrings:
     """
     Rule: Data Extraction Converts Raw Data to Structured Strings
+    Tests for: DocumentRetrievalFromWebsites.execute() - data extraction logic
     """
-    def test_raw_html_is_extracted_to_text_strings(self, mock_document_retrieval, mock_constants, base_domain_urls):
+    # NOTE: Done
+    def test_when_raw_html_processed_then_structured_text_strings_returned(self, idx, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Raw HTML is extracted to text strings
           GIVEN raw HTML data from a webpage
           WHEN the data extractor processes the raw data
           THEN structured text strings are returned
         """
-        # Arrange
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
+        result = document_retrieval_fixture.execute(base_domain_url)
+        returned_content = result["documents"][idx]["content"]
 
-        # Verify data extractor was called and returned text strings
-        mock_document_retrieval.data_extractor.extract.assert_called()
-        # Verify documents contain text content (not HTML)
-        for doc in result["documents"]:
-            assert "content" in doc
-            assert isinstance(doc["content"], str)
-            # Content should be from extracted text, not raw HTML
-            assert doc["content"] in mock_constants["EXTRACTED_TEXT_CONTENT"]
+        assert isinstance(returned_content, str), \
+            f"Expected extracted text to be a string, but got '{type(returned_content).__name__}'"
 
-    def test_raw_html_is_extracted_to_text_strings_1(self, mock_document_retrieval, mock_constants, base_domain_urls):
+    @pytest.mark.parametrize("html_tag", [
+        "<div>", "</div>", "<p>", "</p>", "<span>", "</span>"
+    ]) # NOTE: Done
+    def test_when_raw_html_processed_then_html_tags_removed(self, idx, html_tag, document_retrieval_fixture, base_domain_url):
         """
         Scenario: Raw HTML is extracted to text strings
           GIVEN raw HTML data from a webpage
           WHEN the data extractor processes the raw data
           THEN HTML tags are removed
         """
-        # Arrange
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
+        result = document_retrieval_fixture.execute(base_domain_url)
+        returned_content = result["documents"][idx]["content"]
 
-        # Verify extracted text does not contain HTML tags
-        for doc in result["documents"]:
-            content = doc["content"]
-            # Verify no HTML tags like <html>, <body>, <div> etc.
-            assert "<" not in content
-            assert ">" not in content
-            assert "<html>" not in content
-            assert "<body>" not in content
-            assert "<div>" not in content
+        assert html_tag not in returned_content, f"Expected '{html_tag}' to not be in returned content, but got '{returned_content}'"
 
-    def test_raw_html_is_extracted_to_text_strings_2(self, mock_document_retrieval, mock_constants, base_domain_urls):
+    # NOTE: Done
+    def test_when_raw_html_processed_then_text_content_preserved(self, idx, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Raw HTML is extracted to text strings
           GIVEN raw HTML data from a webpage
           WHEN the data extractor processes the raw data
           THEN text content is preserved
         """
-        # Arrange
+        result = document_retrieval_fixture.execute(base_domain_url)
+        returned_content = result["documents"][idx]["content"]
+        expected_content = constants["EXTRACTED_TEXT_CONTENT"][idx]
         
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
-
-        # Verify extracted text content is preserved
-        extracted_contents = mock_constants["EXTRACTED_TEXT_CONTENT"]
-        document_contents = [doc["content"] for doc in result["documents"]]
-        # All extracted text should be present in documents
-        for expected_text in extracted_contents:
-            assert any(expected_text in content for content in document_contents)
-
-    def test_empty_raw_data_results_in_empty_extraction(self, mock_document_retrieval, mock_constants, base_domain_urls):
-        """
-        Scenario: Empty raw data results in empty extraction
-          GIVEN raw data that is empty or None
-          WHEN the data extractor processes the raw data
-          THEN an empty list of strings is returned
-        """
-        # Arrange
-        # Mock data extractor to return empty list for empty raw data
-        mock_document_retrieval.data_extractor.extract.return_value = []
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
-
-        # Verify no documents created from empty extraction
-        assert len(result["documents"]) == 0
-        assert result["documents"] == []
-        # Verify data extractor was still called
-        mock_document_retrieval.data_extractor.extract.assert_called()
+        assert returned_content == expected_content, \
+            f"Expected extracted text to be '{expected_content}', but found '{returned_content}'"
 
 
+# NOTE: Done
+def test_when_empty_raw_data_processed_then_empty_list_returned(document_retrieval_fixture_no_text_extracted, base_domain_url):
+    """
+    Scenario: Empty raw data results in empty extraction
+        GIVEN raw data that is empty or None
+        WHEN the data extractor processes the raw data
+        THEN an empty list is returned
+    """
+    expected_count = 0
+    result = document_retrieval_fixture_no_text_extracted.execute(base_domain_url)
+    actual_count = len(result["documents"])
+    assert actual_count == expected_count, f"Expected '{expected_count}' documents from empty extraction, but got '{actual_count}'"
+
+
+@pytest.mark.parametrize("idx", [idx for idx in range(3)])
 class TestDocumentsAreCreatedwithURLContext:
     """
     Rule: Documents Are Created with URL Context
+    Tests for: DocumentRetrievalFromWebsites.execute() - document creation logic
     """
-    def test_documents_include_source_url(self, mock_document_retrieval_url_generator, single_page_url, base_domain_urls):
+
+    # NOTE: Done
+    def test_when_documents_created_then_url_matches_expected(
+            self, idx, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Documents include source URL
-          GIVEN text strings extracted from "https://example.com/page1"
-          WHEN documents are created from the strings
-          THEN each document includes the source URL
+          GIVEN text strings extracted from a URL
+          WHEN execute is called
+          THEN the URL in each document in result matches the source URL
         """
-        # Arrange
+        expected_url = constants["GENERATED_URLS"][idx]
+        result = document_retrieval_fixture.execute(base_domain_url)
         
-        # Act
-        result = mock_document_retrieval_url_generator.execute(base_domain_urls)
-        
-        # Assert
-        for doc in result["documents"]:
-            assert "url" in doc
-            assert doc["url"] == single_page_url
+        actual_url = result["documents"][idx]["url"]
 
-    def test_documents_include_source_url_1(self, mock_document_retrieval_url_generator, mock_constants, single_page_url, base_domain_urls):
-        """
-        Scenario: Documents include source URL
-          GIVEN text strings extracted from "https://example.com/page1"
-          WHEN documents are created from the strings
-          THEN the URL is "https://example.com/page1"
-        """
-        # Arrange
-        
-        # Act
-        result = mock_document_retrieval_url_generator.execute(base_domain_urls)
-        
-        # Assert
+        assert actual_url == expected_url, f"Expected document {idx} to have URL '{expected_url}', but got '{actual_url}'"
 
-        for doc in result["documents"]:
-            assert doc["url"] == single_page_url
-            assert doc["url"] == mock_constants["BASE_URL"] + "/page1"
-
-    def test_multiple_strings_create_multiple_documents(self, mock_document_retrieval, mock_constants, base_domain_urls):
+    # NOTE: Done
+    def test_when_multiple_strings_extracted_then_all_have_same_source_url(self, idx, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Multiple strings create multiple documents
           GIVEN 3 extracted text strings from a single URL
-          WHEN documents are created
-          THEN 3 separate documents are created
+          WHEN execute is called
+          THEN each document in result has the same source URL
         """
-        # Arrange
-        single_url = mock_constants["BASE_URL"]
-        mock_document_retrieval.url_path_generator.generate.return_value = [single_url]
-        # Mock extractor returns 3 text strings as in mock_constants
-        three_strings = mock_constants["EXTRACTED_TEXT_CONTENT"]  # Has 3 items
-        mock_document_retrieval.data_extractor.extract.return_value = three_strings
+        expected_url = constants["GENERATED_URLS"][idx]
+        result = document_retrieval_fixture.execute(base_domain_url)
 
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-
-        # Assert
-        contents = [doc["content"] for doc in result["documents"]]
-        assert len(set(contents)) == 3
-
-    def test_multiple_strings_create_multiple_documents_1(self, mock_document_retrieval, mock_constants, base_domain_urls):
-        """
-        Scenario: Multiple strings create multiple documents
-          GIVEN 3 extracted text strings from a single URL
-          WHEN documents are created
-          THEN each document has the same source URL
-        """
-        # Arrange
-        single_url = mock_constants["BASE_URL"]
-        mock_document_retrieval.url_path_generator.generate.return_value = [single_url]
-        # Mock extractor returns 3 text strings
-        three_strings = mock_constants["EXTRACTED_TEXT_CONTENT"]
-        mock_document_retrieval.data_extractor.extract.return_value = three_strings
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
-        urls = [doc["url"] for doc in result["documents"]]
-        assert all(url == single_url for url in urls)
+        all_same_url = all(doc["url"] == expected_url for doc in result["documents"])
+        assert all_same_url, f"Expected all documents to have URL '{expected_url}', but found different URLs"
 
 
 
 class TestVectorsAreGeneratedforAllDocuments:
     """
     Rule: Vectors Are Generated for All Documents
+    Tests for: DocumentRetrievalFromWebsites.execute() - vector generation logic
     """
-    def test_vector_generator_creates_embeddings(self, mock_document_retrieval, mock_constants, base_domain_urls, mock_vectors_5_docs):
+    # NOTE: Done
+    def test_when_vector_generation_performed_then_exactly_5_vectors_generated(self, document_retrieval_fixture_5_vectors, base_domain_url):
         """
         Scenario: Vector generator creates embeddings
-          GIVEN a list of 5 documents
-          WHEN vector generation is performed
-          THEN exactly 5 vectors are generated
+          GIVEN a URL that produces 5 documents
+          WHEN execute is called
+          THEN exactly 5 vectors are present in result
         """
-        # Arrange
-        # Set up scenario with exactly 5 documents (using the 5 generated URLs)
-        # Mock data extractor to return exactly one text per URL for 5 documents total
-        mock_document_retrieval.data_extractor.extract.return_value = ["Single text content"]
-        # Mock vector generator to return exactly 5 vectors
-        mock_document_retrieval.vector_generator.generate.return_value = mock_vectors_5_docs
+        expected_vector_count = 5
+        result = document_retrieval_fixture_5_vectors.execute(base_domain_url)
+        actual_vector_count = len(result['vectors'])
+        assert actual_vector_count == expected_vector_count, f"Expected {expected_vector_count} vectors, but got {actual_vector_count}"
 
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-
-        # Assert
-        assert len(result['vectors']) == 5
- 
-
-    def test_vector_generator_creates_embeddings_1(self, mock_document_retrieval, mock_constants, base_domain_urls, mock_vectors_5_docs):
+    @pytest.mark.parametrize("idx", [idx for idx in range(5)]) # NOTE: Done
+    def test_when_vector_generation_performed_then_each_vector_corresponds_to_document(
+        self, idx, document_retrieval_fixture_5_vectors, base_domain_url):
         """
         Scenario: Vector generator creates embeddings
-          GIVEN a list of 5 documents
-          WHEN vector generation is performed
-          THEN each vector corresponds to a document
+          GIVEN a URL that produces 5 documents
+          WHEN execute is called
+          THEN each vector in result corresponds to a document in result
         """
-        # Arrange
-        # Mock 5 URLs for 5 documents
-        mock_document_retrieval.data_extractor.extract.return_value = ["Single text content"]
-        # Mock vector generator to return 5 vectors with doc_ids
-        mock_document_retrieval.vector_generator.generate.return_value = mock_vectors_5_docs
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
-        for vector in result["vectors"]:
-            assert vector["doc_id"].startswith("doc_")
+        expected_vector_id = f"doc_{idx}"
+        result = document_retrieval_fixture_5_vectors.execute(base_domain_url)
+        actual_vector_id = result["vectors"][idx]["doc_id"]
 
-    def test_vector_dimensions_match_configuration(self, mock_document_retrieval, mock_constants, base_domain_urls):
+        assert actual_vector_id == expected_vector_id, \
+            f"Expected vector {idx} to have doc_id '{expected_vector_id}', but got '{actual_vector_id}'"
+
+    # NOTE: Done
+    def test_when_vectors_generated_then_dimensions_match_configuration(self, document_retrieval_fixture, constants, base_domain_url):
         """
         Scenario: Vector dimensions match configuration
           GIVEN documents are ready for vectorization
           And vector_dim is configured as 1536
           WHEN vectors are generated
-          THEN each vector has dimension 1536
+          THEN each vector in result has dimension 1536
         """
-        # Arrange
+        expected_dimension = constants["VECTOR_DIMENSION"]
+        result = document_retrieval_fixture.execute(base_domain_url)
 
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-
-        # Assert
-        len_embedding = len(result['vectors']['embedding'])
-        assert len_embedding == mock_constants["VECTOR_DIMENSION"], \
-            f"Expected vector dimension {mock_constants['VECTOR_DIMENSION']}, but got {len_embedding}"
+        actual_dimension = len(result['vectors']['embedding'])
+        assert actual_dimension == expected_dimension, f"Expected vector dimension {expected_dimension}, but got {actual_dimension}"
 
 
 
 class TestMetadataIsGeneratedforAllDocuments:
     """
     Rule: Metadata Is Generated for All Documents
+    Tests for: DocumentRetrievalFromWebsites.execute() - metadata generation logic
     """
     @pytest.mark.parametrize("expected_field", [
         ("creation_time"),
         ("content_length"),
         ("source_url")
-    ])
-    def test_metadata_includes_document_properties(self, mock_document_retrieval_url_generator, mock_constants, single_page_url, base_domain_urls, expected_field):
+    ]) # NOTE: Done
+    def test_when_metadata_generated_then_includes_required_properties(self, document_retrieval_fixture_single_url_generated, constants, single_page_url, base_domain_url, expected_field):
         """
         Scenario: Metadata includes document properties
           GIVEN documents from URL "https://example.com/page"
-          WHEN metadata is generated
-          THEN metadata includes required document properties
+          WHEN execute is called
+          THEN metadata in result includes required fields
         """
-        # Arrange
-
         # Act
-        result = mock_document_retrieval_url_generator.execute(base_domain_urls)
+        result = document_retrieval_fixture_single_url_generated.execute(base_domain_url)
+        metadata = result["metadata"]
 
         # Assert
-        assert expected_field in result["metadata"], f"Expected metadata to include field '{expected_field}', but got keys: {list(result['metadata'].keys())}"
+        assert expected_field in metadata, f"Expected metadata to include field '{expected_field}', but got keys: {list(result['metadata'].keys())}"
 
 
     @pytest.mark.parametrize("field,expected_value_key", [
         ("source_url", "BASE_URL"),
         ("content_length", "CONTENT_LENGTH"),
         ("creation_time", "MOCK_TIMESTAMP")
-    ])
-    def test_metadata_includes_document_properties_1(self, mock_document_retrieval_url_generator, mock_constants, single_page_url, base_domain_urls, field, expected_value_key):
+    ]) # NOTE: Done
+    def test_when_metadata_generated_then_fields_have_expected_values(self, document_retrieval_fixture_single_url_generated, constants, single_page_url, base_domain_url, field, expected_value_key):
         """
         Scenario: Metadata includes document properties
           GIVEN documents from URL "https://example.com/page"
-          WHEN metadata is generated
-          THEN metadata includes required fields with expected values
+          WHEN execute is called
+          THEN each field in metadata in result has expected values
         """
-        # Arrange
+        result = document_retrieval_fixture_single_url_generated.execute(base_domain_url)
 
-        # Act
-        result = mock_document_retrieval_url_generator.execute(base_domain_urls)
+        expected_value = constants[expected_value_key]
+        actual_field_value = result["metadata"][field]
+        assert actual_field_value == expected_value, \
+            f"Expected metadata field '{field}' to be '{expected_value}', but got '{result['metadata'][field]}'"
 
-        # Assert
-        expected_value = mock_constants[expected_value_key]
-        assert result["metadata"][field] == expected_value, f"Expected metadata field '{field}' to be '{expected_value}', but got '{result['metadata'][field]}'"
-
-
-    def test_metadata_includes_document_properties_3(self, mock_document_retrieval_url_generator, mock_constants, single_page_url, base_domain_urls):
+    # NOTE: Done
+    def test_when_metadata_generated_then_count_matches_document_count(self, document_retrieval_fixture_single_url_generated, constants, single_page_url, base_domain_url):
         """
         Scenario: Metadata includes document properties
           GIVEN documents from URL "https://example.com/page"
           WHEN metadata is generated
           THEN metadata count matches document count
         """
-        # Arrange
-        
-        # Act
-        result = mock_document_retrieval_url_generator.execute(base_domain_urls)
-        
-        # Assert
-        assert len(result["metadata"]) == len(result["documents"])
+        result = document_retrieval_fixture_single_url_generated.execute(base_domain_url)
+
+        metadata_count = len(result["metadata"])
+        document_count = len(result["documents"])
+        assert metadata_count == document_count, \
+            f"Expected '{document_count}' metadata records to match document count, but got '{metadata_count}'"
 
 
 
 class TestDocumentsVectorsandMetadataAreStored:
     """
     Rule: Documents, Vectors, and Metadata Are Stored
+    Tests for: DocumentRetrievalFromWebsites.execute() - storage logic
     """
-    def test_all_data_is_persisted_to_storage(self, mock_document_retrieval, mock_constants):
+    @pytest.mark.parametrize("key,idx", [
+        ("documents", 0),
+        ("metadata", 1), 
+        ("vectors", 2)
+    ]) # NOTE: Done
+    def test_when_storage_executes_then_service_receives_all_data(
+        self, key, idx, document_retrieval_fixture_10_docs, two_domain_urls):
         """
         Scenario: All data is persisted to storage
           GIVEN 10 documents, vectors, and metadata are generated
-          WHEN the storage step executes
-          THEN document storage service receives 10 documents
+          WHEN the storage step is called during execute
+          THEN storage service receives all documents, vectors, and metadata
         """
-        # Arrange
-        # Set up scenario with exactly 10 documents
-        domain_urls = [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
-        # Mock 5 URLs per domain = 10 total URLs
-        mock_document_retrieval.url_path_generator.generate.return_value = [
-            f"{mock_constants['BASE_URL']}/page{i}" for i in range(5)
-        ]
-        # Mock data extractor to return exactly one text per URL
-        mock_document_retrieval.data_extractor.extract.return_value = ["Single text content"]
+        expected_count = 10
+        result = document_retrieval_fixture_10_docs.execute(two_domain_urls)
         
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-        
-        # Assert
+        storage_call_args = document_retrieval_fixture_10_docs.document_storage.store.call_args[0]
+        actual_count = len(storage_call_args[idx])
+        assert actual_count == expected_count, f"Expected storage to receive '{expected_count}' for '{key}', but got '{actual_count}'"
 
-        # Verify storage service received exactly 10 documents
-        expected_document_count = 10  # 2 domains * 5 URLs each
-        storage_call_args = mock_document_retrieval.document_storage.store.call_args[0]
-        documents, metadata, vectors = storage_call_args
-        assert len(documents) == expected_document_count
-        assert len(metadata) == expected_document_count
-        assert len(vectors) == expected_document_count
-
-    def test_all_data_is_persisted_to_storage_1(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_storage_executes_then_operation_completes_successfully(
+            self, document_retrieval_fixture_10_docs, two_domain_urls):
         """
         Scenario: All data is persisted to storage
           GIVEN 10 documents, vectors, and metadata are generated
-          WHEN the storage step executes
-          THEN storage service receives 10 vectors
-        """
-        # Arrange
-        domain_urls = [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
-        # Mock 5 URLs per domain = 10 total
-        mock_document_retrieval.url_path_generator.generate.return_value = [
-            f"{mock_constants['BASE_URL']}/page{i}" for i in range(5)
-        ]
-        mock_document_retrieval.data_extractor.extract.return_value = ["Single text content"]
-        
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-        
-        # Assert
-
-        # Verify storage service received exactly 10 vectors
-        storage_call_args = mock_document_retrieval.document_storage.store.call_args[0]
-        documents, metadata, vectors = storage_call_args
-        assert len(vectors) == 10
-
-    def test_all_data_is_persisted_to_storage_2(self, mock_document_retrieval, mock_constants):
-        """
-        Scenario: All data is persisted to storage
-          GIVEN 10 documents, vectors, and metadata are generated
-          WHEN the storage step executes
-          THEN storage service receives 10 metadata records
-        """
-        # Arrange
-        domain_urls = [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
-        # Mock 5 URLs per domain = 10 total
-        mock_document_retrieval.url_path_generator.generate.return_value = [
-            f"{mock_constants['BASE_URL']}/page{i}" for i in range(5)
-        ]
-        mock_document_retrieval.data_extractor.extract.return_value = ["Single text content"]
-        
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-        
-        # Assert
-
-        # Verify storage service received exactly 10 metadata records
-        storage_call_args = mock_document_retrieval.document_storage.store.call_args[0]
-        documents, metadata, vectors = storage_call_args
-        assert len(metadata) == 10
-
-    def test_all_data_is_persisted_to_storage_3(self, mock_document_retrieval, mock_constants):
-        """
-        Scenario: All data is persisted to storage
-          GIVEN 10 documents, vectors, and metadata are generated
-          WHEN the storage step executes
+          WHEN the storage step is called during execute
           THEN storage operation completes successfully
         """
-        # Arrange
-        domain_urls = [mock_constants["BASE_URL"], mock_constants["TEST_URL_2"]]
-        # Mock 5 URLs per domain = 10 total
-        mock_document_retrieval.url_path_generator.generate.return_value = [
-            f"{mock_constants['BASE_URL']}/page{i}" for i in range(5)
-        ]
-        mock_document_retrieval.data_extractor.extract.return_value = ["Single text content"]
-        # Mock storage to return True (success)
-        mock_document_retrieval.document_storage.store.return_value = True
+        expected_return = True
+        result = document_retrieval_fixture_10_docs.execute(two_domain_urls)
 
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-
-        # Assert
-
-        # Verify storage.store was called
-        mock_document_retrieval.document_storage.store.assert_called_once()
-        # Verify storage operation completed successfully
-        assert mock_document_retrieval.document_storage.store.return_value == True
+        actual_return = document_retrieval_fixture_10_docs.document_storage.store.return_value
+        assert actual_return == expected_return, f"Expected storage operation to return {expected_return}, but got {actual_return}"
 
 
 class TestExecuteHandlesHTTPRequestFailures:
     """
     Rule: Execute Handles HTTP Request Failures
+    Tests for: DocumentRetrievalFromWebsites.execute() - error handling logic
     """
-    def test_timeout_during_webpage_fetch_is_handled(self, mock_document_retrieval, mock_constants, timeout_exception, base_domain_urls):
+    # NOTE: Done
+    def test_when_url_times_out_then_request_retried_max_times(self, document_retrieval_fixture_timeout, constants, base_domain_url):
         """
         Scenario: Timeout during webpage fetch is handled
           GIVEN a URL that times out after timeout_seconds
-          WHEN the URL is processed
+          WHEN execute is called with that URL
           THEN the request is retried up to max_retries times
         """
-        # Arrange
-        timeout_url = mock_constants["BASE_URL"] + "/timeout"
-        mock_document_retrieval.url_path_generator.generate.return_value = [timeout_url]
-        # Mock HTTP timeout exception for specific URL
-        mock_document_retrieval.static_webpage_parser.parse.side_effect = timeout_exception
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
-        assert mock_document_retrieval.static_webpage_parser.parse.call_count == mock_constants["MAX_RETRIES"]
+        expected_retries = constants["MAX_RETRIES"]
+        result = document_retrieval_fixture_timeout.execute(base_domain_url)
+        actual_retries = document_retrieval_fixture_timeout.static_parser.parse.call_count
+        assert actual_retries == expected_retries, f"Expected {expected_retries} retry attempts, but got {actual_retries}"
 
-
-    def test_timeout_during_webpage_fetch_is_handled_1(self, mock_document_retrieval, mock_constants, timeout_exception, base_domain_urls):
+    # NOTE: Done
+    def test_when_url_times_out_and_retries_fail_then_url_skipped(self, document_retrieval_fixture_timeout, base_domain_url):
         """
         Scenario: Timeout during webpage fetch is handled
           GIVEN a URL that times out after timeout_seconds
-          WHEN the URL is processed
-          THEN if all retries fail, the URL is skipped
+          WHEN execute is called with that URL
+          THEN the result contains no documents for that URL
         """
-        # Arrange
-        timeout_url = mock_constants["BASE_URL"] + "/timeout"
-        mock_document_retrieval.url_path_generator.generate.return_value = [timeout_url]
-        # Mock persistent timeout on all retries
-        mock_document_retrieval.static_webpage_parser.parse.side_effect = timeout_exception
-        
-        # Act
-        result = mock_document_retrieval.execute(base_domain_urls)
-        
-        # Assert
-        call_args = static_webpage_parser.parse.call_args
-        assert call_args[1]['headers']['User-Agent'] == "CustomBot/1.0"
+        expected_count = 0
+        result = document_retrieval_fixture_timeout.execute(base_domain_url)
 
+        actual_count = len(result["documents"])
+        assert actual_count == expected_count, f"Expected {expected_count} documents after timeout failures, but got {actual_count}"
 
-    def test_timeout_during_webpage_fetch_is_handled_2(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_url_times_out_then_other_urls_still_processed(self, document_retrieval_fixture_timeout_then_success, constants):
         """
         Scenario: Timeout during webpage fetch is handled
           GIVEN a URL that times out after timeout_seconds
-          WHEN the URL is processed
+          WHEN execute is called with that URL
           THEN other urls are in the returned result
         """
-        # Arrange
-        domain_urls = [mock_constants["BASE_URL"]]
-        timeout_url = mock_constants["BASE_URL"] + "/timeout"
-        success_url = mock_constants["BASE_URL"] + "/success"
-        mock_document_retrieval.url_path_generator.generate.return_value = [timeout_url, success_url]
-        # Mock timeout for first URL, success for second
-        from requests.exceptions import Timeout
-        mock_document_retrieval.static_webpage_parser.parse.side_effect = [
-            Timeout("Request timed out"),
-            {"url": success_url, "html_content": mock_constants["STATIC_HTML_CONTENT"], "status_code": 200, "headers": {}}
-        ]
-        
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
-        
-        # Assert
+        expected_min = 0
+        result = document_retrieval_fixture_timeout_then_success.execute([constants["BASE_URL"]])
 
-        # Verify processing continued after timeout
-        # Should have documents from success_url
-        assert len(result["documents"]) > 0
+        actual_count = len(result["documents"])
+        assert actual_count > expected_min, f"Expected more than {expected_min} documents after timeout, but got {actual_count}"
 
-    def test_404_not_found_error_is_handled_gracefully_1(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_url_returns_404_then_no_documents_in_result(self, document_retrieval_fixture_404, constants):
         """
         Scenario: 404 Not Found error is handled gracefully
           GIVEN a URL that returns 404 status
-          WHEN the URL is processed
+          WHEN execute is called with that URL
           THEN result contains no documents for that URL
         """
-        # Arrange
-        domain_urls = [mock_constants["BASE_URL"]]
-        not_found_url = mock_constants["BASE_URL"] + "/not-found"
-        mock_document_retrieval.url_path_generator.generate.return_value = [not_found_url]
-        # Mock 404 response
-        from requests.exceptions import HTTPError
-        mock_document_retrieval.static_webpage_parser.parse.side_effect = HTTPError("404 Not Found")
-        
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
+        expected_count = 0
+        result = document_retrieval_fixture_404.execute([constants["BASE_URL"]])
+        actual_count = len(result["documents"])
+        assert actual_count == expected_count, f"Expected {expected_count} documents for 404 URL, but got {actual_count}"
 
-        # Assert
-
-        # Verify URL was skipped (no documents created)
-        assert len(result["documents"]) == 0
-
-    def test_404_not_found_error_is_handled_gracefully_2(self, mock_document_retrieval, mock_constants):
+    # NOTE: Done
+    def test_when_url_returns_404_then_processing_continues_with_remaining_urls(self, document_retrieval_fixture_404_then_success, constants):
         """
         Scenario: 404 Not Found error is handled gracefully
           GIVEN a URL that returns 404 status
-          WHEN the URL is processed
-          THEN processing continues with remaining URLs
+          WHEN execute is called with that URL
+          THEN other urls are in the returned result
         """
-        # Arrange
-        domain_urls = [mock_constants["BASE_URL"]]
-        not_found_url = mock_constants["BASE_URL"] + "/not-found"
-        success_url = mock_constants["BASE_URL"] + "/success"
-        mock_document_retrieval.url_path_generator.generate.return_value = [not_found_url, success_url]
-        # Mock 404 for first URL, success for second
-        from requests.exceptions import HTTPError
-        mock_document_retrieval.static_webpage_parser.parse.side_effect = [
-            HTTPError("404 Not Found"),
-            {"url": success_url, "html_content": mock_constants["STATIC_HTML_CONTENT"], "status_code": 200, "headers": {}}
-        ]
+        expected_min = 0
+        result = document_retrieval_fixture_404_then_success.execute([constants["BASE_URL"]])
+        actual_count = len(result["documents"])
+        assert actual_count > expected_min, f"Expected documents after 404 error, but got {actual_count}"
 
-        # Act
-        result = mock_document_retrieval.execute(domain_urls)
 
-        # Assert
-        assert len(domain_urls) > len(result["documents"]) > 0
-
-    def test_invalid_url_format_is_rejected(self, mock_document_retrieval, mock_constants):
+    @pytest.mark.parametrize("invalid_type", [
+        None,
+        123,
+        45.67,
+        {},
+        (),
+        set()
+    ]) # NOTE: Done
+    def test_when_invalid_url_processed_then_value_error_raised(self, invalid_url, document_retrieval_fixture, constants):
         """
         Scenario: Invalid URL format is rejected
           GIVEN an invalid URL "not-a-valid-url"
-          WHEN the URL is processed
+          WHEN execute is called with that URL
           THEN ValueError is raised
         """
-        # Arrange
-        invalid_urls = ["not-a-valid-url"]
+        with pytest.raises(TypeError, match=r"Expected input to be a list"):
+            document_retrieval_fixture.execute([invalid_url])
 
-        # Act & Assert
-        with pytest.raises(ValueError):
-            mock_document_retrieval.execute(invalid_urls)
+    @pytest.mark.parametrize("invalid_type", [
+        None,
+        123,
+        45.67,
+        {},
+        (),
+        set()
+    ]) # NOTE: Done
+    def test_when_invalid_url_processed_then_value_error_raised(self, invalid_url, document_retrieval_fixture, constants):
+        """
+        Scenario: Invalid URL format is rejected
+          GIVEN an invalid URL "not-a-valid-url"
+          WHEN execute is called with that URL
+          THEN TypeError is raised
+        """
+        with pytest.raises(TypeError, match=r"Expected urls in input to be strings"):
+            document_retrieval_fixture.execute([invalid_url])
+
+    @pytest.mark.parametrize("invalid_url", [
+        "not-a-valid-url",
+        "http:/incomplete.com",
+        "www..double-dot.com",
+        "ftp://unsupported-protocol.com",
+        "http://",
+        "://missing-scheme.com",
+        "http//missing-colon.com",
+        "http://contains spaces.com",
+    ]) # NOTE: Done
+    def test_when_invalid_url_processed_then_value_error_raised(self, invalid_url, document_retrieval_fixture, constants):
+        """
+        Scenario: Invalid URL format is rejected
+          GIVEN an invalid URL "not-a-valid-url"
+          WHEN execute is called with that URL
+          THEN ValueError is raised
+        """
+        with pytest.raises(ValueError, match=r"Invalid URL format"):
+            document_retrieval_fixture.execute([invalid_url])
 
 
 class TestUserAgentConfigurationIsApplied:
     """
     Rule: User Agent Configuration Is Applied
+    Tests for: DocumentRetrievalFromWebsites.execute() - user agent configuration
     """
-    def test_custom_user_agent_is_sent_in_http_requests(
-            self, document_retrieval, base_domain_urls, static_webpage_parser):
+    # NOTE: Done
+    def test_when_static_webpage_requested_then_custom_user_agent_included(
+            self, document_retrieval_fixture, base_domain_url, constants, static_parser):
         """
         Scenario: Custom user agent is sent in HTTP requests
           GIVEN user_agent is configured as "CustomBot/1.0"
-          WHEN a static webpage is requested
+          WHEN a static webpage is requested during execute
           THEN the HTTP request includes User-Agent header "CustomBot/1.0"
         """
-
-        # Act
-        result = document_retrieval.execute(base_domain_urls)
-
-        # Assert
-        call_args = static_webpage_parser.parse.call_args
-        assert call_args[1]['headers']['User-Agent'] == "CustomBot/1.0"
+        expected_user_agent = constants["CUSTOM_USER_AGENT"]
+        result = document_retrieval_fixture.execute(base_domain_url)
+        call_args = static_parser.parse.call_args
+        actual_user_agent = call_args[1]['headers']['User-Agent']
+        assert actual_user_agent == expected_user_agent, f"Expected User-Agent '{expected_user_agent}', but got '{actual_user_agent}'"
 
 
 if __name__ == "__main__":

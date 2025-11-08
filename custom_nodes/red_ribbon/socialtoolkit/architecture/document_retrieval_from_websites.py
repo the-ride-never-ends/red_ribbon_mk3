@@ -4,6 +4,7 @@ from enum import Enum
 import logging
 
 
+
 class WebpageType(str, Enum):
     STATIC = "static"
     DYNAMIC = "dynamic"
@@ -39,10 +40,10 @@ class DocumentRetrievalFromWebsites:
         self.resources = resources
         self.configs = configs
         self.logger = logging.getLogger(self.class_name)
-        
+
         # Extract needed services from resources
-        self.static_webpage_parser = resources["static_webpage_parser"]
-        self.dynamic_webpage_parser = resources["dynamic_webpage_parser"]
+        self.static_parser = resources["static_parser"]
+        self.dynamic_parser = resources["dynamic_parser"]
         self.data_extractor = resources["data_extractor"]
         self.vector_generator = resources["vector_generator"]
         self.metadata_generator = resources["metadata_generator"]
@@ -78,15 +79,18 @@ class DocumentRetrievalFromWebsites:
             # Step 1: Generate URLs from domain URL
             urls: list[str] = self._generate_urls(domain_url)
 
+            self.logger.info(f"Generated {len(urls)} URLs from domain {domain_url}")
+            self.logger.debug(f"Generated URLs: {urls}")
+
             for url in urls:
                 # Step 2: Determine webpage type and parse accordingly
                 webpage_type: WebpageType = self._determine_webpage_type(url)
 
                 match webpage_type:
                     case WebpageType.STATIC:
-                        raw_data = self.static_webpage_parser.parse(url)
+                        raw_data = self.static_parser.parse(url)
                     case WebpageType.DYNAMIC:
-                        raw_data = self.dynamic_webpage_parser.parse(url)
+                        raw_data = self.dynamic_parser.parse(url)
                     case _:
                         self.logger.warning(f"Unknown webpage type for URL: {url}")
                         raise ValueError(f"Unknown webpage type for URL: {url}")
@@ -136,8 +140,6 @@ class DocumentRetrievalFromWebsites:
             ['https://www.cheyennecity.org/tax-info', 'https://www.wyoming.gov/tax-rates']
         """
         # Get domain URLs from input data point
-
-
         domain_urls = []
 
         urls = {
