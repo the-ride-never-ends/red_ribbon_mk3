@@ -1,14 +1,14 @@
 import gc
+import traceback
 from io import BytesIO
 from typing import Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
 import torch
+from PIL import Image
 from torch import Tensor
-import traceback
 
 from .transformer_blocks import StackedTransformerBlocksNode
 

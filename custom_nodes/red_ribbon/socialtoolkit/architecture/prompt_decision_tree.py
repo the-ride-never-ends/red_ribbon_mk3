@@ -8,7 +8,7 @@ import networkx as nx
 from pydantic import BaseModel, PositiveFloat, Field, PositiveInt, NonNegativeInt
 
 
-from .top10_document_retrieval import Document, Section
+from .dataclasses import Document, Section
 from .variable_codebook import Variable
 from ._errors import InitializationError
 from ..configs_.socialtoolkit_configs import SocialtoolkitConfigs

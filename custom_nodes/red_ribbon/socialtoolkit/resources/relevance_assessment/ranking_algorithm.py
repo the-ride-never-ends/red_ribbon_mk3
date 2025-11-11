@@ -2,7 +2,7 @@
 Ranking algorithm for RelevanceAssessment
 """
 import logging
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,8 @@ class RankingAlgorithm:
     def rank(self, 
              documents: List[Dict[str, Any]], 
              relevance_scores: List[float],
-             query_analysis: Dict[str, Any] = None,
-             additional_factors: Dict[str, List[float]] = None
+             query_analysis: Optional[Dict[str, Any]] = None,
+             additional_factors: Optional[Dict[str, List[float]]] = None
             ) -> List[Tuple[Dict[str, Any], float]]:
         """
         Rank documents based on relevance scores and additional factors

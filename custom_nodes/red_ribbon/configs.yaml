@@ -24,4 +24,4 @@ CUSTOM_SETTINGS:
 
 # Socialtoolkit Settings
 SOCIALTOOLKIT_SETTINGS: 
-  input_data_point: "What is the "
+  input_data_point: "What is the city sales tax rate for Cheyenne, WY?"

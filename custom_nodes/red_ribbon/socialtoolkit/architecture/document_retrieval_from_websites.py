@@ -1,8 +1,10 @@
-from pydantic import BaseModel
-from typing import Dict, List, Any, Optional, Tuple, Union
+
 from enum import Enum
 import logging
+from typing import Dict, List, Any, Callable, Optional, Tuple, Union
 
+
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class WebpageType(str, Enum):
@@ -17,10 +19,14 @@ class DocumentRetrievalConfigs(BaseModel):
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     dynamic_rendering_wait_time: int = 5
     selenium_enabled: bool = False
-    headers: Dict[str, str] = {}
+    headers: dict[str, str] = Field(default_factory=dict)
     batch_size: int = 10
     follow_links: bool = False
     max_depth: int = 1
+
+
+class ValidUrls(BaseModel):
+    urls: list[HttpUrl]
 
 
 class DocumentRetrievalFromWebsites:
@@ -29,7 +35,10 @@ class DocumentRetrievalFromWebsites:
     based on mermaid chart in README.md
     """
     
-    def __init__(self, *, resources: Dict[str, Any] = None, configs: DocumentRetrievalConfigs = None):
+    def __init__(self, *, 
+                 resources: dict[str, Callable],
+                configs: DocumentRetrievalConfigs
+        ) -> None:
         """
         Initialize with injected dependencies and configuration
         
@@ -58,8 +67,8 @@ class DocumentRetrievalFromWebsites:
         return self.__class__.__name__.lower()
 
     def execute(self, 
-        domain_urls: List[str]
-        ) -> Dict[str, Union[List[Any], List[dict[str, Any]], List[dict[str, list[float]]]]]:
+        domain_urls: list[str]
+        ) -> Dict[str, Union[list[Any], list[dict[str, Any]], list[dict[str, list[float]]]]]:
         """
         Execute the document retrieval flow based on the mermaid chart
         
@@ -70,7 +79,12 @@ class DocumentRetrievalFromWebsites:
             Dictionary containing retrieved documents, metadata, and vectors
         """
         self.logger.info(f"Starting document retrieval from {len(domain_urls)} domains")
-        
+        try:
+            _ = ValidUrls.model_validate({"urls": domain_urls})
+        except Exception as e:
+            self.logger.error(f"Invalid domain URLs provided: {e}")
+            raise ValueError(f"Invalid domain URLs provided: {e}") from e
+
         all_documents = []
         all_metadata = []
         all_vectors = []
@@ -117,7 +131,7 @@ class DocumentRetrievalFromWebsites:
             "vectors": all_vectors
         }
 
-    def get_urls(self, query: str) -> List[str]:
+    def get_urls(self, query: str) -> list[str]:
         """
         Get URLs from an input data point
 
@@ -140,14 +154,14 @@ class DocumentRetrievalFromWebsites:
             ['https://www.cheyennecity.org/tax-info', 'https://www.wyoming.gov/tax-rates']
         """
         # Get domain URLs from input data point
-        domain_urls = []
+        domain_urls: list[str] = []
 
-        urls = {
+        urls: set[str] = {
             self._generate_urls(domain_url) for domain_url in domain_urls
         }
         return list(urls)
 
-    def retrieve_documents(self, domain_urls: List[str]) -> Tuple[List[Any], List[Any], List[Any]]:
+    def retrieve_documents(self, domain_urls: list[str]) -> tuple[list[Any], list[Any], list[Any]]:
         """
         Public method to retrieve documents from websites
 
@@ -157,14 +171,14 @@ class DocumentRetrievalFromWebsites:
         Returns:
             Tuple of (documents, metadata, vectors)
         """
-        result = self.run(domain_urls)
+        result = self.execute(domain_urls)
         return (
             result["documents"],
             result["metadata"],
             result["vectors"]
         )
 
-    def _generate_urls(self, domain_url: str) -> List[str]:
+    def _generate_urls(self, domain_url: str) -> list[str]:
         """Generate URLs from domain URL using URL path generator"""
         return self.url_path_generator.generate(domain_url)
         
@@ -188,7 +202,7 @@ class DocumentRetrievalFromWebsites:
                 
         return WebpageType.STATIC
 
-    def _create_documents(self, raw_strings: List[str], url: str) -> List[Any]:
+    def _create_documents(self, raw_strings: list[str], url: str) -> list[Any]:
         """Create documents from raw strings"""
         # Implementation would create document objects from raw text content
         # TODO: This is a placeholder implementation

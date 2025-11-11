@@ -33,6 +33,8 @@ fi
 if [[ -f "requirements_custom_nodes.txt" ]]; then
     echo "Installing packages for custom nodes..."
     pip install -r requirements_custom_nodes.txt
+    # Force-reinstall mypy
+    pip install --force-reinstall mypy
 else
     echo "requirements_custom_nodes.txt not found. Skipping package installation for custom nodes."
 fi

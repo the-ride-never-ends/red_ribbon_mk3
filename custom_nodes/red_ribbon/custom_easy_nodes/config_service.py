@@ -4,8 +4,11 @@ import re
 from typing import Callable
 
 
-from server import PromptServer
 from aiohttp import web
+
+
+from server import PromptServer # type: ignore
+
 
 # Receives config values from config_service.js
 # Code in this file adapted from https://github.com/rgthree/rgthree-comfy

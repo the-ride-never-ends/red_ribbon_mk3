@@ -21,3 +21,6 @@ web_custom_versions/
 .DS_Store
 custom_nodes/red_ribbon/plug_in_play_transformer/nanoGPT
 custom_nodes/red_ribbon/data/
+mypy_check*
+custom_nodes/red_ribbon/utils_/deprecated/
+.mypy_cache/

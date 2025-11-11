@@ -1,6 +1,8 @@
-def get_red_ribbon_banner(without_logo: bool = False) -> list[str]:
+
+
+def get_red_ribbon_banner(without_logo: bool = False, apply_colors: bool = False) -> list[str]:
     if not without_logo:
-        return [
+        banner = [
             "....................................................................................................",
             "....................................................................................................",
             "....................................................................................................",
@@ -151,7 +153,7 @@ def get_red_ribbon_banner(without_logo: bool = False) -> list[str]:
             "...................................................................................................."
         ]
     else:
-        return [
+        banner = [
             "....................................................................................................",
             "....................................................................................................",
             "..........-#%%%%%%%%%%%%%#*=:.......................................................................",
@@ -177,9 +179,70 @@ def get_red_ribbon_banner(without_logo: bool = False) -> list[str]:
             "....................................................................................................",
             "....................................................................................................",
         ]
+    if apply_colors:
+        colored_banner = []
+        for line in banner:
+            colored_line = ""
+            for char in line:
+                match char:
+                    case ".":
+                        colored_line += "[black].[/black]"
+                    case "*":
+                        colored_line += "[bright_red]*[/bright_red]"
+                    case "+":
+                        colored_line += "[red]+[/red]"
+                    case "=":
+                        colored_line += "[dark_red]=[/dark_red]"
+                    case "-":
+                        colored_line += "[indian_red]-[/indian_red]"
+                    case "#":
+                        colored_line += "[bright_red]#[/bright_red]"
+                    case "%":
+                        colored_line += "[red]%[/red]"
+                    case "@":
+                        colored_line += "[bright_red]@[/bright_red]"
+                    case ":":
+                        colored_line += "[red]:[/red]"
+                    case _:
+                        colored_line += char
+            colored_banner.append(colored_line)
+        return colored_banner
+    return banner
 
 
 
+def _color_characters() -> None:
+    """Apply custom colors to specific characters in the banner."""
+    from rich.console import Console
+    console = Console()
+    banner_lines = get_red_ribbon_banner()
+    colored_lines = []
+    for line in banner_lines:
+        colored_line = ""
+        for char in line:
+            match char:
+                case ".":
+                    colored_line += "[black].[/black]"
+                case "*":
+                    colored_line += "[bright_red]*[/bright_red]"
+                case "+":
+                    colored_line += "[red]+[/red]"
+                case "=":
+                    colored_line += "[dark_red]=[/dark_red]"
+                case "-":
+                    colored_line += "[indian_red]-[/indian_red]"
+                case "#":
+                    colored_line += "[bright_red]#[/bright_red]"
+                case "%":
+                    colored_line += "[red]%[/red]"
+                case "@":
+                    colored_line += "[bright_red]@[/bright_red]"
+                case ":":
+                    colored_line += "[red]:[/red]"
+                case _:
+                    colored_line += char
+        colored_lines.append(colored_line)
+    console.print("\n".join(colored_lines))
 
-
-
+if __name__ == "__main__":
+    _color_characters()

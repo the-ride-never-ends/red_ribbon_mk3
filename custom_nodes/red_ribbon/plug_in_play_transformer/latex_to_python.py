@@ -3,7 +3,7 @@
 
 
 
-from easy_nodes import ImageTensor
+from ..custom_easy_nodes.comfy_types import ImageTensor
 
 
 

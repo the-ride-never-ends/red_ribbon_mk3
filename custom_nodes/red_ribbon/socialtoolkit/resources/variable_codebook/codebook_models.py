@@ -65,8 +65,8 @@ class Codebook:
     """Represents a complete codebook"""
     id: str
     name: str
-    description: Optional[str] = None
     version: str
+    description: Optional[str] = None
     groups: List[CodebookGroup] = field(default_factory=list)
     variables: List[Variable] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)

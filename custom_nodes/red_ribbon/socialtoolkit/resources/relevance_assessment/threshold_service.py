@@ -2,7 +2,7 @@
 Threshold service for RelevanceAssessment
 """
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Callable, Dict, List, Any, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class ThresholdService:
     def filter_by_threshold(self, 
                            results: List[Union[float, Dict[str, Any], tuple]], 
                            threshold_name: str = "minimum_acceptable",
-                           score_accessor: Optional[callable] = None
+                           score_accessor: Optional[Callable[[Any], float]] = None
                           ) -> List[Union[float, Dict[str, Any], tuple]]:
         """
         Filter results by a threshold

@@ -7,16 +7,19 @@ import re
 import traceback
 from typing import Dict, List, Tuple
 
-import folder_paths
+
 from aiohttp import web
 from ansi2html import Ansi2HTMLConverter
 from colorama import Fore
-from server import PromptServer
+
+import folder_paths # type: ignore
+from server import PromptServer # type: ignore
+
 
 from .config_service import get_config_value
 
 try:
-    routes = PromptServer.instance.routes
+    routes = PromptServer.instance.routes # type: ignore
 except AttributeError:
     from unittest.mock import MagicMock
     routes = MagicMock()

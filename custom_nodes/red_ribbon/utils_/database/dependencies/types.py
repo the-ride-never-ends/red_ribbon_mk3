@@ -2,7 +2,7 @@ from typing import TypeVar
 
 
 SqlConnection = TypeVar("SqlConnection")
-SqlCursor = TypeVar("SqlConnection")
+SqlCursor = TypeVar("SqlCursor")
 
 # Mapping from Python type names to DuckDB type names
 # This dictionary is used for automatic type inference when registering Python functions with DuckDB

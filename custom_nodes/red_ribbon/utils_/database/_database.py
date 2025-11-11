@@ -53,8 +53,8 @@ class Database:
     """
 
     def __init__(self, *,
-                 configs: Configs = None, 
-                 resources: Dict[str, Callable] = None
+                 configs: Configs, 
+                 resources: Dict[str, Callable]
                  ) -> None:
         """
         Initialize the database manager.

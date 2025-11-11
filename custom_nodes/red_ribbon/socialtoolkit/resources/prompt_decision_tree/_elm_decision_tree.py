@@ -1,7 +1,3 @@
-
-
-
-# -*- coding: utf-8 -*-
 """
 ELM decision trees.
 """
@@ -222,5 +218,3 @@ class DecisionTree:
         logger.info(f'Output: {out}')
 
         return out
-
-

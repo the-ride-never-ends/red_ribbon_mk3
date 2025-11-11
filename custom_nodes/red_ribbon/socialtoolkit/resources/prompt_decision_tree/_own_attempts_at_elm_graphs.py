@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """ELM Ordinance Decision Tree Graph setup functions."""
-import networkx as nx
+import networkx as nx # type: ignore
 
 
 _SECTION_PROMPT = """

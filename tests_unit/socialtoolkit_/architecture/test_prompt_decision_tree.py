@@ -23,11 +23,12 @@ from custom_nodes.red_ribbon.socialtoolkit.architecture.prompt_decision_tree imp
     PromptDecisionTree, 
     PromptDecisionTreeConfigs,
 )
-from custom_nodes.red_ribbon.utils_.llm import LLMError
+from custom_nodes.red_ribbon._custom_errors import LLMError
 from custom_nodes.red_ribbon.utils_.common import get_cid
 
 from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import VariableCodebook
-from custom_nodes.red_ribbon.socialtoolkit.architecture.top10_document_retrieval import Document, Section
+from custom_nodes.red_ribbon.socialtoolkit.architecture.dataclasses import Document, Section
+
 
 from .conftest import (
     FixtureError,
@@ -77,6 +78,8 @@ def documents(valid_section_kwargs):
     multiple_content = "Page {idx} content. "
 
     def _make_section(content: str, idx: int = 0):
+        if content == multiple_content:
+            content = content.format(idx=idx)
         try:
             return Section(**valid_section_kwargs(content, idx))
         except Exception as e:

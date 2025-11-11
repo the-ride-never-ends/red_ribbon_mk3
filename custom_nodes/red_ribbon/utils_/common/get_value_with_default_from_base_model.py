@@ -10,5 +10,5 @@ def get_value_with_default_from_base_model(self: BaseModel, key: str, default: A
     try:
         return dict(self)[key]
     except KeyError:
-        print(f"Key '{key}' not found in {self.__qualname__}. Returning default {default}")
+        print(f"Key '{key}' not found in {self.__class__.__qualname__}. Returning default {default}")
         return default

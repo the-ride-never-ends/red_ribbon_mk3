@@ -1,11 +1,5 @@
-import re
-
-
-import torch
 from torch import nn, Tensor
-from torch.functional import F
-import numpy as np
-from typing import Any, Optional
+
 
 class MLP(nn.Module):
     """
@@ -242,9 +236,5 @@ class MLPNode:
         activated, = self.activation_node.activate(expanded, activation_type)
         contracted, = self.contraction_node.contract(activated, C)
         output, = self.dropout_node.apply_dropout(contracted, dropout_rate)
-        
+
         return (output,)
-
-
-
-

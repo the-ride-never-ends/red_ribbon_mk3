@@ -7,9 +7,9 @@ import tempfile
 from unittest.mock import patch
 from importlib import reload
 
-import folder_paths
-import comfy.cli_args
-from comfy.options import enable_args_parsing
+import folder_paths # type: ignore
+import comfy.cli_args # type: ignore
+from comfy.options import enable_args_parsing # type: ignore
 enable_args_parsing()
 
 

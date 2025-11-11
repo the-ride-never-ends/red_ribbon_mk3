@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 import sys
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeVar, Callable
 
 
 
@@ -27,11 +27,7 @@ from ..utils_ import (
     Node,
     instantiate,
 )
-
-
-
-Class = TypeVar('Class')
-ClassInstance = TypeVar('ClassInstance')
+from .._custom_errors import InitializationError, ConfigurationError, ResourceError
 
 
 class SocialToolkitAPI:
@@ -43,36 +39,36 @@ class SocialToolkitAPI:
         configs (Configs): The configuration settings for Socialtoolkit.
 
     Private Attributes:
-        _document_retrieval_from_websites (ClassInstance): The class instance for document retrieval from websites.
-        _document_storage (ClassInstance): The class instance for document storage.
-        _top10_document_retrieval (ClassInstance): The class instance for top 10 document retrieval.
-        _relevance_assessment (ClassInstance): The class instance for relevance assessment.
-        _llm (ClassInstance): The class instance for the LLM service.
-        _variable_codebook (ClassInstance): The class instance for the variable codebook.
-        _prompt_decision_tree (ClassInstance): The class instance for the prompt decision tree.
-        _socialtoolkit_pipeline (ClassInstance): The class instance for the Socialtoolkit pipeline.
+        _document_retrieval_from_websites (Callable[..., Any]): The class instance for document retrieval from websites.
+        _document_storage (Callable[..., Any]): The class instance for document storage.
+        _top10_document_retrieval (Callable[..., Any]): The class instance for top 10 document retrieval.
+        _relevance_assessment (Callable[..., Any]): The class instance for relevance assessment.
+        _llm (Callable[..., Any]): The class instance for the LLM service.
+        _variable_codebook (Callable[..., Any]): The class instance for the variable codebook.
+        _prompt_decision_tree (Callable[..., Any]): The class instance for the prompt decision tree.
+        _socialtoolkit_pipeline (Callable[..., Any]): The class instance for the Socialtoolkit pipeline.
 
     Properties:
         version (str): The version of the Socialtoolkit package.
     """
-    def __init__(self, resources: dict[str, ClassInstance], configs: Configs):
+    def __init__(self, resources: dict[str, Callable[..., Any]], configs: Configs):
         self.configs = configs
         self.resources = resources
 
-        self._logger:                          logging.Logger  = make_logger(self.__class__.__name__)
-        self._llm:                              ClassInstance = self.resources["llm"]
-        self._db:                               ClassInstance = self.resources["db"]
+        self._logger:                           logging.Logger  = make_logger(self.__class__.__name__)
+        self._llm:                              LLM = self.resources["llm"]
+        self._db:                               DatabaseAPI = self.resources["db"]
 
         # Piece-wise Pipeline
-        self._document_retrieval_from_websites: ClassInstance = self.resources["document_retrieval_from_websites"]
-        self._document_storage:                 ClassInstance = self.resources["document_storage"]
-        self._top10_document_retrieval:         ClassInstance = self.resources["top10_document_retrieval"]
-        self._relevance_assessment:             ClassInstance = self.resources["relevance_assessment"]
-        self._variable_codebook:                ClassInstance = self.resources["variable_codebook"]
-        self._prompt_decision_tree:             ClassInstance = self.resources["prompt_decision_tree"]
+        self._document_retrieval_from_websites: Callable[..., Any] = self.resources["document_retrieval_from_websites"]
+        self._document_storage:                 Callable[..., Any] = self.resources["document_storage"]
+        self._top10_document_retrieval:         Callable[..., Any] = self.resources["top10_document_retrieval"]
+        self._relevance_assessment:             Callable[..., Any] = self.resources["relevance_assessment"]
+        self._variable_codebook:                Callable[..., Any] = self.resources["variable_codebook"]
+        self._prompt_decision_tree:             Callable[..., Any] = self.resources["prompt_decision_tree"]
 
         # Full Pipeline
-        self._socialtoolkit_pipeline:           ClassInstance = self.resources["socialtoolkit_pipeline"]
+        self._socialtoolkit_pipeline:           Callable[..., Any] = self.resources["socialtoolkit_pipeline"]
 
     @property
     def version(self) -> str:
@@ -195,7 +191,7 @@ class SocialToolKitResources:
     """Container for classes used to run Socialtoolkit in ComfyUI"""
 
     _configs: InitVar[Configs]
-    resources: dict[str, ClassInstance] = field(default_factory=dict)
+    resources: dict[str, Callable[..., Any]] = field(default_factory=dict)
 
     def __post_init__(self, _configs):
         # Piece-wise Pipeline
@@ -219,14 +215,31 @@ class SocialToolKitResources:
         }, _configs, "socialtoolkit")
 
 
+def make_socialtoolkit_api(configs: Configs = Configs()) -> SocialToolkitAPI:
+    """Factory function to create a SocialToolkitAPI instance."""
+    try:
+        configs.model_validate()
+    except Exception as e:
+        raise ConfigurationError(f"Invalid socialtoolkit configuration: {e}") from e
+    
+    try:
+        resources = SocialToolKitResources(configs).resources
+    except Exception as e:
+        raise ResourceError(f"Error instantiating Socialtoolkit resources: {e}") from e
+
+    try:
+        api = SocialToolkitAPI(resources, configs)
+    except Exception as e:
+        raise InitializationError(f"Error initializing Socialtoolkit API: {e}") from e
+    return api
+
 
 # Main function that can be called when using this as a script
-def main():
+def main() -> int:
     """Main function for Socialtoolkit module"""
     try:
         configs = Configs()
-        resources = SocialToolKitResources(configs).resources
-        api = SocialToolkitAPI(resources, configs)
+        api = make_socialtoolkit_api(configs)
 
         print("Socialtoolkit loaded successfully")
         print(f"Version: {api.version}")

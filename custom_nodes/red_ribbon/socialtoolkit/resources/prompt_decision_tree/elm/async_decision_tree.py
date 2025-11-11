@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """ELM Ordinance async decision tree."""
-import networkx as nx
+import networkx as nx # type: ignore
 import logging
 
 from .decision_tree import DecisionTree

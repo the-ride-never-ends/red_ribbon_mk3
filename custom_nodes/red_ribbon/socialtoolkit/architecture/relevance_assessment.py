@@ -1,6 +1,16 @@
-from pydantic import BaseModel
-from typing import Dict, Any, Optional
 import logging
+import traceback
+import re
+from typing import Any, Callable, Dict, Optional
+
+
+from pydantic import BaseModel, Field
+
+
+from custom_nodes.red_ribbon.utils_ import LLM
+from .variable_codebook import Variable
+from .dataclasses import Document
+from ._errors import LLMError, InitializationError, RelevanceAssessmentError
 
 
 logger = logging.getLogger(__name__)
@@ -19,8 +29,11 @@ class RelevanceAssessment:
     Relevance Assessment system based on mermaid flowchart in README.md
     Evaluates document relevance using LLM assessments
     """
-    
-    def __init__(self, resources: Dict[str, Any], configs: RelevanceAssessmentConfigs):
+
+    def __init__(self, *, 
+                 resources: dict[str, Any],
+                 configs: RelevanceAssessmentConfigs
+                 ):
         """
         Initialize with injected dependencies and configuration
         
@@ -30,16 +43,13 @@ class RelevanceAssessment:
         """
         self.resources = resources
         self.configs = configs
+        self.criteria_threshold: float = configs.criteria_threshold
+
         self.logger: logging.Logger = resources['logger']
-        self.llm_api = resources.get("llm_api")
-        
-        # Extract needed services from resources
-        self.variable_codebook = resources["variable_codebook_service"]
-        self.top10_retrieval = resources["top10_retrieval_service"]
-        self.cited_page_extractor = resources["cited_page_extractor_service"]
-        self.prompt_decision_tree = resources["prompt_decision_tree_service"]
-        
-        self.logger.info("RelevanceAssessment initialized with services")
+        self.llm: LLM = resources["llm"]
+        self.cited_page_extractor: Callable = resources["cited_page_extractor"]
+
+        self.logger.info("RelevanceAssessment initialized successfully.")
 
     @property
     def class_name(self) -> str:
@@ -47,49 +57,64 @@ class RelevanceAssessment:
         return self.__class__.__name__.lower()
 
     def execute(self,
-               potentially_relevant_docs: list[Any],
-               variable_definition: Dict[str, Any],
-               llm_api: Optional[Any] = None
-              ) -> Dict[str, Any]:
+               potentially_relevant_docs: list[Document],
+               variable: Variable,
+               llm: Optional[LLM] = None
+              ) -> dict[str, Document]:
         """
         Wrapper to execute relevance assessment in ComfyUI node
         
         Args:
-            potentially_relevant_docs: list of potentially relevant documents
-            variable_definition: Variable definition and description
-            llm_api: Optional LLM API instance
+            potentially_relevant_docs: (list[Document]) list of potentially relevant documents
+            variable: (Variable) Variable pydantic model containing definition and description of desired variable.
+            llm: Optional LLM API instance
 
         Returns:
             Dictionary containing relevant documents and page numbers
         
         Raises:
-            ValueError: If llm_api is not provided and not available in resources
+            LLMError: If LLM API instance is not available as an argument or a class attribute
+            ValueError: If llm is not provided and not available in resources
             RuntimeError: If relevance assessment fails unexpectedly
         """
         self.logger.info("Starting relevance assessment execution via execute() method")
+
+        if not isinstance(potentially_relevant_docs, list):
+            raise TypeError(f"potentially_relevant_docs must be a list, got {type(potentially_relevant_docs).__name__}")
+        if not potentially_relevant_docs:
+            raise ValueError("potentially_relevant_docs cannot be empty")
+        if not isinstance(variable, Variable):
+            raise TypeError(f"variable must be a Variable instance, got {type(variable).__name__}")
+
         self.logger.debug(f"Potentially relevant docs count: {len(potentially_relevant_docs)}")
-        if llm_api is None:
-            if self.llm_api is None:
-                raise ValueError("LLM API instance must be provided either during initialization or execution.")
+
+        if llm is not None and not isinstance(llm, LLM):
+            raise TypeError(f"llm must be an instance of LLM if provided, got {type(llm).__name__}")
+        else:
+            if self.llm is None:
+                raise LLMError("LLM API instance was not provided as an argument of 'execute' or during initialization.")
+
         try:
-            results = self.run(potentially_relevant_docs, variable_definition, llm_api or self.llm_api)
+            results = self.run(potentially_relevant_docs, variable, llm or self.llm)
         except Exception as e:
-            self.logger.error(f"Relevance assessment execution failed: {e}")
-            raise RuntimeError("Relevance assessment execution failed.") from e
+            self.logger.exception(f"Relevance assessment execution failed: {e}")
+            raise RuntimeError(f"Relevance assessment execution failed: {e}.") from e
         return results
 
 
-    def run(self, potentially_relevant_docs: list[Any], 
-                   variable_definition: Dict[str, Any],
-                   llm_api: Any) -> Dict[str, Any]:
+    def run(self, 
+            potentially_relevant_docs: list[Document], 
+            variable: Variable,
+            llm: LLM
+            ) -> dict[str, Document]:
         """
         Execute the relevance assessment flow.
 
         Args:
             potentially_relevant_docs: list of potentially relevant documents
-            variable_definition: Variable definition and description
-            llm_api: LLM API instance
-            
+            variable: Variable definition and description
+            llm: LLM API instance
+
         Returns:
             Dictionary containing relevant documents and page numbers.
             Keys are the following:
@@ -97,25 +122,31 @@ class RelevanceAssessment:
                 - "relevant_doc_ids": (list[str]) list of document IDs deemed relevant
                 - "page_numbers": (int) dict mapping document IDs to lists of relevant page numbers
                 - "relevance_scores": (list[dict[str, Any]]) list of dicts with relevance scores and metadata
+
+        Raises:
+            TypeError: If input types are incorrect
+            ValueError: If input values are invalid
         """
         # Input validation
         if not isinstance(potentially_relevant_docs, list):
             raise TypeError("potentially_relevant_docs must be a list")
-        if not isinstance(variable_definition, dict):
-            raise TypeError("variable_definition must be a dict")
+        if not potentially_relevant_docs:
+            raise ValueError("potentially_relevant_docs cannot be empty")
+        if not isinstance(variable, Variable):
+            raise TypeError("variable must be a Variable instance")
 
         self.logger.info(f"Starting relevance assessment for {len(potentially_relevant_docs)} documents")
 
         # Step 1: Assess document relevance
         assessment_results = self._assess_document_relevance(
             potentially_relevant_docs, 
-            variable_definition, 
-            llm_api
+            variable, 
+            llm
         )
 
         # Step 2: Filter for hallucinations if configured
         if self.configs.use_hallucination_filter:
-            assessment_results = self._filter_hallucinations(assessment_results, llm_api)
+            assessment_results = self._filter_hallucinations(assessment_results, llm)
         
         # Step 3: Score relevance
         relevance_scores = self._score_relevance(assessment_results, potentially_relevant_docs)
@@ -140,37 +171,37 @@ class RelevanceAssessment:
         }
 
     def assess(self, potentially_relevant_docs: list[Any], 
-              prompt_sequence: list[str], llm_api: Any) -> list[Any]:
+              prompt_sequence: list[str], llm: Any) -> list[Any]:
         """
         Public method to assess document relevance
         
         Args:
             potentially_relevant_docs: list of potentially relevant documents
             prompt_sequence: list of prompts to use for assessment
-            llm_api: LLM API instance
+            llm: LLM API instance
             
         Returns:
             list of relevant documents
         """
         # Get variable definition from prompt sequence
-        variable_definition = {
+        variable = {
             "prompt_sequence": prompt_sequence,
             "description": "Tax information for business operations"  # Default description if not available
         }
         
-        result = self.run(potentially_relevant_docs, variable_definition, llm_api)
+        result = self.run(potentially_relevant_docs, variable, llm)
         return result["relevant_pages"]
     
     def _assess_document_relevance(self, docs: list[Any], 
-                                 variable_definition: Dict[str, Any], 
-                                 llm_api: Any) -> list[Dict[str, Any]]:
+                                 variable: dict[str, Any], 
+                                 llm: Any) -> list[dict[str, Any]]:
         """
         Assess document relevance using LLM
         
         Args:
             docs: list of documents to assess
-            variable_definition: Variable definition and description
-            llm_api: LLM API instance
+            variable: Variable definition and description
+            llm: LLM API instance
             
         Returns:
             list of assessment results
@@ -179,11 +210,11 @@ class RelevanceAssessment:
         
         for doc in docs:
             # Create assessment prompt
-            assessment_prompt = self._create_assessment_prompt(doc, variable_definition)
+            assessment_prompt = self._create_assessment_prompt(doc, variable)
             
             # Get LLM assessment
             try:
-                llm_response = llm_api.generate(assessment_prompt, max_tokens=1000)
+                llm_response = llm.generate(assessment_prompt, max_tokens=1000)
                 
                 # Parse assessment results
                 assessment = self._parse_assessment(llm_response, doc)
@@ -202,14 +233,14 @@ class RelevanceAssessment:
         
         return assessment_results
     
-    def _filter_hallucinations(self, assessments: list[Dict[str, Any]], 
-                             llm_api: Any) -> list[Dict[str, Any]]:
+    def _filter_hallucinations(self, assessments: list[dict[str, Any]], 
+                             llm: Any) -> list[dict[str, Any]]:
         """
         Filter for hallucinations in LLM assessments
         
         Args:
             assessments: list of assessment results
-            llm_api: LLM API instance
+            llm: LLM API instance
             
         Returns:
             Filtered list of assessment results
@@ -227,7 +258,7 @@ class RelevanceAssessment:
             
             try:
                 # Get LLM hallucination check
-                hallucination_response = llm_api.generate(hallucination_prompt, max_tokens=500)
+                hallucination_response = llm.generate(hallucination_prompt, max_tokens=500)
                 
                 # Parse hallucination check
                 is_hallucination = self._parse_hallucination_check(hallucination_response)
@@ -247,8 +278,10 @@ class RelevanceAssessment:
         
         return filtered_assessments
     
-    def _score_relevance(self, assessments: list[Dict[str, Any]], 
-                       docs: list[Any]) -> list[Dict[str, Any]]:
+    def _score_relevance(self, 
+                         assessments: list[dict[str, Any]], 
+                       docs: list[Document]
+                       ) -> list[dict[str, Document]]:
         """
         Score relevance based on LLM assessments
         
@@ -286,7 +319,7 @@ class RelevanceAssessment:
         
         return relevance_scores
     
-    def _apply_threshold(self, relevance_scores: list[Dict[str, Any]]) -> tuple:
+    def _apply_threshold(self, relevance_scores: list[dict[str, Any]]) -> tuple:
         """
         Apply threshold to relevance scores
         
@@ -300,14 +333,14 @@ class RelevanceAssessment:
         discarded_pages = []
         
         for score in relevance_scores:
-            if score.get("score", 0.0) >= self.configs.criteria_threshold:
+            if score.get("score", 0.0) >= self.criteria_threshold:
                 relevant_pages.append(score)
             else:
                 discarded_pages.append(score)
         
         return relevant_pages, discarded_pages
     
-    def _extract_page_numbers(self, relevant_pages: list[Dict[str, Any]]) -> Dict[str, list[int]]:
+    def _extract_page_numbers(self, relevant_pages: list[dict[str, Any]]) -> dict[str, list[int]]:
         """
         Extract page numbers from relevant pages
         
@@ -330,8 +363,10 @@ class RelevanceAssessment:
         
         return page_numbers
     
-    def _extract_cited_pages(self, docs: list[Any], 
-                           page_numbers: Dict[str, list[int]]) -> list[Dict[str, Any]]:
+    def _extract_cited_pages(self, 
+                            docs: list[Document], 
+                            page_numbers: dict[str, list[int]]
+                           ) -> list[dict[str, Document]]:
         """
         Extract cited pages from documents
         
@@ -345,7 +380,7 @@ class RelevanceAssessment:
         # If cited page extractor service is available, use it
         if self.cited_page_extractor:
             return self.cited_page_extractor.extract(docs, page_numbers)
-        
+
         # Fallback implementation
         cited_pages = []
         
@@ -373,14 +408,14 @@ class RelevanceAssessment:
         
         return cited_pages
     
-    def _create_assessment_prompt(self, doc: Dict[str, Any], 
-                                variable_definition: Dict[str, Any]) -> str:
+    def _create_assessment_prompt(self, doc: dict[str, Any], 
+                                variable: dict[str, Any]) -> str:
         """
         Create assessment prompt for document relevance
         
         Args:
             doc: Document to assess
-            variable_definition: Variable definition and description
+            variable: Variable definition and description
             
         Returns:
             Assessment prompt
@@ -389,10 +424,11 @@ class RelevanceAssessment:
         content = doc.get("content", "")[:5000]  # Limit content length
         
         # Get variable information
-        description = variable_definition.get("description", "")
-        prompt_sequence = variable_definition.get("prompt_sequence", [])
+        description = variable.get("description", "")
+        prompt_sequence = variable.get("prompt_sequence", [])
         
         # Create assessment prompt
+        # TODO: We can get the confidence from the LLM response directly. No need to waste tokens asking for it.
         prompt = f"""
 You are a document relevance assessor. Your task is to determine if the following document is relevant to the given information need.
 
@@ -416,8 +452,8 @@ CITATION: [Most relevant text snippet from the document that supports your asses
 REASONING: [Brief explanation for your assessment]
 """
         return prompt
-    
-    def _parse_assessment(self, llm_response: str, doc: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _parse_assessment(self, llm_response: str, doc: dict[str, Any]) -> dict[str, Any]:
         """
         Parse LLM assessment response
         
@@ -465,7 +501,7 @@ REASONING: [Brief explanation for your assessment]
         
         return assessment
     
-    def _create_hallucination_prompt(self, assessment: Dict[str, Any]) -> str:
+    def _create_hallucination_prompt(self, assessment: dict[str, Any]) -> str:
         """
         Create prompt to check for hallucinations
         
@@ -502,12 +538,11 @@ Provide a brief explanation for your decision.
             True if hallucination detected, False otherwise
         """
         return "HALLUCINATION: Yes" in hallucination_response
-        
-import re  # Added for regex pattern matching in parsing
+
 
 def make_relevance_assessment(
-        resources: Dict[str, Any] = {}, 
-        configs: RelevanceAssessmentConfigs = lambda: RelevanceAssessmentConfigs()
+        resources: dict[str, Any] = {}, 
+        configs: RelevanceAssessmentConfigs = RelevanceAssessmentConfigs()
         ) -> RelevanceAssessment:
     """
     Factory function to create RelevanceAssessment instance
@@ -520,12 +555,9 @@ def make_relevance_assessment(
         RelevanceAssessment instance
     """
     _resources = {
-        "llm_api": resources.get("llm_api"),
+        "llm": resources.get("llm"),
         "logger": resources.get("logger", logger),
-        "variable_codebook_service": resources.get("variable_codebook_service"),
-        "top10_retrieval_service": resources.get("top10_retrieval_service"),
-        "cited_page_extractor_service": resources.get("cited_page_extractor_service"),
-        "prompt_decision_tree_service": resources.get("prompt_decision_tree_service"),
+        "cited_page_extractor": resources.get("cited_page_extractor"),
     }
     for key in resources:
         if key not in _resources:

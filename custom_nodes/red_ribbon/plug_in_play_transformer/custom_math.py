@@ -10,7 +10,7 @@ from easy_nodes import Choice
 from datetime import datetime
 
 
-from folder_paths import output_directory
+from folder_paths import output_directory # type: ignore
 import re
 
 def get_file_friendly_date():

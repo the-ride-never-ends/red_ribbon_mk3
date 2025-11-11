@@ -14,7 +14,7 @@ class PromptGenerator:
     def __init__(self):
         logger.info("PromptGenerator initialized")
     
-    def generate(self, node_data: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+    def generate(self, node_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> str:
         """
         Generate a prompt from node data and context
         

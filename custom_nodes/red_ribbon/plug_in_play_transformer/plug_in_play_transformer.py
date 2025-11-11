@@ -18,10 +18,10 @@ from ..custom_easy_nodes.easy_nodes import (
     ComfyNode,
     NumberInput,
     StringInput,
-    Choice
+    Choice,
+    register_type
 )
 from ..custom_easy_nodes.comfy_types import (
-    register_type,
     ImageTensor,
     LatentTensor
 )
@@ -620,9 +620,12 @@ def visualize_latent(
 
 
 
-class TransformerAPI:
-    """API for accessing Plug-in-Play Transformer functionality from ComfyUI"""
+class PlugInPlayTransformerAPI:
+    """
+    API for accessing Plug-in-Play Transformer functionality from ComfyUI.
     
+    Importing this into main allows ComfyUI to pick up all the nodes defined here.
+    """
     def __init__(self, resources=None, configs=None):
         self.configs = configs
         self.resources = resources
@@ -633,7 +636,7 @@ def main():
     print("Plug-in-Play Transformer module loaded successfully")
     print("Available tools:")
     print("- PiPTransformerNode: Node for ComfyUI integration")
-    print("- TransformerAPI: API for programmatic access")
+    print("- PlugInPlayTransformerAPI: API for programmatic access")
 
 if __name__ == "__main__":
     main()

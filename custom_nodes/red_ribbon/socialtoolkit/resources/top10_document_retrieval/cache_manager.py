@@ -20,8 +20,8 @@ class CacheManager:
             cache_ttl_seconds: Time-to-live for cache entries in seconds
         """
         logger.info(f"CacheManager initialized with TTL: {cache_ttl_seconds} seconds")
-        self.cache = {}
-        self.cache_timestamps = {}
+        self.cache: dict[str, Any] = {}
+        self.cache_timestamps: dict[str, float] = {}
         self.cache_ttl_seconds = cache_ttl_seconds
     
     def get(self, key: str) -> Optional[Dict[str, Any]]:

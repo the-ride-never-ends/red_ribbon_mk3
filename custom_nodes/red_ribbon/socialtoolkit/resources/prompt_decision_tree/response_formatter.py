@@ -2,7 +2,7 @@
 Response formatter for PromptDecisionTree
 """
 import logging
-from typing import Dict, Any, Union
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class ResponseFormatter:
     def __init__(self):
         logger.info("ResponseFormatter initialized")
     
-    def format(self, node_data: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
+    def format(self, node_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Format a response based on the current node and context
         

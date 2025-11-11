@@ -4,8 +4,7 @@ import logging
 from typing import Any, Callable, Optional
 
 
-from pydantic import BaseModel, Field, computed_field, PositiveInt, NonNegativeInt
-import numpy as np
+from pydantic import BaseModel
 
 
 logger = logging.getLogger(__name__)
@@ -14,11 +13,13 @@ logger = logging.getLogger(__name__)
 from ..resources.top10_document_retrieval._cosine_similarity import cosine_similarity
 from ..resources.top10_document_retrieval._dot_product import dot_product
 from ..resources.top10_document_retrieval._euclidean_distance import euclidean_distance
-
+from .dataclasses import Document, Vector
 
 from custom_nodes.red_ribbon.utils_ import make_duckdb_database, DatabaseAPI
 from custom_nodes.red_ribbon.utils_.common import get_cid
 
+from ._errors import Top10DocumentRetrievalError
+from custom_nodes.red_ribbon.utils_.configs import Configs
 
 class RankingMethod(StrEnum):
     COSINE_SIMILARITY = "cosine_similarity"
@@ -36,82 +37,6 @@ class Top10DocumentRetrievalConfigs(BaseModel):
     use_reranking: bool = False  # Whether to use re-ranking
 
 
-class Section(BaseModel):
-    """
-    Section from a document
-
-    Attributes:
-        cid (str): Law ID
-        bluebook_cid (str): Bluebook citation ID
-        title (str): Title of the law
-        chapter (str): Chapter information
-        place_name (str): Name of the place associated with the law
-        state_name (str): Name of the state associated with the law
-        bluebook_citation (str): Formatted Bluebook citation
-        html (str, optional): HTML content if available
-    """
-    cid: str = Field(..., min_length=1)
-    doc_order: NonNegativeInt
-    bluebook_cid: str = Field(..., min_length=1)
-    title: str = Field(..., min_length=1)
-    chapter: str = Field(..., min_length=1)
-    place_name: str = Field(..., min_length=1)
-    state_name: str = Field(..., min_length=1)
-    bluebook_citation: str = Field(..., min_length=1)
-    html: Optional[str] = Field(default=None)
-
-
-class Document(BaseModel):
-    """
-    Attributes:
-        section_list (list[Section]): List of Section objects representing document content
-
-    Properties:
-        place_name (str): Name of the place associated with the document
-        state_name (str): Name of the state associated with the document
-        cid (str): Computed property that returns the document's cid
-        content_json (list[dict[str, Any]]): Computed property that returns sorted rows as list of dicts
-    """
-    section_list: list[Section] = Field(exclude=True)
-
-    _cid: str = None
-    _place_name: str = None
-    _state_name: str = None
-
-    @computed_field # type: ignore[prop-decorator]
-    @cached_property
-    def cid(self) -> str:
-        if self._cid is None and self.content_list:
-            concatenated_cids = ''.join([section.cid for section in self.content_list])
-            self._cid = get_cid(concatenated_cids)
-        return self._cid
-
-    @property
-    def place_name(self) -> str:
-        if self._place_name is None and self.content_list:
-            self._place_name = self.content_list[0].place_name
-        return self._place_name
-
-    @property
-    def state_name(self) -> str:
-        if self._state_name is None and self.content_list:
-            self._state_name = self.content_list[0].state_name
-        return self._state_name
-
-    @computed_field # type: ignore[prop-decorator]
-    @cached_property
-    def content_json(self) -> list[dict[str, Any]]:
-        # Convert list of Section objects to list of dicts
-        list_of_dicts = [row.model_dump() for row in self.content_list]
-
-        # Sort the list of dicts by 'doc_order'
-        sorted_list = sorted(list_of_dicts, key=lambda x: x['doc_order'])
-        return sorted_list
-
-
-class Vector(BaseModel):
-    cid: str
-    embedding: list[float]
 
 
 class Top10DocumentRetrieval:
@@ -121,8 +46,9 @@ class Top10DocumentRetrieval:
     """
 
     def __init__(self, 
-                 resources: dict[str, Callable] = None, 
-                 configs: Top10DocumentRetrievalConfigs = None
+                 *,
+                 resources: dict[str, Any], 
+                 configs: Configs
                  ) -> None:
         """
         Initialize with injected dependencies and configuration
@@ -135,11 +61,11 @@ class Top10DocumentRetrieval:
         self.configs = configs
 
         # Attributes
-        self.use_filter = self.configs.use_filter
-        self.use_reranking = self.configs.use_reranking
-        self.ranking_method = self.configs.ranking_method
-        self.similarity_threshold = self.configs.similarity_threshold
-        self.retrieval_count = self.configs.retrieval_count
+        self.use_filter: bool = self.configs.USE_FILTER
+        self.use_reranking: bool = self.configs.USE_RERANKING
+        self.ranking_method: str = self.configs.RANKING_METHOD
+        self.similarity_threshold: float = self.configs.SIMILARITY_SCORE_THRESHOLD
+        self.retrieval_count: int = self.configs.RETRIEVAL_COUNT
 
         # External dependencies
         # self.llm = self.resources["llm"]
@@ -156,9 +82,9 @@ class Top10DocumentRetrieval:
         self._encode_query = self.resources["_encode_query"]
         self._similarity_search = self.resources["_similarity_search"]
         self._retrieve_top_documents = self.resources["_retrieve_top_documents"]
-        self._cosine_similarity = self.resources["_cosine_similarity"] or cosine_similarity
-        self._dot_product = self.resources["_dot_product"] or dot_product
-        self._euclidean_distance = self.resources["_euclidean_distance"] or euclidean_distance
+        self._cosine_similarity = self.resources["_cosine_similarity"]
+        self._dot_product = self.resources["_dot_product"]
+        self._euclidean_distance = self.resources["_euclidean_distance"]
 
 
         self.logger.info("Top10DocumentRetrieval initialized with services")
@@ -190,39 +116,43 @@ class Top10DocumentRetrieval:
         """
         self.logger.info(f"Starting top-10 document retrieval for: {input_data_point}")
         
-        # Step 1: Encode the query
-        query_vector = self._encode_query(input_data_point)
-        
-        # Step 2: Get vector embeddings and document IDs from storage if not provided
-        if documents is None or document_vectors is None:
-            try:
-                documents, document_vectors = self._get_documents_and_vectors()
-            except Exception as e:
-                self.logger.error(f"Error retrieving documents and vectors from database: {e}")
-                raise
+        try:
+            # Step 1: Encode the query
+            query_vector = self._encode_query(input_data_point)
+            
+            # Step 2: Get vector embeddings and document IDs from storage if not provided
+            if documents is None or document_vectors is None:
+                try:
+                    documents, document_vectors = self._get_documents_and_vectors()
+                except Exception as e:
+                    self.logger.error(f"Error retrieving documents and vectors from database: {e}")
+                    raise
 
-        # Step 3: Perform similarity search
-        similarity_scores, doc_ids = self.similarity_search(
-            query_vector, 
-            document_vectors, 
-            [doc("id") for doc in documents]
-        )
-        
-        # Step 4: Rank and sort results
-        ranked_results = self.rank_and_sort_results(similarity_scores, doc_ids)
-        
-        # Step 5: Filter to top-N results
-        top_doc_ids = self.filter_to_top_n(ranked_results, self.retrieval_count)
-        
-        # Step 6: Retrieve potentially relevant documents
-        potentially_relevant_docs = self.retrieve_relevant_documents(documents, top_doc_ids)
-        
-        self.logger.info(f"Retrieved {len(potentially_relevant_docs)} potentially relevant documents")
-        return {
-            "relevant_documents": potentially_relevant_docs,
-            "scores": {doc_id: score for doc_id, score in ranked_results},
-            "top_doc_ids": top_doc_ids
-        }
+            # Step 3: Perform similarity search
+            similarity_scores, doc_ids = self.similarity_search(
+                query_vector, 
+                document_vectors, 
+                [doc("id") for doc in documents]
+            )
+            
+            # Step 4: Rank and sort results
+            ranked_results = self.rank_and_sort_results(similarity_scores, doc_ids)
+            
+            # Step 5: Filter to top-N results
+            top_doc_ids = self.filter_to_top_n(ranked_results, self.retrieval_count)
+            
+            # Step 6: Retrieve potentially relevant documents
+            potentially_relevant_docs = self.retrieve_relevant_documents(documents, top_doc_ids)
+            
+            self.logger.info(f"Retrieved {len(potentially_relevant_docs)} potentially relevant documents")
+            return {
+                "relevant_documents": potentially_relevant_docs,
+                "scores": {doc_id: score for doc_id, score in ranked_results},
+                "top_doc_ids": top_doc_ids
+            }
+        except Exception as e:
+            self.logger.error(f"Error during top-10 document retrieval: {e}")
+            raise
 
     def retrieve_top_documents(self, input_data_point: str, documents: list[Any], document_vectors: list[Any]) -> list[Any]:
         """

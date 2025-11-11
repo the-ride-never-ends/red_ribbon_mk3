@@ -45,6 +45,12 @@ pytest-playwright
 matplotlib
 multiformats
 
+# typing extensions
+types-colorama
+types-tqdm
+types-PyYAML
+scipy-stubs
+
 # non essential dependencies:
 kornia>=0.7.1
 spandrel
@@ -52,3 +58,6 @@ soundfile
 av
 spacy
 hypothesis
+
+# testing and debugging
+mypy

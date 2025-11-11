@@ -10,22 +10,26 @@ import logging
 import math
 import os
 import sys
+import time
 import traceback
 import typing
 from dataclasses import dataclass
 from enum import Enum
 from importlib import import_module
 from pathlib import Path
-from typing import Callable, Dict, Union, get_args, get_origin
+from typing import Any, Callable, Dict, Optional, Type, TypeVar, Union, get_args, get_origin
 from types import ModuleType
 
-import coloredlogs
-import nodes as comfyui_nodes
+
+import coloredlogs # type: ignore
 import numpy as np
-import server
 import torch
 from colorama import Fore
 from PIL import Image
+
+
+import nodes as comfyui_nodes # type: ignore
+import server # type: ignore
 
 from .config_service import get_config_value
 from .llm_debugging import process_exception_logic
@@ -46,7 +50,7 @@ class AutoDescriptionMode(Enum):
     NONE = "none"
     BRIEF = "brief"
     FULL = "full"
-    
+
 
 class CheckSeverityMode(Enum):
     OFF = "off"
@@ -69,7 +73,7 @@ class EasyNodesConfig:
 
 # Keep track of the config from the last init, because different custom_nodes modules 
 # could possibly want different settings.
-_current_config: EasyNodesConfig = None
+_current_config: Optional[EasyNodesConfig] = None
 
 
 # Changing the default of auto-register to false in 1.1, so catch if the user hasn't set it explicitly so we can give them a warning.
@@ -77,13 +81,14 @@ class AutoRegisterSentinel(enum.Enum):
     DEFAULT = enum.auto()
 
 
-def initialize_easy_nodes(default_category: str = "EasyNodes", 
-         auto_register: bool = AutoRegisterSentinel.DEFAULT, 
+def initialize_easy_nodes(
+         default_category: str = "EasyNodes", 
+         auto_register: Union[bool, AutoRegisterSentinel] = AutoRegisterSentinel.DEFAULT, 
          docstring_mode: AutoDescriptionMode = AutoDescriptionMode.FULL, 
          verify_level: CheckSeverityMode = CheckSeverityMode.WARN,
          auto_move_tensors: bool = False,
          ignore_non_fatal_errors: bool = True
-         ):
+         ) -> None:
     """
     Initializes the EasyNodes library with the specified configuration options.
     
@@ -133,7 +138,10 @@ def initialize_easy_nodes(default_category: str = "EasyNodes",
     _current_config = EasyNodesConfig(default_category, auto_register, docstring_mode, verify_level, auto_move_tensors, 
                                       NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS)
 
-import time
+    from .comfy_types import _VerifyTypes # type: ignore
+    _VerifyTypes()  # Ensure types are registered.
+
+
 
 def get_node_mappings():
     if _current_config is None:
@@ -191,6 +199,8 @@ def _get_curr_config() -> EasyNodesConfig:
 
 # Use as a default str value to show choices to the user.
 class Choice(str):
+    choices: list[str]
+    
     def __new__(cls, choices: list[str]):
         instance = super().__new__(cls, choices[0])
         instance.choices = choices
@@ -220,6 +230,15 @@ class StringInput(str):
 
 
 class NumberInput(float):
+    min: Optional[float]
+    max: Optional[float]
+    display: str
+    step: Optional[float]
+    round: Optional[int]
+    optional: bool
+    hidden: bool
+    force_input: bool
+    
     def __new__(
         cls,
         default,
@@ -272,15 +291,15 @@ _DEFAULT_FORCE_INPUT = {}
 _COMFYUI_TYPE_TO_ANNOTATION_CLS = {}
 
 _after_first_prompt = False
-_module_reload_times = {}
-_module_dict = {}
+_module_reload_times: dict[str, float] = {}
+_module_dict: dict[str, ModuleType] = {}
 
-_function_dict = {}
-_function_checksums = {}
-_function_update_times = {}
+_function_dict: dict[str, Callable[..., Any]] = {}
+_function_checksums: dict[str, int] = {}
+_function_update_times: dict[str, float] = {}
 
-_curr_preview = {}
-_curr_unique_id = None
+_curr_preview: dict[str, Any] = {}
+_curr_unique_id: Optional[str] = None
 
 
 class CustomVerifier:
@@ -294,7 +313,7 @@ class CustomVerifier:
 # This is the default validator that just ensures that one of them is directly descended
 # from the other. This allows the semantic classes and the actual classes to be used interchangeably.
 class SubclassVerifier(CustomVerifier):
-    def __init__(self, cls: type):
+    def __init__(self, cls: Type):
         self.cls = cls
     
     def __call__(self, arg):
@@ -328,7 +347,7 @@ class TensorVerifier(CustomVerifier):
     allowed_channels: list = None
     allowed_range: list = None
     
-    def __call__(self, tensor):
+    def __call__(self, tensor: torch.Tensor):
         assert isinstance(tensor, torch.Tensor), f"Expected an {self.tensor_type_name}, got {type(tensor).__name__}"
         
         if self.allowed_range is not None:
@@ -355,11 +374,11 @@ def _get_fully_qualified_name(cls: type) -> str:
 
 def register_type(
     cls: type, 
-    name: str = None, 
+    name: Optional[str] = None, 
     should_autoconvert: bool = False, 
     is_auto_register: bool = False, 
     force_input: bool = False,
-    verifier: CustomVerifier = None
+    verifier: Optional[CustomVerifier] = None
 ):
     """Register a type for ComfyUI.
 
@@ -406,7 +425,7 @@ class AnyType(str):
 any_type = AnyType("*")
 
 
-def _get_type_str(the_type: type) -> str:
+def _get_type_str(the_type: Type) -> str:
     key = _get_fully_qualified_name(the_type)
     if key not in _ANNOTATION_TO_COMFYUI_TYPE and get_origin(the_type) is list:
         return _get_type_str(get_args(the_type)[0])
@@ -425,7 +444,7 @@ _gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 _cpu_device = torch.device("cpu")
 
 
-def show_image(image: torch.Tensor, type: str = None):
+def show_image(image: torch.Tensor, type: Optional[str] = None):
     if type is None:
         retain_previews = get_config_value("easy_nodes.RetainPreviews", False)
         type = "output" if retain_previews else "temp"
@@ -438,13 +457,13 @@ def show_image(image: torch.Tensor, type: str = None):
         if image.shape[-1] == 1:
             image = torch.cat([image] * 3, axis=-1)
 
-        image = image.cpu().numpy()
+        image_np = image.cpu().numpy()
 
-        image = Image.fromarray(np.clip(image * 255.0, 0, 255).astype(np.uint8))
+        image_pil = Image.fromarray(np.clip(image_np * 255.0, 0, 255).astype(np.uint8))
 
-        import folder_paths
+        import folder_paths # type: ignore
         
-        unique = hashlib.md5(image.tobytes()).hexdigest()[:8]
+        unique = hashlib.md5(image_pil.tobytes()).hexdigest()[:8]
 
         filename = f"preview-{_curr_unique_id}_{unique}.png"
         
@@ -453,7 +472,7 @@ def show_image(image: torch.Tensor, type: str = None):
         full_output_path = Path(folder_paths.get_directory_by_type(type)) / subfolder / filename
 
         full_output_path.parent.mkdir(parents=True, exist_ok=True)
-        image.save(str(full_output_path), compress_level=4)
+        image_pil.save(str(full_output_path), compress_level=4)
 
         if "images" not in _curr_preview:
             _curr_preview["images"] = []
@@ -483,7 +502,7 @@ def show_text(text: str):
 
 def _verify_values(config: EasyNodesConfig,
                    list_type: str, 
-                   values: list[any], 
+                   values: list[Any], 
                    types: list[str], 
                    names: list[str], 
                    code_origin_loc: str, 
@@ -500,7 +519,7 @@ def _verify_values(config: EasyNodesConfig,
 
         if debug:
             logging.info(f"Result {i} is {type(val)}, expected {types[i]}")
-        def recursive_verify(verifier: callable, val: any):
+        def recursive_verify(verifier: Callable[..., Any], val: Any) -> None:
             if isinstance(val, list):
                 for v in val:
                     recursive_verify(verifier, v)
@@ -525,7 +544,7 @@ def _verify_values(config: EasyNodesConfig,
             logging.warning(f"No verifier for {param_type}. Skipping verification.")
 
 
-def _move_all_tensors_to_device(device: torch.device, tensor_or_tensors: Union[any, list]):
+def _move_all_tensors_to_device(device: torch.device, tensor_or_tensors: Union[Any, list]) -> Any:
     if isinstance(tensor_or_tensors, torch.Tensor):
         return tensor_or_tensors.to(device)
     elif isinstance(tensor_or_tensors, list):
@@ -576,7 +595,7 @@ def _compute_function_checksum(func_to_check):
     return int(hashlib.sha256(source_code.encode('utf-8')).hexdigest(), 16)
 
 
-def _register_function(func: callable, checksum, timestamp):
+def _register_function(func: Callable[..., Any], checksum: int, timestamp: float) -> None:
     if func.__qualname__ in _function_dict:
         assert _function_update_times[func.__qualname__] < timestamp, f"Function {func.__qualname__} already registered with later timestamp! {_function_update_times[func.__qualname__]} < {timestamp}"
         assert _function_checksums[func.__qualname__] != checksum, f"Function {func.__qualname__} already registered with same checksum! {_function_checksums[func.__qualname__]} == {checksum}"
@@ -613,7 +632,7 @@ def _get_latest_version_of_module(module_name: str, debug: bool = False) -> tupl
     return module, current_modified_time
 
 
-def _get_latest_version_of_func(func: callable, debug: bool = False):
+def _get_latest_version_of_func(func: Callable[..., Any], debug: bool = False) -> Callable[..., Any]:
     reload_modules = get_config_value("easy_nodes.ReloadOnEdit", False)
     if reload_modules and func.__module__:
         module, current_modified_time = _get_latest_version_of_module(func.__module__, debug)
@@ -656,9 +675,9 @@ def get_formatter():
     return coloredFormatter
 
 
-def _call_function_and_verify_result(config: EasyNodesConfig, func: callable,
-                                     args, kwargs, debug, input_desc, adjusted_return_types, 
-                                     wrapped_name, node_class, return_names=None):
+def _call_function_and_verify_result(config: EasyNodesConfig, func: Callable[..., Any],
+                                     args: tuple, kwargs: dict, debug: bool, input_desc: list, adjusted_return_types: tuple, 
+                                     wrapped_name: str, node_class: str, return_names: Optional[list[str]] = None) -> Any:
     try_count = 0
     llm_debugging_mode = get_config_value("easy_nodes.llm_debugging", "Off")
     llm_debugging_enabled = llm_debugging_mode != "Off"
@@ -729,7 +748,7 @@ def _call_function_and_verify_result(config: EasyNodesConfig, func: callable,
                 # Calculate the number of interesting stack levels.
                 _, _, tb = sys.exc_info()
                 the_stack = traceback.extract_tb(tb)
-                e.num_interesting_levels = len(the_stack) - 1                
+                e.num_interesting_levels = len(the_stack) - 1  # type: ignore[attr-defined]
                 formatted_stack = "\n".join(traceback.format_exception(type(e), e, tb))                
                 logging.warning(f"\n\nException in node {_curr_unique_id} ({node_class}):\n{formatted_stack}")
                 raise e
@@ -825,21 +844,21 @@ def maybe_autoconvert(comfyui_type_name: str, arg: any):
 
 
 def ComfyNode(
-    category: str = None,
-    display_name: str = None,
-    workflow_name: str = None,
-    description: str = None,
+    category: Optional[str] = None,
+    display_name: Optional[str] = None,
+    workflow_name: Optional[str] = None,
+    description: Optional[str] = None,
     is_output_node: bool = False,
-    return_types: list = None,
-    return_names: list[str] = None,
-    validate_inputs: Callable = None,
-    is_changed: Callable = None,
+    return_types: Optional[list] = None,
+    return_names: Optional[list[str]] = None,
+    validate_inputs: Optional[Callable] = None,
+    is_changed: Optional[Callable] = None,
     always_run: bool = False,
     debug: bool = False,
-    color: str = None,
-    bg_color: str = None,
-    width: int = None,
-    height: int = None,
+    color: Optional[str] = None,
+    bg_color: Optional[str] = None,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
 ):
     """
     Decorator function for creating ComfyUI nodes.
@@ -869,7 +888,7 @@ def ComfyNode(
     if not category:
         category = curr_config.default_category
 
-    def decorator(func: callable):        
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:        
         if _after_first_prompt:
             # Sorry, we're closed for business.
             return func
@@ -1151,7 +1170,11 @@ def _annotate_input(
     return (type_name, metadata), default != inspect.Parameter.empty, False
 
 
-def _infer_input_types_from_annotations(func, skip_first, debug=False):
+def _infer_input_types_from_annotations(
+        func: Callable[..., Any], 
+        skip_first: bool, 
+        debug: bool = False
+        ) -> tuple[dict, dict, dict, dict, dict]:
     """
     Infer input types based on function annotations.
     """
@@ -1193,7 +1216,10 @@ def _infer_input_types_from_annotations(func, skip_first, debug=False):
     return required_inputs, hidden_input_types, optional_input_types, input_is_list, input_type_map
 
 
-def _infer_return_types_from_annotations(func_or_types, debug=False):
+def _infer_return_types_from_annotations(
+        func_or_types: list | Callable[..., Any], 
+        debug: bool = False
+        ) -> tuple[tuple, tuple]:
     """
     Infer whether each element in a function's return tuple is a list or a single item,
     handling direct list inputs as well as function annotations.
@@ -1409,10 +1435,10 @@ def _get_node_class(func):
     return None
 
 
-T = typing.TypeVar("T")
+T = TypeVar("T")
 
 
-def create_field_setter_node(cls: type, category=None, debug=False) -> typing.Callable[..., T]:
+def create_field_setter_node(cls: Type, debug: bool  = False, category: Optional[str] = None) -> Callable[..., T]:
 
     if category is None:
         category = _get_curr_config().default_category
@@ -1432,7 +1458,7 @@ def create_field_setter_node(cls: type, category=None, debug=False) -> typing.Ca
     )
 
 
-def _create_dynamic_setter(cls: type, debug=False) -> typing.Callable[..., T]:
+def _create_dynamic_setter(cls: Type, debug: bool = False) -> Callable[..., T]:
     obj = cls()
     func_name = cls.__name__
     setter_name = func_name + "_setter"
@@ -1447,7 +1473,7 @@ def _create_dynamic_setter(cls: type, debug=False) -> typing.Callable[..., T]:
             if isinstance(attr, property) and attr.fset is not None:
                 # Handle properties
                 current_value = getattr(obj, attr_name, None)
-                prop_type = type(current_value) if current_value is not None else typing.Any
+                prop_type = type(current_value) if current_value is not None else Any
                 properties[attr_name] = (prop_type, current_value)
 
                 if debug:
@@ -1455,7 +1481,7 @@ def _create_dynamic_setter(cls: type, debug=False) -> typing.Callable[..., T]:
             else:
                 # Handle instance attributes
                 current_value = getattr(obj, attr_name, None)
-                prop_type = type(current_value) if current_value is not None else typing.Any
+                prop_type = type(current_value) if current_value is not None else Any
                 properties[attr_name] = (prop_type, current_value)
 
                 if debug:

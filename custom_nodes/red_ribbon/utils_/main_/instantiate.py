@@ -3,8 +3,7 @@ Module for the instantiate function and its private helper functions.
 """
 import asyncio
 import importlib
-from pathlib import Path
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 
 Class = TypeVar('Class')

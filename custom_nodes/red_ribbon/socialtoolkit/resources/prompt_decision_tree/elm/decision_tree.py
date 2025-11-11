@@ -3,7 +3,7 @@
 ELM decision trees.
 Source: https://github.com/NREL/elm/blob/main/elm/tree.py
 """
-import networkx as nx
+import networkx as nx # type: ignore
 import logging
 
 

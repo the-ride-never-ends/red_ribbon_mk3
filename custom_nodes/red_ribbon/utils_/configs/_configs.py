@@ -1,20 +1,22 @@
 """
 Configs module - Configuration constants loaded from YAML files.
 """
+import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 
 
 
-from pydantic import BaseModel, DirectoryPath, Field, FilePath, PositiveInt
+from pydantic import BaseModel, DirectoryPath, Field, FilePath, PositiveInt, NonNegativeInt, SecretStr
 import yaml
 
-
+from custom_nodes.red_ribbon._custom_errors import ConfigurationError
 from ..common.get_value_from_base_model import get_value_from_base_model
 from ..common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
-import custom_nodes.red_ribbon.main as main_module
 
-_VERSION_DIR = Path(main_module.__file__).parent
+
+_VERSION_DIR = Path(__file__).parent.parent.parent
+
 
 class DatabaseConfigs(BaseModel):
     AMERICAN_LAW_DATA_DIR:            DirectoryPath = _VERSION_DIR / "data"
@@ -25,16 +27,17 @@ class DatabaseConfigs(BaseModel):
 
 
 class Paths(BaseModel):
-    THIS_FILE:         DirectoryPath = Path(__file__).resolve()
-    THIS_DIR:          DirectoryPath = THIS_FILE.parent
-    VERSION_DIR:       DirectoryPath = _VERSION_DIR
-    CUSTOM_NODES_DIR:  DirectoryPath = THIS_DIR.parent
-    COMFYUI_DIR:       DirectoryPath = CUSTOM_NODES_DIR.parent
-    LLM_OUTPUTS_DIR:   DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
-    LLM_MODELS_DIR:    DirectoryPath = COMFYUI_DIR / "models" / "llm_models"
-    SOCIALTOOLKIT_DIR: DirectoryPath = VERSION_DIR / "socialtoolkit"
-    DATABASE_DIR:      DirectoryPath = VERSION_DIR / "database"
-    DB_PATH:           FilePath      = VERSION_DIR / "red_ribbon.db"
+    THIS_FILE:             DirectoryPath = Path(__file__).resolve()
+    THIS_DIR:              DirectoryPath = THIS_FILE.parent
+    VERSION_DIR:           DirectoryPath = _VERSION_DIR
+    CUSTOM_NODES_DIR:      DirectoryPath = THIS_DIR.parent
+    COMFYUI_DIR:           DirectoryPath = CUSTOM_NODES_DIR.parent
+    LLM_OUTPUTS_DIR:       DirectoryPath = COMFYUI_DIR / "output" / "red_ribbon_outputs"
+    LLM_MODELS_DIR:        DirectoryPath = COMFYUI_DIR / "models" / "llm_models"
+    SOCIALTOOLKIT_DIR:     DirectoryPath = VERSION_DIR / "socialtoolkit"
+    DATABASE_DIR:          DirectoryPath = VERSION_DIR / "database"
+    DB_PATH:               FilePath      = VERSION_DIR / "red_ribbon.db"
+    AMERICAN_LAW_DATA_DIR: DirectoryPath = VERSION_DIR / "data" / "american_law.db"
     
 
     def __getitem__(self, key: str) -> Optional[Any]:
@@ -61,18 +64,30 @@ class VariableCodebookConfigs(BaseModel):
         return get_value_with_default_from_base_model(self, key, default)
 
 
+import os
+
 class Configs(BaseModel):
     database:          DatabaseConfigs = Field(default_factory=DatabaseConfigs)
     paths:             Paths = Field(default_factory=Paths)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
 
     # Top-10 Document Retrieval
-    retrieval_count: int = 10  # Number of documents to retrieve
+    RETRIEVAL_COUNT: PositiveInt = 10  # Number of documents to retrieve
     similarity_threshold: float = 0.6  # Minimum similarity score
-    ranking_method: str = "cosine_similarity"  # Options: cosine_similarity, dot_product, euclidean
-    use_filter: bool = False  # Whether to filter results
-    filter_criteria: dict[str, Any] = {}
-    use_reranking: bool = False  # Whether to use re-ranking
+    RANKING_METHOD: str = "cosine_similarity"  # Options: cosine_similarity, dot_product, euclidean
+    USE_FILTER: bool = False  # Whether to filter results
+    FILTER_CRITERIA: dict[str, Any] = Field(default_factory=dict)
+    USE_RERANKING: bool = False  # Whether to use re-ranking
+
+    # LLM
+    OPENAI_API_KEY:                   SecretStr = Field(default_factory=os.environ.get("OPENAI_API_KEY", ""), min_length=1)
+    OPENAI_MODEL:                     str = Field(default="gpt-4o-mini", min_length=1)
+    OPENAI_SMALL_MODEL:               str = Field(default="gpt-5-nano", min_length=1)
+    OPENAI_EMBEDDING_MODEL:           str = Field(default="text-embedding-3-small", min_length=1)
+    LOG_LEVEL:                        Literal[10, 20, 30, 40, 50] = logging.DEBUG
+    SIMILARITY_SCORE_THRESHOLD:       float = 0.4
+    SEARCH_EMBEDDING_BATCH_SIZE:      NonNegativeInt = 10000
+
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
@@ -83,13 +98,13 @@ class Configs(BaseModel):
         except AttributeError:
             raise KeyError(f"Key '{key}' not found in Configs")
 
-    def get(self, key: str, default: Any = None) -> Optional[Any]:
+    def get(self, key: str, default: Any | None = None) -> Optional[Any]:
         return get_value_with_default_from_base_model(self, key, default)
 
 try:
     configs = Configs()
 except Exception as e:
-    raise RuntimeError(f"Failed to initialize Configs: {e}") from e
+    raise ConfigurationError(f"Failed to initialize Configs in _configs.py: {e}") from e
 
 # class Paths(BaseModel):
 #     THIS_FILE = Path(__file__).resolve()

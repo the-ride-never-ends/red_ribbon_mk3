@@ -22,5 +22,5 @@ class PythonLogger:
     def __call__(self, resources=None, configs=None, *args, **kwargs):
         self.__init__(resources, configs)
 
-    def make_logger():
+    def make_logger(self):
         pass

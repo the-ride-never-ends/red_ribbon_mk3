@@ -99,8 +99,8 @@ def get_mean_and_std(tensor: Float32Array, axis: int = None) -> tuple[float,floa
 SUPPORTED_IMAGE_TYPES = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.geotiff', '.tif'}
 
 
-from easy_nodes import ComfyNode, Choice, NumberInput, StringInput
-from easy_nodes.comfy_types import Float32Array, Image
+from ..red_ribbon.custom_easy_nodes.easy_nodes import ComfyNode, Choice, NumberInput, StringInput
+from ..red_ribbon.custom_easy_nodes.easy_nodes import Float32Array, Image
 import random
 import hashlib
 from pathlib import Path

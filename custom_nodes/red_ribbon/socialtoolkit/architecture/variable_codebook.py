@@ -444,14 +444,14 @@ class PromptDecisionTree(BaseModel):
     nodes: list[PromptDecisionTreeNode] = Field(default_factory=list)
     edges: list[PromptDecisionTreeEdge] = Field(default_factory=list)
 
-    _tree = {}
+    _tree: dict[str, Any] = {}
     _graph = None
 
     @property
     def graph(self) -> nx.DiGraph:
         return self._graph
 
-    def __init__(self, **data: Any):
+    def __init__(self, **data: Any) -> None:
         """
         Initialize a VariableCodebook instance with injected dependencies and configuration.
 
@@ -734,7 +734,7 @@ class VariableCodebook:
         >>> prompts = codebook.get_prompt_sequence_for_input("What is the city sales tax rate?")
     """
     
-    def __init__(self, resources: dict[str, Callable], configs: VariableCodebookConfigs):
+    def __init__(self, *, resources: dict[str, Callable], configs: VariableCodebookConfigs):
         """
         Initialize with injected dependencies and configuration
         
@@ -767,7 +767,7 @@ class VariableCodebook:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def _log_then_raise(self, exc: Exception, msg: str) -> Never:
+    def _log_then_raise(self, exc: type[Exception], msg: str) -> Never:
         """Log a message then raise an exception associated with it."""
         self.logger.error(msg)
         raise exc(msg)
@@ -1012,10 +1012,10 @@ class VariableCodebook:
         # Get the variable
         variable_result = self._get_variable(variable_name)
         
-        if not variable_result.get("success", False):
+        if not variable_result["success"]:
             return variable_result
             
-        variable = variable_result.get("variable")
+        variable = variable_result["variable"]
         
         # Extract the prompt sequence from the variable
         if not variable.prompt_decision_tree:
@@ -1026,7 +1026,7 @@ class VariableCodebook:
             }
             
         # Extract prompts from the decision tree
-        prompts = [node.prompt for node in variable.prompt_decision_tree]
+        prompts = [node.prompt for node in variable.prompt_decision_tree.nodes]
         
         return {
             "success": True,
@@ -1051,10 +1051,10 @@ class VariableCodebook:
         # Get the variable
         variable_result = self._get_variable(variable_name)
         
-        if not variable_result.get("success", False):
+        if not variable_result["success"]:
             return variable_result
             
-        variable = variable_result.get("variable")
+        variable = variable_result["variable"]
         
         # Extract the assumptions from the variable
         return {
@@ -1161,20 +1161,26 @@ class VariableCodebook:
                     other_assumptions=["Also assume the business has no special tax exemptions."]
                 )
             ),
-            prompt_decision_tree=[
-                PromptDecisionTreeNode(
-                    prompt="List the name of the tax as given in the document verbatim, as well as its line item."
-                ),
-                PromptDecisionTreeNode(
-                    prompt="List the formal definition of the tax verbatim, as well as its line item."
-                ),
-                PromptDecisionTreeNode(
-                    prompt="Does this statute apply to all goods or services, or only to specific ones?"
-                ),
-                PromptDecisionTreeNode(
-                    prompt="What is the exact percentage rate of the tax?"
-                )
-            ]
+            prompt_decision_tree=PromptDecisionTree(
+                nodes=[
+                    PromptDecisionTreeNode(
+                        name="tax_name",
+                        prompt="List the name of the tax as given in the document verbatim, as well as its line item."
+                    ),
+                    PromptDecisionTreeNode(
+                        name="tax_definition",
+                        prompt="List the formal definition of the tax verbatim, as well as its line item."
+                    ),
+                    PromptDecisionTreeNode(
+                        name="tax_applicability",
+                        prompt="Does this statute apply to all goods or services, or only to specific ones?"
+                    ),
+                    PromptDecisionTreeNode(
+                        name="tax_rate",
+                        prompt="What is the exact percentage rate of the tax?"
+                    )
+                ]
+            )
         )
         
         # Add to variables dictionary

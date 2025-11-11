@@ -1,5 +1,23 @@
+"""
+Error classes for the Social Toolkit architecture components.
+
+Each step of the pipeline has its own custom error class to facilitate error handling and debugging.
+
+"""
 
 
+class UrlGenerationError(RuntimeError):
+    """Custom exception for errors that occur during URL generation"""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class WebsiteDocumentRetrievalError(RuntimeError):
+    """Custom exception for errors that occur during website document retrieval"""
+
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class DecisionTreeError(RuntimeError):
@@ -15,8 +33,8 @@ class InitializationError(RuntimeError):
     def __init__(self, *args):
         super().__init__(*args)
 
-class DocumentRetrievalError(RuntimeError):
-    """Custom exception for errors that occur during document retrieval"""
+class Top10DocumentRetrievalError(RuntimeError):
+    """Custom exception for errors that occur during Top 10 document retrieval"""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -33,7 +51,7 @@ class RelevanceAssessmentError(RuntimeError):
     def __init__(self, *args):
         super().__init__(*args)
 
-class StorageError(RuntimeError):
+class DocumentStorageError(RuntimeError):
     """Custom exception for errors that occur during document storage"""
 
     def __init__(self, *args):
@@ -45,3 +63,8 @@ class CodebookError(RuntimeError):
     def __init__(self, *args):
         super().__init__(*args)
 
+class DataclassError(RuntimeError):
+    """Custom exception for errors that occur during dataclass operations"""
+
+    def __init__(self, *args):
+        super().__init__(*args)
