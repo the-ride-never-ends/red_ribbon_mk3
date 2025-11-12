@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional, Callable
 from custom_nodes.red_ribbon.utils_.logger import logger
 from custom_nodes.red_ribbon.utils_.configs import Configs
 from .dependencies.openai_client import OpenAIClient
-from ._embeddings_utils import EmbeddingsManager
+from ._embeddings_manager import EmbeddingsManager
 
 
 def _validate_sql(sql_query: str, fix_broken_queries: bool = True) -> Optional[str]:
@@ -80,9 +80,8 @@ class LLMInterface:
 
         self.api_key: str = configs.OPENAI_API_KEY
         
-        os.environ.get("OPENAI_API_KEY")
-        self.data_path: Path = configs.AMERICAN_LAW_DATA_DIR
-        self.db_path: Path = configs.AMERICAN_LAW_DB_PATH
+        self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
+        self.db_path: Path = configs.paths.AMERICAN_LAW_DB_PATH
         self.model: str = configs.OPENAI_MODEL
         self.embedding_model: str = configs.OPENAI_EMBEDDING_MODEL
 
@@ -161,9 +160,6 @@ class LLMInterface:
                 }
         
         return response
-    
-
-    def 
 
 
     def _generic_response(self, message: Optional[str] = None, system_prompt: Optional[str] = None) -> str:

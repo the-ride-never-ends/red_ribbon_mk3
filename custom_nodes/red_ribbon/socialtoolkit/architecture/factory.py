@@ -15,6 +15,7 @@ from .prompt_decision_tree import PromptDecisionTree, PromptDecisionTreeConfigs
 from .variable_codebook import VariableCodebook, VariableCodebookConfigs
 
 from custom_nodes.red_ribbon.utils_.configs import Configs
+from custom_nodes.red_ribbon.utils_.common import get_cid
 from custom_nodes.red_ribbon.utils_ import make_logger
 from custom_nodes.red_ribbon.utils_.database import DatabaseAPI, make_duckdb_database
 from custom_nodes.red_ribbon.utils_.llm_ import LLM, make_llm
@@ -32,12 +33,12 @@ def _validate_configs(configs: BaseModel, name: str) -> None:
     except ValidationError as e:
         raise ConfigurationError(f"Invalid configuration object for {name}: {e}") from e
 
-def _validate_resources(resources: dict[str, Callable], name: str) -> None:
+def _validate_resources(resources: dict[str, Any], name: str) -> None:
     if not isinstance(resources, dict):
         raise TypeError(f"Resources for {name} must be a dictionary, got {type(resources).__name__}")
 
 
-def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Callable]) -> Callable:
+def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Any]) -> Callable:
     """
     Generic initializer for classes with resources and configs
     
@@ -70,62 +71,68 @@ def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Callab
 
 
 def make_variable_codebook(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: VariableCodebookConfigs = VariableCodebookConfigs(),
 ) -> VariableCodebook:
     """Factory function to create VariableCodebook instance"""
-    return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
+    return _initialize(VariableCodebook, configs, resources,) 
 
 
 def make_document_retrieval_from_websites(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: DocumentRetrievalConfigs = DocumentRetrievalConfigs(),
 ) -> DocumentRetrievalFromWebsites:
     """Factory function to create DocumentRetrievalFromWebsites instance"""
+    _resources = {
+        "get_cid": get_cid
+    }
+    for key in resources:
+        if key not in _resources:
+            _resources[key] = resources[key]
     return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
 
 
 def make_document_storage(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: DocumentStorageConfigs = DocumentStorageConfigs(),
 ) -> DocumentStorage:
     """Factory function to create DocumentStorage instance"""
-    return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
+    return _initialize(DocumentStorage, configs, resources,) 
 
 
 def make_top10_document_retrieval(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: Top10DocumentRetrievalConfigs = Top10DocumentRetrievalConfigs(),
 ) -> Top10DocumentRetrieval:
     """Factory function to create Top10DocumentRetrieval instance"""
-    return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
+    return _initialize(Top10DocumentRetrieval, configs, resources,) 
 
 
 def make_relevance_assessment(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: RelevanceAssessmentConfigs = RelevanceAssessmentConfigs(),
 ) -> RelevanceAssessment:
     """Factory function to create RelevanceAssessment instance"""
-    return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
+    return _initialize(RelevanceAssessment, configs, resources,) 
 
 
 def make_prompt_decision_tree(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: PromptDecisionTreeConfigs = PromptDecisionTreeConfigs(),
 ) -> PromptDecisionTree:
     """Factory function to create PromptDecisionTree instance"""
-    return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
+    return _initialize(PromptDecisionTree, configs, resources,) 
 
 
 def make_socialtoolkit_pipeline(
-    resources: dict[str, Callable] = {},
+    resources: dict[str, Any] = {},
     configs: SocialtoolkitConfigs = SocialtoolkitConfigs(),
 ) -> SocialtoolkitPipeline:
     """
     Factory function to create SocialtoolkitPipeline instance
 
     Args:
-        resources: (dict[str, Callable]) Optional dictionary of resource overrides.
+        resources: (dict[str, Any]) Optional dictionary of resource overrides.
         configs: (SocialtoolkitConfigs) Configuration object for the SocialtoolkitPipeline.
 
     Returns:
@@ -141,7 +148,7 @@ def make_socialtoolkit_pipeline(
     _validate_resources(resources, name)
 
     try:
-        kwargs ={
+        kwargs = {
             "resources": {
             "llm": resources.get("llm", make_llm()),
             "db": resources.get("db", make_duckdb_database()),

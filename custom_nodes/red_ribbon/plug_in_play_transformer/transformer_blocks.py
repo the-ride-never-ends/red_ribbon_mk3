@@ -199,7 +199,7 @@ class ConfigBasedTransformerNode:
         import json
         
         # Parse configuration
-        config: dict = json.loads(config_json)
+        config: dict = json.loads(config_json.read_text())
         
         # Initialize transformer
         if self.stacked_transformer is None:

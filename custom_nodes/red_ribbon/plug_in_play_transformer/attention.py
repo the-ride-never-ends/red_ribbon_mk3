@@ -42,7 +42,7 @@ class QKVProjectionNode:
     CATEGORY = "transformer/attention"
     
     def __init__(self):
-        self.c_attn = None  # Will be initialized at runtime
+        self.c_attn: nn.Linear | None = None  # Will be initialized at runtime
     
     def project(self, x: Tensor, number_of_attn_heads: int, number_of_embeddings: int
                 ) -> tuple[Tensor, Tensor, Tensor]:
@@ -50,7 +50,7 @@ class QKVProjectionNode:
         
         # Initialize projection if needed
         if self.c_attn is None or self.c_attn.in_features != C:
-            self.c_attn: nn.Linear  = nn.Linear(C, 3 * C)
+            self.c_attn = nn.Linear(C, 3 * C)
             
         # Split into query, key, value
         qkv: Tensor = self.c_attn(x)

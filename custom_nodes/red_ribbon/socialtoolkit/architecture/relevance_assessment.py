@@ -4,12 +4,12 @@ import re
 from typing import Any, Callable, Dict, Optional
 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 
 from custom_nodes.red_ribbon.utils_ import LLM
 from .variable_codebook import Variable
-from .dataclasses import Document
+from .dataclasses import Document, Section
 from ._errors import LLMError, InitializationError, RelevanceAssessmentError
 
 
@@ -127,18 +127,27 @@ class RelevanceAssessment:
             TypeError: If input types are incorrect
             ValueError: If input values are invalid
         """
+        input_docs: list[Document] = potentially_relevant_docs
+
         # Input validation
-        if not isinstance(potentially_relevant_docs, list):
-            raise TypeError("potentially_relevant_docs must be a list")
-        if not potentially_relevant_docs:
-            raise ValueError("potentially_relevant_docs cannot be empty")
+        if not isinstance(input_docs, list):
+            raise TypeError(f"potentially_relevant_docs must be a list, got {type(input_docs).__name__}")
         if not isinstance(variable, Variable):
-            raise TypeError("variable must be a Variable instance")
+            raise TypeError(f"variable must be a Variable instance, got {type(variable).__name__}")
+        if not isinstance(llm, LLM):
+            raise TypeError(f"llm must be an LLM instance, got {type(llm).__name__}")
+
+        if not input_docs:
+            raise ValueError("potentially_relevant_docs cannot be empty")
+        else:
+            for idx, doc in enumerate(input_docs):
+                if not isinstance(doc, Document):
+                    raise TypeError(f"Each item {idx} must be a Document instance, got {type(doc).__name__}")
 
         self.logger.info(f"Starting relevance assessment for {len(potentially_relevant_docs)} documents")
 
         # Step 1: Assess document relevance
-        assessment_results = self._assess_document_relevance(
+        assessment_results: list[Document] = self._assess_document_relevance(
             potentially_relevant_docs, 
             variable, 
             llm
@@ -153,25 +162,38 @@ class RelevanceAssessment:
         
         # Step 4: Apply threshold to separate relevant from irrelevant
         relevant_pages, discarded_pages = self._apply_threshold(relevance_scores)
-        
+
         # Step 5: Extract page numbers
         page_numbers = self._extract_page_numbers(relevant_pages)
-        
+
         # Step 6: Extract cited pages
         relevant_pages_content = self._extract_cited_pages(
             potentially_relevant_docs, page_numbers
         )
-        
-        self.logger.info(f"Completed relevance assessment: {len(relevant_pages_content)} relevant pages")
-        return {
-            "relevant_pages": relevant_pages_content,
-            "relevant_doc_ids": [page["doc_id"] for page in relevant_pages],
-            "page_numbers": page_numbers,
-            "relevance_scores": relevance_scores
-        }
 
-    def assess(self, potentially_relevant_docs: list[Any], 
-              prompt_sequence: list[str], llm: Any) -> list[Any]:
+        self.logger.info(f"Completed relevance assessment: {len(relevant_pages_content)} relevant pages")
+
+        sections: list[Section] = []
+        for idx, page in enumerate(relevant_pages_content):
+            try:
+                section = Section(**page)
+            except ValidationError as e:
+                raise ValueError(f"Error creating Section object for page {idx}: {e}") from e
+            sections.append(section)
+
+
+        sections = [
+            Section(**page) for page in relevant_pages
+        ]
+
+        return Document(section_list=sections)
+
+
+    def assess(self, 
+               potentially_relevant_docs: list[Document], 
+              prompt_sequence: list[str], 
+              llm: LLM
+              ) -> list[Document]:
         """
         Public method to assess document relevance
         
@@ -192,8 +214,8 @@ class RelevanceAssessment:
         result = self.run(potentially_relevant_docs, variable, llm)
         return result["relevant_pages"]
     
-    def _assess_document_relevance(self, docs: list[Any], 
-                                 variable: dict[str, Any], 
+    def _assess_document_relevance(self, docs: list[Document], 
+                                 variable: Variable, 
                                  llm: Any) -> list[dict[str, Any]]:
         """
         Assess document relevance using LLM

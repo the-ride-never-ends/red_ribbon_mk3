@@ -2,17 +2,28 @@
 Embeddings utilities for working with the American Law dataset.
 Provides tools for loading, processing, and using embeddings from parquet files.
 """
+import logging
 import os
-import pandas as pd
-import numpy as np
-from typing import List, Dict, Any, Callable, Optional
 from pathlib import Path
+from typing import Any, Optional
 import sqlite3
 
 
+import pandas as pd
+import numpy as np
+
+
 # Set up logging
-from custom_nodes.red_ribbon.utils_.logger import logger
-from custom_nodes.red_ribbon.utils_.configs import configs, Configs
+from custom_nodes.red_ribbon.utils_ import Configs
+
+
+def _validate_string(value: Any, name: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be a string, got {type(value).__name__}")
+    value = value.strip()
+    if not value:
+        raise ValueError(f"{name} cannot be empty or whitespace")
+    return value
 
 
 class EmbeddingsManager:
@@ -21,38 +32,37 @@ class EmbeddingsManager:
     Handles loading, processing, and searching embeddings in parquet files.
     """
     
-    def __init__(self, 
-                 *, 
+    def __init__(self, *, 
                  configs: Optional[Configs],
-                 resources: dict[str, Callable]
-                 ):
+                 resources: dict[str, Any]
+                 ) -> None:
         """
         Initialize the embeddings manager.
         
         Args:
-            configs:
-                - data_path: Path to the dataset files
-                - db_path: Path to the SQLite database
+            configs: Configuration object.
+            resources: Dictionary of resources.
         """
         self.configs = configs
         self.resources = resources
 
-        self.data_path = self.configs.paths.AMERICAN_LAW_DATA_DIR
-        self.db_path = self.configs.paths.AMERICAN_LAW_DB_PATH
+        self.logger: logging.Logger = resources["logger"]
+        self.data_path: Path = self.configs.paths.AMERICAN_LAW_DATA_DIR
+        self.db_path: Path = self.configs.paths.AMERICAN_LAW_DB_PATH
 
         # Cache for recently used embeddings
-        self._embedding_cache = {}
-        
-    def list_embedding_files(self) -> List[str]:
+        self._embedding_cache: dict[str, pd.DataFrame] = {}
+
+    def list_embedding_files(self) -> list[str]:
         """
         List all embedding files in the data path.
         
         Returns:
             List of embedding file paths
         """
-        if not self.data_path or not os.path.exists(self.data_path):
+        if not self.data_path or not self.data_path.exists():
             return []
-            
+
         embedding_files = list(Path(self.data_path).glob("*_embeddings.parquet"))
         return [str(file) for file in embedding_files]
 
@@ -66,34 +76,36 @@ class EmbeddingsManager:
         Returns:
             DataFrame with embeddings
         """
+        _validate_string(file_id, "file_id")
+
         # Check if embeddings are already in cache
         if file_id in self._embedding_cache:
             return self._embedding_cache[file_id]
-            
+
         # Load embeddings from file
-        embedding_file = os.path.join(self.data_path, f"{file_id}_embeddings.parquet")
-        
-        if not os.path.exists(embedding_file):
-            logger.error(f"Embedding file not found: {embedding_file}")
+        embedding_file: Path = self.data_path / f"{file_id}_embeddings.parquet"
+
+        if not embedding_file.exists():
+            self.logger.error(f"Embedding file not found: {embedding_file}. Returning empty DataFrame.")
             return pd.DataFrame()
-            
+
         try:
             embedding_df = pd.read_parquet(embedding_file)
-            
+
             # Cache embeddings for future use (limit cache size)
             if len(self._embedding_cache) > 10:
                 # Remove oldest entry if cache is too large
                 oldest_key = next(iter(self._embedding_cache))
                 del self._embedding_cache[oldest_key]
-                
+
             self._embedding_cache[file_id] = embedding_df
             return embedding_df
-            
+
         except Exception as e:
-            logger.error(f"Error loading embeddings from {embedding_file}: {e}")
+            self.logger.error(f"Error loading embeddings from {embedding_file}: {e}. Returning empty DataFrame.")
             return pd.DataFrame()
     
-    def cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+    def cosine_similarity(self, vec1: list[float], vec2: list[float]) -> float:
         """
         Calculate cosine similarity between two vectors.
         
@@ -118,10 +130,10 @@ class EmbeddingsManager:
     
     def search_embeddings_in_file(
         self, 
-        query_embedding: List[float], 
+        query_embedding: list[float], 
         file_id: str, 
         top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search for similar embeddings in a specific file.
         
@@ -153,7 +165,7 @@ class EmbeddingsManager:
         results.sort(key=lambda x: x['similarity_score'], reverse=True)
         return results[:top_k]
     
-    def get_document_metadata(self, cid: str, file_id: str) -> Dict[str, Any]:
+    def get_document_metadata(self, cid: str, file_id: str) -> dict[str, Any]:
         """
         Get metadata for a document from citation and HTML files.
         
@@ -164,10 +176,13 @@ class EmbeddingsManager:
         Returns:
             Document metadata
         """
-        citation_file = os.path.join(self.data_path, f"{file_id}_citation.parquet")
-        html_file = os.path.join(self.data_path, f"{file_id}_html.parquet")
+        _validate_string(cid, "cid")
+        _validate_string(file_id, "file_id")
+
+        citation_file: Path = self.data_path / f"{file_id}_citation.parquet"
+        html_file: Path = self.data_path / f"{file_id}_html.parquet"
         
-        if not os.path.exists(citation_file) or not os.path.exists(html_file):
+        if not citation_file.exists() or html_file.exists():
             return {}
             
         try:
@@ -193,15 +208,15 @@ class EmbeddingsManager:
             }
             
         except Exception as e:
-            logger.error(f"Error getting document metadata for {cid} in {file_id}: {e}")
+            self.logger.error(f"Error getting document metadata for {cid} in {file_id}: {e}")
             return {}
     
     def search_across_files(
         self, 
-        query_embedding: List[float], 
+        query_embedding: list[float], 
         max_files: int = 10, 
         top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search for similar embeddings across multiple files.
         
@@ -249,11 +264,15 @@ class EmbeddingsManager:
         Returns:
             SQLite connection
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-    
-    def search_db_by_cid(self, cid: str) -> Dict[str, Any]:
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e:
+            self.logger.error(f"Error connecting to database at {self.db_path}: {e}")
+            raise
+
+    def search_db_by_cid(self, cid: str) -> dict[str, Any]:
         """
         Search for a document in the database by content ID.
         
@@ -292,7 +311,7 @@ class EmbeddingsManager:
                 'bluebook_citation': row['bluebook_citation'],
                 'html': row['html']
             }
-            
+
         except Exception as e:
-            logger.error(f"Error searching database for CID {cid}: {e}")
+            self.logger.error(f"Error searching database for CID {cid}: {e}")
             return {}

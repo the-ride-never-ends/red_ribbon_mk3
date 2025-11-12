@@ -13,13 +13,25 @@ Feature: Relevance Assessment
     And a prompt decision tree service is available
     And an LLM API client is available
 """
-import pytest
 from unittest.mock import Mock, AsyncMock
 
+
+from pydantic import ValidationError
+import pytest
+
+
+from custom_nodes.red_ribbon.socialtoolkit.architecture.dataclasses import (
+    Document, Section, make_document, make_section, CID
+)
+from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import Variable
+from custom_nodes.red_ribbon.socialtoolkit.architecture.prompt_decision_tree import PromptDecisionTree
 from custom_nodes.red_ribbon.socialtoolkit.architecture.relevance_assessment import (
     RelevanceAssessment,
     make_relevance_assessment,
 )
+from custom_nodes.red_ribbon.utils_.common import get_cid
+from .conftest import FixtureError
+
 
 
 @pytest.fixture
@@ -85,8 +97,66 @@ def make_relevance_assessment_factory():
             "prompt_decision_tree_service": Mock(),
             "llm": Mock(),
         }
-        return make_relevance_assessment(resources=resources)
+        try:
+            return make_relevance_assessment(resources=resources)
+        except Exception as e:
+            raise FixtureError(f"Error creating RelevanceAssessment instance: {e}") from e
     return _factory
+
+
+@pytest.fixture
+def valid_variable_args():
+    """Provide a valid variable definition dictionary."""
+    return {
+        "label": "test_variable",
+        "item_name": "Test Variable",
+        "description": "A test variable for relevance assessment.",
+        "units": "units",
+    }
+
+@pytest.fixture
+def valid_variable_args_with_optionals(valid_variable_args):
+    """Provide a valid variable definition dictionary."""
+    output_dict = {
+        "assumptions": ["Some assumptions"],
+        "prompt_decision_tree": {"step1": "What is the value?"},
+    }
+    output_dict.update(valid_variable_args)
+    return output_dict
+
+
+@pytest.fixture
+def make_variable_factory(valid_variable_args):
+    """Factory for creating Variable instances with overrides."""
+    def _make_variable(overrides: dict = {}) -> Variable:
+        var_data = valid_variable_args.copy()
+
+        if not isinstance(overrides, dict):
+            raise FixtureError(f"Overrides must be a dictionary, got {type(overrides).__name__}.")
+        var_data.update(overrides)
+
+        try:
+            variable = Variable(**var_data)
+            return variable
+        except Exception as e:
+            raise FixtureError(f"Error creating Variable instance: {e}") from e
+    return _make_variable
+
+
+valid_variable = pytest.fixture(make_variable_factory())
+
+
+@pytest.fixture
+def make_expected_cid():
+    def _make_expected_cid(string: str) -> str:
+        """Generate expected CID for a given document index."""
+        try:
+            return get_cid(string)
+        except ValidationError as e:
+            raise FixtureError(f"Validation error generating expected CID for string '{string}': {e}") from e
+        except Exception as e:
+            raise FixtureError(f"Error generating expected CID for string '{string}': {e}") from e
+    return _make_expected_cid
 
 
 @pytest.fixture
@@ -99,7 +169,9 @@ def relevance_assessment(make_relevance_assessment_factory) -> RelevanceAssessme
 def documents_small(constants):
     """Provide small set of test documents."""
     count = constants['NUM_SMALL_TEST_DOCUMENTS']
-    return [{"id": f"doc{i}", "content": f"Content {i}"} for i in range(count)]
+    return [
+        {"id": f"doc{i}", "content": f"Content {i}"} for i in range(count)
+    ]
 
 
 @pytest.fixture
@@ -195,23 +267,30 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         THEN expect result to be a dictionary.
         """
         result = relevance_assessment.run(documents_small, variable_def)
-        assert isinstance(result, dict), f"Expected dict but got {type(result)}"
+        assert isinstance(result, dict), f"Expected result to be dict but got {type(result)}"
 
-    @pytest.mark.parametrize("expected_key", [
-        "relevant_pages",
-        "relevant_doc_ids",
-        "page_numbers",
-        "relevance_scores",
-    ])
     def test_when_calling_control_flow_then_contains_required_keys(
-        self, expected_key, relevance_assessment, documents_small, variable_def):
+        self, relevance_assessment, make_expected_cid, documents_small, variable_def):
         """
         GIVEN a list of potentially relevant documents
         WHEN run is called with documents and variable definition
-        THEN expect response to contain all required keys.
+        THEN expect response keys to be document CIDs
         """
+        expected_cid = make_expected_cid()
         result = relevance_assessment.run(documents_small, variable_def)
-        assert expected_key in result, f"Expected key '{expected_key}' in result but got {list(result.keys())}"
+        assert expected_cid in result, f"Expected CID '{expected_cid}' in result but got {list(result.keys())}"
+
+    def test_when_calling_control_flow_then_contains_key_values_are_expected_types():
+        """
+        GIVEN a list of potentially relevant documents
+        WHEN run is called with documents and variable definition
+        THEN expect the response values to be Document instances.
+        """
+        expected_cid = make_expected_cid()
+        result = relevance_assessment.run(documents_small, variable_def)
+        value = result[expected_cid]
+        assert isinstance(value, Document), f"Expected value for key '{expected_cid}' to be Document, but got {type(value)}"
+
 
 
 class TestRelevanceAssessmentFiltersDocumentsbyCriteriaThreshold:

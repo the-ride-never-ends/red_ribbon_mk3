@@ -123,7 +123,7 @@ def _make_class_instance(class_ : Class, class_name: str, configs, name: str) ->
         See: https://stackoverflow.com/questions/4821104/dynamic-instantiation-from-string-name-of-a-class-in-dynamically-imported-module
     """
     # cls = getattr(class_, class_name)
-    return class_(_get_resources_for(class_name, configs, name), configs)
+    return class_(_get_resources_for(class_name, configs, name), configs)  # type: ignore[operator]
 
 
 def instantiate(resources: dict[str, Class], configs, name: str) -> dict[str, ClassInstance]:

@@ -1,18 +1,26 @@
 """
 ELM decision trees.
 """
-import networkx as nx
 import logging
-from typing import Any, Never, TypeVar
+from typing import Any, Never, Protocol
 
 
-ApiBase = TypeVar('ApiBase')
+import networkx as nx  # type: ignore[import-untyped]
+
+
+class ApiBase(Protocol):
+    """Protocol for API objects used in decision trees."""
+    messages: list[dict[str, Any]]
+    all_messages_txt: str
+    
+    def chat(self, prompt: str) -> str:
+        ...
 
 
 logger = logging.getLogger(__name__)
 
 
-def log_then_raise(exc: Exception, msg: str) -> Never:
+def log_then_raise(exc: type[Exception], msg: str) -> Never:
     """Log a message then raise an exception associated with it."""
     logger.error(msg)
     raise exc(msg)
@@ -22,7 +30,7 @@ class DecisionTree:
     prompts and edges are transitions between prompts based on conditions
     being met in the LLM response."""
 
-    def __init__(self, graph):
+    def __init__(self, graph: nx.DiGraph) -> None:
         """Class to traverse a directed graph of LLM prompts. Nodes are
         prompts and edges are transitions between prompts based on conditions
         being met in the LLM response.
@@ -94,7 +102,7 @@ class DecisionTree:
         return self.graph.graph['api']
 
     @property
-    def messages(self) -> list[str]:
+    def messages(self) -> list[dict[str, Any]]:
         """List of conversation messages with the LLM."""
         return self.api.messages
 
@@ -134,7 +142,7 @@ class DecisionTree:
 
         return self._parse_graph_output(node_name, out)
 
-    def _prepare_graph_call(self, node_name):
+    def _prepare_graph_call(self, node_name: str) -> str:
         """Prepare a graph call for given node."""
         # Get the prompt from the node
         prompt = self[node_name]['prompt']

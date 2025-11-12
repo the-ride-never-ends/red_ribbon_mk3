@@ -46,7 +46,7 @@ class DocumentStorageConfigs(BaseModel):
     cache_ttl_seconds: int = 3600
     batch_size: int = 100
     vector_dim: int = 1536  # Common dimension for embeddings like OpenAI's
-    storage_type: StorageType = "sql"
+    storage_type: StorageType = StorageType.SQL
 
 
 

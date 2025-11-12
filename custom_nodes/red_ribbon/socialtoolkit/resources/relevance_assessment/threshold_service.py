@@ -89,18 +89,24 @@ class ThresholdService:
         
         for item in results:
             # Extract score based on item type
+            score: float
             if score_accessor:
                 # Use provided accessor function
-                score = score_accessor(item)
+                accessor_output = score_accessor(item)
+                assert isinstance(accessor_output, float), "Score accessor must return a float"
+                score = float()
             elif isinstance(item, float):
                 # Item is a score
                 score = item
             elif isinstance(item, dict):
                 # Item is a dict, look for score
-                score = item.get("score", item.get("relevance_score", 0.0))
+                assert "score" in item, "Dictionary item must contain 'score' key"
+                score = item["score"]
+                assert isinstance(score, float), "'score' value must be a float"
             elif isinstance(item, tuple) and len(item) >= 2:
                 # Item is a tuple with score as second element
                 score = item[1]
+                assert isinstance(score, float), "Second element of tuple must be a float score"
             else:
                 # Can't determine score
                 score = 0.0

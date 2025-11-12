@@ -65,7 +65,7 @@ class AsyncDecisionTree(DecisionTree):
         return self.graph.graph["chat_llm_caller"]
 
     @property
-    def messages(self) -> list[str]:
+    def messages(self) -> list[dict[str, str]]:
         """Get a list of the conversation messages with the LLM.
 
         Returns:
@@ -80,11 +80,11 @@ class AsyncDecisionTree(DecisionTree):
         Returns:
             A print out of the full conversation with the LLM
         """
-        messages = [
+        message_lines = [
             f"{msg['role'].upper()}: {msg['content']}" for msg in self.messages
         ]
-        messages = "\n\n".join(messages)
-        return messages
+        messages_text = "\n\n".join(message_lines)
+        return messages_text
 
     async def async_call_node(self, node0: str) -> str:
         """Call the LLM with the prompt from the input node and search the

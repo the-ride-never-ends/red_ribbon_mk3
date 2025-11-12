@@ -5,10 +5,11 @@ Version: 0.1.0
 """
 import os
 import time
-from typing import Callable, Type, TypeVar, Optional
+from typing import Any, Optional, TypeVar, Optional
+import logging
 
 
-DEMO_MODE = True
+DEMO_MODE: bool = True
 
 
 from ._custom_errors import (
@@ -22,7 +23,6 @@ from ._custom_errors import (
 
 
 try:
-    import rich
     from rich.console import Console
     import torch
     import comfy # type: ignore
@@ -30,7 +30,11 @@ try:
     from torch import Tensor, nn
     import comfy.utils # type: ignore
 except ImportError as e:
-    raise LibraryDependencyError(f"Critical import not found. Please install Comfy to use this package.\n{e}") from e
+    import traceback
+    raise LibraryDependencyError(
+        f"Critical import not found. Please install Comfy to use this package.\n{e}\n{traceback.format_exc()}"
+    ) from e
+
 
 try:
     from .custom_easy_nodes import (
@@ -39,18 +43,19 @@ try:
         StringInput,
         Choice,
         register_type,
+        show_text
     )
     from .custom_easy_nodes.easy_nodes import AnythingVerifier
     from .socialtoolkit import SocialToolkitAPI
     from .red_ribbon_core import RedRibbonAPI
     from .plug_in_play_transformer import PlugInPlayTransformerAPI
 
-    # Utility functions
-    from .utils_.configs import Configs # TODO figure out what the hell is up with imports. It makes EasyNodes not so easy to debug!
-    from .utils_ import DatabaseAPI, make_duckdb_database
-    from .utils_ import LLM
-    from .utils_ import make_logger
-    from .utils_.main_.red_ribbon_banner import get_red_ribbon_banner
+    # Utility classes and functions
+    # TODO figure out what the hell is up with imports. It makes EasyNodes not so easy to debug!
+    from .utils_ import (
+        Configs, LLM, make_logger, DatabaseAPI, 
+        make_duckdb_database, get_red_ribbon_banner, instantiate
+    )
     from ._custom_types import register_custom_types
 
     # Types
@@ -73,6 +78,7 @@ Class = TypeVar('Class')
 ClassInstance = TypeVar('ClassInstance')
 
 
+
 class RedRibbon:
     """Main interface for the Red Ribbon package"""
     _instance: 'RedRibbon' = None
@@ -84,7 +90,7 @@ class RedRibbon:
             cls._instance = super(RedRibbon, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, *, resources: dict[str, Callable], configs: Configs) -> None:
+    def __init__(self, *, resources: dict[str, Any], configs: Configs) -> None:
         """Initialize the Red Ribbon package components"""
         if RedRibbon._initialized:
             return  # Prevent re-initialization
@@ -93,15 +99,15 @@ class RedRibbon:
         print(f"_call_count == {self._call_count}")
 
         self.configs = configs
-        self.resources = resources or {}
-        self.logger = make_logger(self.__class__.__name__)
-        self.console = self.resources["console"]
+        self.resources = resources
+        self.logger: logging.Logger = self.resources["logger"]
+        self.console: Console = self.resources["console"]
 
-        self.socialtoolkit: Type[SocialToolkitAPI]         = self.resources.get("social")
-        self.database:      Type[DatabaseAPI]              = self.resources.get("database")
-        self.llm:           Type[LLM]                      = self.resources.get("llm")
-        self.rr:            Type[RedRibbonAPI]             = self.resources.get("rr")
-        self.trans:         Type[PlugInPlayTransformerAPI] = self.resources.get("trans")
+        self.socialtoolkit: Optional[SocialToolkitAPI]         = self.resources.get("social")
+        self.database:      Optional[DatabaseAPI]              = self.resources.get("database")
+        self.llm:           Optional[LLM]                      = self.resources.get("llm")
+        self.rr:            Optional[RedRibbonAPI]             = self.resources.get("rr")
+        self.trans:         Optional[PlugInPlayTransformerAPI] = self.resources.get("trans")
         # TODO insert the class back when done debugging
         # self.utils: ModuleType                   = self.resources["utils"]
 
@@ -170,8 +176,9 @@ def _make_red_ribbon() -> RedRibbon:
         _resources = {
             #"social": SocialToolkitAPI(SocialToolKitResources(configs).resources, configs),
             # "rr": RedRibbonAPI(rr_resources, configs),
-            "trans": PlugInPlayTransformerAPI(configs=configs),
             # "utils": UtilsAPI(utils_resources, configs)
+            "logger": make_logger("RedRibbon"),
+            "trans": PlugInPlayTransformerAPI(configs=configs),
             "database": make_duckdb_database(configs=configs),
             "console": Console(),
         }
@@ -194,6 +201,10 @@ red_ribbon = _make_red_ribbon()
 #####################
 
 
+def _raise_if_no_socialtoolkit() -> None:
+    if red_ribbon.socialtoolkit is None:
+        raise RedRibbonError("SocialToolkitAPI is not initialized in RedRibbon.")
+
 @ComfyNode(
     category="Socialtoolkit",
     color="#1f1f1f",
@@ -201,11 +212,11 @@ red_ribbon = _make_red_ribbon()
     always_run=True,
     display_name="Database")
 def database_enter(
-    type: str = Choice(["DuckDB","SQLite", "PostgreSQL", "MySQL"]),
-    username: str = StringInput("", multiline=False),
-    password: str = StringInput("", multiline=False),
-    port: int = NumberInput(default=3306),
-    timeout: int = NumberInput(default=30, min=1, max=300, step=1)
+    type: str = Choice(["DuckDB","SQLite", "PostgreSQL", "MySQL"]), # type: ignore[assignment]
+    username: str = StringInput("", multiline=False), # type: ignore[assignment]
+    password: str = StringInput("", multiline=False), # type: ignore[assignment]
+    port: int = NumberInput(default=3306), # type: ignore[assignment]
+    timeout: int = NumberInput(default=30, min=1, max=300, step=1) # type: ignore[assignment]
 ) -> Data:
     """
     Select a database type to use in the pipeline.
@@ -231,6 +242,8 @@ def database_enter(
                 host = "localhost" 
                 db_name = "red_ribbon"
                 configs.connection_string = f"mysql+pymysql://{username}:{password}@{host}:{port}/{db_name}"
+            case _:
+                raise ValueError(f"Unknown database type: {type}")
         configs.timeout = timeout
 
         # Select the database type and initialize is as a DatabaseAPI
@@ -253,12 +266,13 @@ def database_enter(
     display_name="Get links from the file",
     return_names=["links"],)
 def load_data(
-    the_file: str = StringInput("links.xlsx", multiline=False),
+    the_file: str = StringInput("links.xlsx", multiline=False), # type: ignore[assignment]
 ) -> Urls:
     if DEMO_MODE:
         from .socialtoolkit import demo_load_data
         urls = demo_load_data()
     else:
+        _raise_if_no_socialtoolkit()
         print("Loading URLs from input file...")
         urls = red_ribbon.socialtoolkit.execute(
             "load_data",
@@ -283,6 +297,7 @@ def document_retrieval_from_websites(
         from .socialtoolkit import demo_document_retrieval_from_websites
         return demo_document_retrieval_from_websites(links)
     else:
+        _raise_if_no_socialtoolkit()
         #with DatabaseAPI() as db: # TODO
         return red_ribbon.socialtoolkit.execute(
             "document_retrieval_from_websites",
@@ -308,6 +323,7 @@ def document_storage(
         from .socialtoolkit import demo_document_storage
         return demo_document_storage()
     else:
+        _raise_if_no_socialtoolkit()
         return red_ribbon.socialtoolkit.execute(
             "document_storage",
             db_service=None,
@@ -324,7 +340,7 @@ def document_storage(
     display_name="The Question",
     return_names=["Question"],)
 def input_text(
-    question: str = StringInput("Local Sales Tax in Cheyenne, WY", multiline=True),
+    question: str = StringInput("Local Sales Tax in Cheyenne, WY", multiline=True), # type: ignore[assignment]
 ) -> str:
     """
     Input text for the pipeline.
@@ -342,7 +358,7 @@ def input_text(
 def top10_document_retrieval(
     question: str,
     laws: Laws,
-    return_how_many: int = NumberInput(default=10, min=1, max=100, step=1, display="slider")
+    return_how_many: int = NumberInput(default=10, min=1, max=100, step=1, display="slider") # type: ignore[assignment]
 ) -> Laws:
     """
     Get a list of the top X documents based on a data point.
@@ -352,6 +368,7 @@ def top10_document_retrieval(
         from .socialtoolkit import demo_top10_document_retrieval
         return demo_top10_document_retrieval(laws, return_how_many)
     else:
+        _raise_if_no_socialtoolkit()
         return red_ribbon.socialtoolkit.execute(
             "top10_document_retrieval",
             question,
@@ -368,8 +385,8 @@ def top10_document_retrieval(
     display_name="Use AI to find the laws we want.",)
 def relevance_assessment(
         laws: Laws, 
-        ai: LlmApi, 
-        return_how_many: int = NumberInput(default=3, min=1, max=100, step=1, display="slider") # Dummy slider.
+        ai: LlmApi, # NOTE return_how_many is a dummy slider to keep the UI consistent
+        return_how_many: int = NumberInput(default=3, min=1, max=100, step=1, display="slider") # type: ignore[assignment]
     ) -> Laws:
     """
     Determine how relevant a list of documents are to a query.
@@ -377,18 +394,24 @@ def relevance_assessment(
     _ = return_how_many
     if DEMO_MODE:
         from .socialtoolkit import demo_relevance_assessment
-        question = demo_relevance_assessment()
+        return demo_relevance_assessment()
     else:
         print("Running relevance assessment...")
-        with open("question.txt", "r") as f:
-            question = f.read()
+        _raise_if_no_socialtoolkit()
+        try:
+            with open("question.txt", "r") as f:
+                question = f.read()
+        except Exception as e:
+            raise IOError(f"Failed to read question from 'question.txt': {e}") from e
+
         documents = red_ribbon.socialtoolkit.execute(
             "relevance_assessment",
             question,
             documents=laws, 
             llm=ai
         )
-    return question
+        return documents
+
 
 
 @ComfyNode(
@@ -410,6 +433,7 @@ def variable_codebook(
         answer = demo_variable_codebook(question)
     else:
         print("Loading variable codebook...")
+        _raise_if_no_socialtoolkit()
         try:
             with DatabaseAPI() as db:
                 prompts = red_ribbon.socialtoolkit.execute(
@@ -441,11 +465,17 @@ def prompt_decision_tree(
         answer = demo_prompt_decision_tree()
     else:
         documents = laws
-        with open("question.txt", "r") as f:
-            question = f.read()
+        _raise_if_no_socialtoolkit()
+        try:
+            with open("question.txt", "r") as f:
+                question = f.read()
+        except Exception as e:
+            raise IOError(f"Failed to read question from 'question.txt': {e}") from e
+
         print("Loading codebook entry...")
         prompts = variable_codebook(question)
         print("Running prompt decision tree...")
+
         answer = red_ribbon.socialtoolkit.execute(
             "prompt_decision_tree",
             question,
@@ -465,8 +495,8 @@ def prompt_decision_tree(
     always_run=True,
     return_names=["AI"],)
 def llm_api(
-    instructions: Prompts = None,
-    name: str = Choice(["gpt-4o"]),
+    instructions: Prompts | None = None,
+    name: str = Choice(["gpt-4o"]), # type: ignore[assignment]
 ) -> LlmApi:
     """
     Load a large language model (LLM) from a local file or API.
@@ -481,6 +511,9 @@ def llm_api(
         llm = demo_llm_api(name, instructions, red_ribbon)
     else:
         print("Loading LLM...")
+
+        _raise_if_no_socialtoolkit()
+
         llm = red_ribbon.socialtoolkit.execute(
             "llm",
             model_name=name,
@@ -504,14 +537,24 @@ def answer(
     """
     Display the LLM's answer.
     """
+    _ = answer
     if DEMO_MODE:
         from .socialtoolkit._demo_mode import demo_answer
         demo_answer()
+    else:
+        match answer:
+            case str():
+                show_text(answer)
+            case list():
+                for line in answer:
+                    show_text(line)
+            case _:
+                raise TypeError(f"Answer must be a string or a list of strings, got {type(answer).__name__}.")
     return 
 
 
 # Main function that can be called when using this as a script
-def main():
+def main() -> None:
     print("Red Ribbon package loaded successfully")
     print(f"Version: {red_ribbon.version()}")
     print("Available components:")

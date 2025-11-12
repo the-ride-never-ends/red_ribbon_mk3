@@ -50,6 +50,8 @@ types-colorama
 types-tqdm
 types-PyYAML
 scipy-stubs
+types-networkx 
+pandas-stubs 
 
 # non essential dependencies:
 kornia>=0.7.1

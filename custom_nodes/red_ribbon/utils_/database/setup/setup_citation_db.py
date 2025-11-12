@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import sqlite3
-
+from typing import Optional
 
 import duckdb
 
@@ -10,7 +10,7 @@ import duckdb
 
 
 
-def setup_citation_db(db_path: Path = None, use_duckdb: bool = True) -> sqlite3.Connection | duckdb.DuckDBPyConnection:
+def setup_citation_db(db_path: Optional[Path] = None, use_duckdb: bool = True) -> sqlite3.Connection | duckdb.DuckDBPyConnection:
     """
     Set up the citation database schema.
     
@@ -22,20 +22,24 @@ def setup_citation_db(db_path: Path = None, use_duckdb: bool = True) -> sqlite3.
         Database connection object
     """
     from custom_nodes.red_ribbon.utils_.configs import configs
+    from custom_nodes.red_ribbon.utils_.logger import logger
 
     # Use default path if none provided
     db_path = db_path or configs.database.AMERICAN_LAW_DATA_DIR / "american_law.db"
-    
+
     # Use DuckDB if requested, otherwise fallback to SQLite
-    if use_duckdb:
-        return _setup_citation_db_duckdb(db_path)
-    else:
-        return _setup_citation_db_sqlite(db_path)
+    try:
+        if use_duckdb:
+            return _setup_citation_db_duckdb(db_path)
+        else:
+            return _setup_citation_db_sqlite(db_path)
+    except Exception as e:
+        logger.exception(f"Unexpected error setting up citation database: {e}")
+        raise e
 
-
-def _setup_citation_db_sqlite(db_path: str) -> sqlite3.Connection:
+def _setup_citation_db_sqlite(db_path: Path) -> sqlite3.Connection:
     """Setup citation database with SQLite."""
-    if not os.path.exists(db_path):
+    if not db_path.is_file():
         # Connect to SQLite database
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -95,11 +99,12 @@ def _setup_citation_db_sqlite(db_path: str) -> sqlite3.Connection:
     return conn
 
 
-def _setup_citation_db_duckdb(db_path: str) -> duckdb.DuckDBPyConnection:
+def _setup_citation_db_duckdb(db_path: Path) -> duckdb.DuckDBPyConnection:
     """Setup citation database with DuckDB."""
     # Connect to DuckDB database
+    # NOTE: No file check since duckdb will create the file if it does not exist
     conn = duckdb.connect(db_path)
-    
+
     # Check if table exists
     result = conn.execute('''
     SELECT name FROM sqlite_master WHERE type='table' AND name='citations'

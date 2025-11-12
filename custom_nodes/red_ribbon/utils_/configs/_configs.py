@@ -2,12 +2,23 @@
 Configs module - Configuration constants loaded from YAML files.
 """
 import logging
+import os
 from pathlib import Path
 from typing import Any, Optional, Literal
 
 
 
-from pydantic import BaseModel, DirectoryPath, Field, FilePath, PositiveInt, NonNegativeInt, SecretStr
+from pydantic import (
+    BaseModel, 
+    DirectoryPath, 
+    Field, 
+    FilePath, 
+    PositiveInt, 
+    PositiveFloat, 
+    NonNegativeInt, 
+    SecretStr, 
+    ValidationError
+)
 import yaml
 
 from custom_nodes.red_ribbon._custom_errors import ConfigurationError
@@ -16,6 +27,9 @@ from ..common.get_value_with_default_from_base_model import get_value_with_defau
 
 
 _VERSION_DIR = Path(__file__).parent.parent.parent
+
+
+assert (_VERSION_DIR / "__version__.py").exists(), f"_VERSION_DIR is incorrectly specified: {_VERSION_DIR}"
 
 
 class DatabaseConfigs(BaseModel):
@@ -37,8 +51,8 @@ class Paths(BaseModel):
     SOCIALTOOLKIT_DIR:     DirectoryPath = VERSION_DIR / "socialtoolkit"
     DATABASE_DIR:          DirectoryPath = VERSION_DIR / "database"
     DB_PATH:               FilePath      = VERSION_DIR / "red_ribbon.db"
-    AMERICAN_LAW_DATA_DIR: DirectoryPath = VERSION_DIR / "data" / "american_law.db"
-    
+    AMERICAN_LAW_DATA_DIR: DirectoryPath = VERSION_DIR / "data"
+    AMERICAN_LAW_DB_PATH:  FilePath      = VERSION_DIR / "data" / "american_law.db"
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
@@ -64,9 +78,36 @@ class VariableCodebookConfigs(BaseModel):
         return get_value_with_default_from_base_model(self, key, default)
 
 
-import os
-
+# NOTE: All lower-case field names are considered mutable.
 class Configs(BaseModel):
+    """
+    Configuration constants for the red ribbon package.
+    All UPPER_CASE fields are read-only, lower_case fields are mutable.
+
+    Attributes:
+        database (DatabaseConfigs): Pydantic model of Database related configurations.
+        paths (Paths): Pydantic model of various important paths.
+        variable_codebook (VariableCodebookConfigs): Pydantic model of Variable Codebook configurations
+    
+        RETRIEVAL_COUNT (PositiveInt): Number of documents to retrieve.
+        similarity_threshold (float): Minimum similarity score.
+        RANKING_METHOD (str): Method for ranking documents. Options: cosine_similarity, dot_product, euclidean.
+        USE_FILTER (bool): Whether to filter results.
+        FILTER_CRITERIA (dict[str, Any]): Criteria for filtering results.
+        USE_RERANKING (bool): Whether to use re-ranking.
+        OPENAI_API_KEY (SecretStr): OpenAI API key.
+        OPENAI_MODEL (str): OpenAI model to use.
+        OPENAI_SMALL_MODEL (str): Smaller OpenAI model to use.
+        OPENAI_EMBEDDING_MODEL (str): OpenAI embedding model to use.
+        EMBEDDING_DIMENSIONS (PositiveInt): Dimensions of the embeddings.
+        TEMPERATURE (PositiveFloat): Temperature setting for the LLM.
+        MAX_TOKENS (PositiveInt): Maximum tokens for the LLM.
+        LOG_LEVEL (Literal[10, 20, 30, 40, 50]): Logging level.
+        SIMILARITY_SCORE_THRESHOLD (float): Similarity score threshold.
+        SEARCH_EMBEDDING_BATCH_SIZE (NonNegativeInt): Batch size for searching embeddings.
+        connection_string (Optional[str]): Database connection string.
+        timeout (Optional[PositiveInt]): Database timeout in seconds.
+    """
     database:          DatabaseConfigs = Field(default_factory=DatabaseConfigs)
     paths:             Paths = Field(default_factory=Paths)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
@@ -80,19 +121,35 @@ class Configs(BaseModel):
     USE_RERANKING: bool = False  # Whether to use re-ranking
 
     # LLM
-    OPENAI_API_KEY:                   SecretStr = Field(default_factory=os.environ.get("OPENAI_API_KEY", ""), min_length=1)
+    OPENAI_API_KEY:                   SecretStr = Field(default_factory=lambda: SecretStr(os.environ.get("OPENAI_API_KEY", "")), min_length=1)
     OPENAI_MODEL:                     str = Field(default="gpt-4o-mini", min_length=1)
     OPENAI_SMALL_MODEL:               str = Field(default="gpt-5-nano", min_length=1)
     OPENAI_EMBEDDING_MODEL:           str = Field(default="text-embedding-3-small", min_length=1)
+    EMBEDDING_DIMENSIONS:             PositiveInt = 1536
+    TEMPERATURE:                      PositiveFloat = 0.0
+    MAX_TOKENS:                       PositiveInt = 4096
     LOG_LEVEL:                        Literal[10, 20, 30, 40, 50] = logging.DEBUG
     SIMILARITY_SCORE_THRESHOLD:       float = 0.4
     SEARCH_EMBEDDING_BATCH_SIZE:      NonNegativeInt = 10000
 
+    connection_string:                Optional[str] = None  # Database connection string
+    timeout:                          Optional[PositiveInt] = None  # Database timeout in seconds
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if not isinstance(name, str):
+            raise TypeError(f"Attribute name must be a string, got {type(name.__name__)}")
+        if name.isupper():
+            raise ConfigurationError(f"Cannot modify read-only configuration: {name}")
+        return super().__setattr__(name, value) 
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
 
     def __setitem__(self, key: str, value: Any) -> None:
+        if not isinstance(key, str):
+            raise TypeError(f"Key must be a string, got {type(key.__name__)}")
+        if key.isupper():
+            raise ConfigurationError(f"Cannot modify read-only configuration key: {key}")
         try:
             setattr(self, key, value)
         except AttributeError:
@@ -103,8 +160,10 @@ class Configs(BaseModel):
 
 try:
     configs = Configs()
+except ValidationError as e:
+    raise ConfigurationError(f"Default global configs failed to validate in _configs.py: {e}") from e
 except Exception as e:
-    raise ConfigurationError(f"Failed to initialize Configs in _configs.py: {e}") from e
+    raise ConfigurationError(f"Unexpected error while initializing global configs in _configs.py: {e}") from e
 
 # class Paths(BaseModel):
 #     THIS_FILE = Path(__file__).resolve()

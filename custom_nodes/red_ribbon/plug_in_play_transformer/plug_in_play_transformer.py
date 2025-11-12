@@ -1,16 +1,13 @@
 """
 Plug-in-Play Transformer - Build and train LLMs without knowing how to code!
 """
-
-
-
-
 import logging
 import random
+from typing import Any, Optional
 
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 from torch.nn import Dropout
 
 from ..custom_easy_nodes.easy_nodes import (
@@ -21,13 +18,11 @@ from ..custom_easy_nodes.easy_nodes import (
     Choice,
     register_type
 )
+
 from ..custom_easy_nodes.comfy_types import (
     ImageTensor,
     LatentTensor
 )
-
-
-
 
 # Piece-wise Attention
 from .attention import (
@@ -231,11 +226,11 @@ for this_class in register_these_classes:
            return_names=["output"])
 def forward(
         x: Tensor, 
-        number_of_attention_heads: int = NumberInput(default=8, min=1, max=1128, step=1),
-        number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16),
-        block_size: int = NumberInput(default=1024, min=1, max=8192),
-        attention_dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05),
-        resid_dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+        number_of_attention_heads: int = NumberInput(default=8, min=1, max=1128, step=1), # type: ignore[assignment]
+        number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16), # type: ignore[assignment]
+        block_size: int = NumberInput(default=1024, min=1, max=8192), # type: ignore[assignment]
+        attention_dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05), # type: ignore[assignment]
+        resid_dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05) # type: ignore[assignment]
     ) -> Tensor:
 
     qkv_node = QKVProjectionNode()
@@ -290,8 +285,8 @@ def my_is_changed_func():
            return_names=["output"])
 def project_output(
     attended_tensor: Tensor, # y
-    number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16),
-    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+    number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16), # type: ignore[assignment]
+    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05) # type: ignore[assignment]
     ) -> Tensor:
     """
     Node that applies final projection and dropout to attention output.
@@ -317,8 +312,8 @@ def project_output(
 def calculate_attention(
     q: Tensor, 
     k: Tensor, 
-    block_size: int = NumberInput(default=1024, min=1, max=8192), 
-    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+    block_size: int = NumberInput(default=1024, min=1, max=8192), # type: ignore[assignment]
+    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05) # type: ignore[assignment]
     ) -> Tensor:
 
     node = CalculateCausalAttentionMatrixNode()
@@ -334,8 +329,8 @@ def calculate_attention(
            return_names=["q","k","v"])
 def qkv_projection(
     x: Tensor, 
-    number_of_attention_heads: int = NumberInput(default=8, min=1, max=1128, step=1), 
-    number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16), 
+    number_of_attention_heads: int = NumberInput(default=8, min=1, max=1128, step=1), # type: ignore[assignment]
+    number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16),  # type: ignore[assignment]
     ) -> tuple[Tensor, Tensor, Tensor]:
     """
     Node that projects input embeddings into query, key, and value vectors for multi-head attention.
@@ -363,7 +358,7 @@ def qkv_projection(
 def apply_attention(
     attention: Tensor, 
     v: Tensor, 
-    number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16), 
+    number_of_embeddings: int = NumberInput(default=512, min=16, max=8192, step=16), # type: ignore[assignment]
     ) -> Tensor:
     """
     Node that applies attention scores to values.
@@ -389,8 +384,8 @@ def apply_attention(
            return_names=["normalized_tensor"])
 def layer_norm(
     x: Tensor,
-    normalized_shape: int = NumberInput(default=512, min=16, max=8192, step=16),
-    eps: float = NumberInput(default=1e-5, min=1e-10, max=1e-2, step=1e-6),
+    normalized_shape: int = NumberInput(default=512, min=16, max=8192, step=16), # type: ignore[assignment]
+    eps: float = NumberInput(default=1e-5, min=1e-10, max=1e-2, step=1e-6), # type: ignore[assignment]
     ) -> Tensor:
     """
     Node that applies layer normalization.
@@ -415,9 +410,9 @@ def layer_norm(
         return_names=["mlp_output"])
 def mlp_node(
     x: Tensor,
-    expansion_factor: float = NumberInput(default=4.0, min=1.0, max=8.0, step=0.5),
-    activation_function: str = Choice(["gelu", "relu", "silu", "swish"]),
-    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+    expansion_factor: float = NumberInput(default=4.0, min=1.0, max=8.0, step=0.5), # type: ignore[assignment]
+    activation_function: str = Choice(["gelu", "relu", "silu", "swish"]), # type: ignore[assignment]
+    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05) # type: ignore[assignment]
     ) -> Tensor:
     """
     Node that applies MLP transformation.
@@ -443,9 +438,9 @@ def mlp_node(
         return_names=["mlp_output"])
 def custom_mlp_node(
     x: Tensor,
-    expansion_factor: float = NumberInput(default=4.0, min=1.0, max=8.0, step=0.5),
-    activation_function: str = Choice(["gelu", "relu", "silu", "swish"]),
-    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05)
+    expansion_factor: float = NumberInput(default=4.0, min=1.0, max=8.0, step=0.5), # type: ignore[assignment]
+    activation_function: str = Choice(["gelu", "relu", "silu", "swish"]), # type: ignore[assignment]
+    dropout_rate: float = NumberInput(default=0.1, min=0.0, max=0.9, step=0.05) # type: ignore[assignment]
     ) -> Tensor:
     node = CustomFunctionNode()
     kwargs = {
@@ -501,12 +496,12 @@ def architecture_from_node_graph(node_graph):
         return_names=["model_config"])
 def generate_architecture(
                         embedding_dim: int, #= NumberInput(default=512, min=16, max=4096, step=1),
-                        num_heads: int = NumberInput(default=8, min=1, max=128, step=1), 
-                        num_layers: int = NumberInput(default=12, min=1, max=1000000, step=1),
-                        attention_type: str = Choice(["standard", "flash", "linear", "local", "sparse"]),
-                        mlp_type:  str = Choice(["standard", "gated", "swiglu", "geglu"]),
-                        normalization_type: str = Choice(["layernorm", "rmsnorm", "scalednorm"]),
-                        positional_encoding: str = Choice(["sinusoidal", "learned", "rotary", "alibi"])
+                        num_heads: int = NumberInput(default=8, min=1, max=128, step=1),  # type: ignore[assignment]
+                        num_layers: int = NumberInput(default=12, min=1, max=1000000, step=1), # type: ignore[assignment]
+                        attention_type: str = Choice(["standard", "flash", "linear", "local", "sparse"]), # type: ignore[assignment]
+                        mlp_type:  str = Choice(["standard", "gated", "swiglu", "geglu"]), # type: ignore[assignment]
+                        normalization_type: str = Choice(["layernorm", "rmsnorm", "scalednorm"]), # type: ignore[assignment]
+                        positional_encoding: str = Choice(["sinusoidal", "learned", "rotary", "alibi"]) # type: ignore[assignment]
                         ) -> str:
     """Node that allows exploring different transformer model architectures.
     
@@ -558,9 +553,9 @@ def initial_tensor(
         return_names=["Image Tensor"])
 def visualize_tensor(
     x: Tensor, 
-    cmap: str = Choice(VisualizeTensorNode.COLOR_MAPS),
-    save_as: str = Choice(['jpeg', 'png', 'tiff', 'npy']),
-    comparison_method: str = Choice(VisualizeTensorNode.COMPARISON_METHODS)
+    cmap: str = Choice(VisualizeTensorNode.COLOR_MAPS), # type: ignore[assignment]
+    save_as: str = Choice(['jpeg', 'png', 'tiff', 'npy']), # type: ignore[assignment]
+    comparison_method: str = Choice(VisualizeTensorNode.COMPARISON_METHODS) # type: ignore[assignment]
 ) -> ImageTensor:
     """
     Visualize a tensor as an image.
@@ -590,9 +585,9 @@ def visualize_tensor(
         return_names=["Latent Tensor"])
 def visualize_latent(
     x: LatentTensor, 
-    cmap: str = Choice(VisualizeTensorNode.COLOR_MAPS),
-    save_as: str = Choice(['jpeg', 'png', 'tiff', 'npy']),
-    comparison_method: str = Choice(VisualizeTensorNode.COMPARISON_METHODS)
+    cmap: str = Choice(VisualizeTensorNode.COLOR_MAPS), # type: ignore[assignment]
+    save_as: str = Choice(['jpeg', 'png', 'tiff', 'npy']), # type: ignore[assignment]
+    comparison_method: str = Choice(VisualizeTensorNode.COMPARISON_METHODS) # type: ignore[assignment]
 ) -> ImageTensor:
     """
     Visualize a tensor as an image.
@@ -626,13 +621,16 @@ class PlugInPlayTransformerAPI:
     
     Importing this into main allows ComfyUI to pick up all the nodes defined here.
     """
-    def __init__(self, resources=None, configs=None):
+    def __init__(self, 
+                 resources: Optional[dict[str, Any]] = None, 
+                 configs: Optional[Any] = None
+                 ) -> None:
         self.configs = configs
         self.resources = resources
 
 
 # Main function that can be called when using this as a script
-def main():
+def main() -> None:
     print("Plug-in-Play Transformer module loaded successfully")
     print("Available tools:")
     print("- PiPTransformerNode: Node for ComfyUI integration")

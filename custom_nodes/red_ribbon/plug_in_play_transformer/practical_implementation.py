@@ -356,7 +356,7 @@ class VisualizeTensorNode:
             gc.collect()
 
         print(f"Visualization complete: {output_image.shape} {output_image.dtype}")
-        return (output_image,)
+        return (output_image,)  # type: ignore[return-value]
 
     def _prepare_tensor_for_visualization(self, x: Tensor, comparison_method: str) -> np.ndarray:
         """
@@ -409,8 +409,8 @@ class VisualizeTensorNode:
                 case "range":
                     tensor_np = np.ptp(tensor_np, axis=axis)  # peak-to-peak (max - min)
                 case "iqr":
-                    q75 = np.percentile(tensor_np, 75, axis=axis)
-                    q25 = np.percentile(tensor_np, 25, axis=axis)
+                    q75 = np.percentile(tensor_np, 75, axis=axis)  # type: ignore[assignment]
+                    q25 = np.percentile(tensor_np, 25, axis=axis)  # type: ignore[assignment]
                     tensor_np = q75 - q25
                     
                 # Percentiles
@@ -448,12 +448,12 @@ class VisualizeTensorNode:
                 # Means
                 case "geometric_mean":
                     # Handle negative values by using absolute values
-                    tensor_np = stats.gmean(np.abs(tensor_np) + 1e-10, axis=axis)
+                    tensor_np = stats.gmean(np.abs(tensor_np) + 1e-10, axis=axis)  # type: ignore[assignment]
                 case "harmonic_mean":
                     # Avoid division by zero
-                    tensor_np = stats.hmean(np.abs(tensor_np) + 1e-10, axis=axis)
+                    tensor_np = stats.hmean(np.abs(tensor_np) + 1e-10, axis=axis)  # type: ignore[assignment]
                 case "trimmed_mean_10":
-                    tensor_np = stats.trim_mean(tensor_np, 0.1, axis=axis)
+                    tensor_np = stats.trim_mean(tensor_np, 0.1, axis=axis)  # type: ignore[assignment]
                     
                 # Selection methods
                 case "first":

@@ -36,11 +36,11 @@ def calculate_llm_api_cost(prompt: str, data: str, out: str, model: str) -> Opti
     # Initialize the tokenizer for the GPT model
     if model not in MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS:
         logger.error(f"Model {model} not found in usage costs.")
-        return
+        return None
 
     if model not in tiktoken.model.MODEL_PREFIX_TO_ENCODING.keys() or model not in tiktoken.model.MODEL_TO_ENCODING.keys():
         logger.error(f"Model {model} not found in tiktoken.")
-        return
+        return None
 
     tokenizer = tiktoken.encoding_for_model(model)
 
@@ -57,8 +57,8 @@ def calculate_llm_api_cost(prompt: str, data: str, out: str, model: str) -> Opti
     output_tokens = len(response_tokens)
 
     # Actual costs per 1 million tokens
-    cost_per_1M_input_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["input"]
-    cost_per_1M_output_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["output"]
+    cost_per_1M_input_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["input"]  # type: ignore[index]
+    cost_per_1M_output_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["output"]  # type: ignore[index]
 
     if cost_per_1M_output_tokens is None:
         output_cost = 0
@@ -115,7 +115,7 @@ class AsyncLLMInput(BaseModel):
         else:
             return "No response generated. Please try again."
 
-    async def _get_embedding(self) -> List[float]:
+    async def _get_embedding(self) -> list[float]:
         """
         Generate an embedding of the user's message.
         
@@ -191,8 +191,17 @@ class LLMOutput(BaseModel):
     def response(self) -> Any:
         return self.response_parser(self.response)
 
-
-
+def _validate_texts(texts: list[str]) -> None:
+    """Type checker for list of texts"""
+    if not isinstance(texts, list):
+        raise TypeError(f"texts must be a list of strings, got {type(texts).__name__}")
+    if not texts:
+        raise ValueError("texts list cannot be empty")
+    for idx, txt in enumerate(texts):
+        if not isinstance(txt, str):
+            raise TypeError(f"item {idx} in texts must be a string, got {type(txt).__name__}")
+        if not txt.strip():
+            raise ValueError(f"item {idx} in texts cannot be an empty string")
 
 class OpenAiClient:
 
@@ -228,25 +237,49 @@ class OpenAiClient:
 
         logger.info(f"Initialized OpenAI client: LLM model: {self.model}, embedding model: {self.embedding_model}")
 
-    async def async_get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        response = await self.async_client.embeddings.create(
-            input=texts,
-            model=self.embedding_model
-        )
+    async def async_get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        """
+        Generate embeddings for a list of text inputs using OpenAI's embedding model.
+        
+        Args:
+            texts: List of text strings to generate embeddings for.
+            
+        Returns:
+            List of embedding vectors, where each vector is a list of floats.
+            
+        Raises:
+            OpenAIError: If the API call fails.
+        """
+        _validate_texts(texts)
+
+        try:
+            response = await self.async_client.embeddings.create(
+                input=texts,
+                model=self.embedding_model
+            )
+        except OpenAIError as e:
+            logger.error(f"OpenAIError generating embeddings with async_get_embeddings: {e}")
+            raise e
+
         # Extract the embedding vectors from the response
         return [data.embedding for data in response.data]
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        response = self.client.embeddings.create(
-            input=texts,
-            model=self.embedding_model
-        )
+    def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        _validate_texts(texts)
+        try:
+            response = self.client.embeddings.create(
+                input=texts,
+                model=self.embedding_model
+            )
+        except OpenAIError as e:
+            logger.error(f"OpenAIError generating embeddings with async_get_embeddings: {e}")
+            raise e
         # Extract the embedding vectors from the response
         return [data.embedding for data in response.data]
 
     async def async_get_response(self,
-                            user_message: str = None,
-                            system_prompt: str = None,
+                            user_message: str,
+                            system_prompt: str,
                             *,
                             return_raw_response: bool = False,
                             model: Optional[str] = None,
@@ -254,6 +287,14 @@ class OpenAiClient:
                             max_tokens: Optional[int] = None,
                             ) -> str:
         """
+        Args:
+            user_message: The user's message
+            system_prompt: The system prompt
+            return_raw_response: Whether to return the full API response or just the extracted content
+            model: Optional model to override the configuration default
+            temperature: Optional temperature to override the configuration default
+            max_tokens: Optional max tokens to override the configuration default
+        Returns:
         """
         try:
             _response = await self.async_client.chat.completions.create(
@@ -314,8 +355,9 @@ class AsyncLLMClient:
     
     def __init__(
         self, 
-        resources: dict = None,
-        configs: Configs = None,
+        *,
+        resources: dict[str, Any],
+        configs: Configs,
         api_key: str = None,
         model: str = "gpt-4o",
         embedding_model: str = "text-embedding-3-small",
@@ -337,7 +379,7 @@ class AsyncLLMClient:
         self.resources = resources
         self.configs = configs
 
-        self.api_key: str = api_key
+        self.api_key: str = configs.OPENAI_API_KEY
         if not self.api_key:
             raise ValueError("API key must be provided either as an argument or as an environment variable (e.g. EXPORT OPENAI_API_KEY=...)")
 
@@ -346,20 +388,20 @@ class AsyncLLMClient:
         self._execute_sql_query: Callable = self.resources['execute_sql_query']
 
         self.client = AsyncOpenAI(api_key=self.api_key)
-        self.model: str = model
-        self.embedding_model: str = embedding_model
-        self.embedding_dimensions: int = embedding_dimensions
-        self.temperature: float = temperature
-        self.max_tokens: int = max_tokens
-        
+        self.model: str = configs.OPENAI_MODEL
+        self.embedding_model: str = configs.OPENAI_EMBEDDING_MODEL
+        self.embedding_dimensions: int = configs.EMBEDDING_DIMENSIONS
+        self.temperature: float = configs.TEMPERATURE
+        self.max_tokens: int = configs.MAX_TOKENS
+
         # Set data paths
-        self.data_path: Path = configs.AMERICAN_LAW_DATA_DIR
-        self.db_path: Path = configs.AMERICAN_LAW_DB_PATH
+        self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
+        self.db_path: Path = configs.paths.AMERICAN_LAW_DB_PATH
 
         logger.info(f"Initialized AsyncLLMClient client")
 
 
-    async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for a list of text inputs using OpenAI's embedding model.
         
@@ -382,7 +424,7 @@ class AsyncLLMClient:
             raise e
 
 
-    async def get_single_embedding(self, text: str) -> List[float]:
+    async def get_single_embedding(self, text: str) -> list[float]:
         """
         Generate an embedding for a single text input.
         
@@ -403,7 +445,7 @@ class AsyncLLMClient:
         query: str, 
         gnis: Optional[str] = None, 
         top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[Dict[str, Any]]:
         """
         Search for relevant documents using embeddings.
         
@@ -481,7 +523,7 @@ class AsyncLLMClient:
 
         return results
 
-    def execute_sql_query(self, query: str, raise_on_e: bool = False) -> Optional[List[Dict[str, Any]]]:
+    def execute_sql_query(self, query: str, raise_on_e: bool = False) -> Optional[list[Dict[str, Any]]]:
         try:
             # Execute the query with the embedding as parameter
             return self._execute_sql_query(query)
@@ -492,7 +534,7 @@ class AsyncLLMClient:
             return []
 
 
-    async def query_database(self, query: str, limit: int = None) -> List[Dict[str, Any]]:
+    async def query_database(self, query: str, limit: int = None) -> list[Dict[str, Any]]:
         """
         Query the database for relevant laws.
         

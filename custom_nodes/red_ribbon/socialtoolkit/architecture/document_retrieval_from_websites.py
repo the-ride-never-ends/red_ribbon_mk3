@@ -2,10 +2,14 @@
 from enum import Enum
 import logging
 from typing import Dict, List, Any, Callable, Optional, Tuple, Union
+from datetime import datetime
 
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from custom_nodes.red_ribbon.utils_ import (
+    logger, DatabaseAPI, LLM
+)
 
 class WebpageType(str, Enum):
     STATIC = "static"
@@ -36,7 +40,7 @@ class DocumentRetrievalFromWebsites:
     """
     
     def __init__(self, *, 
-                 resources: dict[str, Callable],
+                 resources: dict[str, Any],
                 configs: DocumentRetrievalConfigs
         ) -> None:
         """
@@ -48,7 +52,9 @@ class DocumentRetrievalFromWebsites:
         """
         self.resources = resources
         self.configs = configs
-        self.logger = logging.getLogger(self.class_name)
+        self.logger: logging.Logger = resources['logger']
+        self.db: DatabaseAPI = resources["db"]
+        self.llm: LLM = resources["llm"]
 
         # Extract needed services from resources
         self.static_parser = resources["static_parser"]
@@ -58,13 +64,18 @@ class DocumentRetrievalFromWebsites:
         self.metadata_generator = resources["metadata_generator"]
         self.document_storage = resources["document_storage_service"]
         self.url_path_generator = resources["url_path_generator"]
-        
+        self._get_cid: Callable = resources["get_cid"]
+
+        assert hasattr(self.static_parser, 'parse'), "static_parser must have parse method"
+        assert hasattr(self.dynamic_parser, 'parse'), "dynamic_parser must have parse method"
+        assert hasattr(self.data_extractor, 'extract'), "data_extractor must have extract method"
+        assert hasattr(self.vector_generator, 'generate'), "vector_generator must have generate method"
+        assert hasattr(self.metadata_generator, 'generate'), "metadata_generator must have generate method"
+        assert hasattr(self.document_storage, 'store'), "document_storage must have store method"
+        assert hasattr(self.url_path_generator, 'generate'), "url_path_generator must have generate method"
+
         self.logger.info("DocumentRetrievalFromWebsites initialized with services")
 
-    @property
-    def class_name(self) -> str:
-        """Get class name for this service"""
-        return self.__class__.__name__.lower()
 
     def execute(self, 
         domain_urls: list[str]
@@ -85,10 +96,10 @@ class DocumentRetrievalFromWebsites:
             self.logger.error(f"Invalid domain URLs provided: {e}")
             raise ValueError(f"Invalid domain URLs provided: {e}") from e
 
-        all_documents = []
+        all_documents: list[dict[str, Any]] = []
         all_metadata = []
         all_vectors = []
-        
+
         for domain_url in domain_urls:
             # Step 1: Generate URLs from domain URL
             urls: list[str] = self._generate_urls(domain_url)
@@ -153,13 +164,31 @@ class DocumentRetrievalFromWebsites:
             >>> print(urls)
             ['https://www.cheyennecity.org/tax-info', 'https://www.wyoming.gov/tax-rates']
         """
-        # Get domain URLs from input data point
-        domain_urls: list[str] = []
+        if not isinstance(query, str):
+            raise TypeError(f"query must be a string, got {type(query).__name__}")
+        query = query.strip()
+        if not query:
+            raise ValueError("query cannot be empty")
 
-        urls: set[str] = {
-            self._generate_urls(domain_url) for domain_url in domain_urls
-        }
-        return list(urls)
+        # Get unique domain URLs from input data point
+        domain_urls: set[str] = self._query_to_domain_urls(query)
+        self.logger.info(f"Extracted {len(domain_urls)} unique domain URLs from query")
+
+        url_list = []
+        for url in domain_urls:
+            try:
+                generated_urls = self._generate_urls(url)
+                url_list.extend(generated_urls)
+            except Exception as e:
+                msg = f"Failed to generate URLs from domain '{url}': {e}"
+                self.logger.exception(msg)
+                raise RuntimeError(msg) from e
+
+        return url_list
+
+    def _query_to_domain_urls(self, query: str) -> set[str]:
+        """Turn a plain English query into a set of domain URLs."""
+        raise NotImplementedError("_query_to_domain_urls method not implemented")
 
     def retrieve_documents(self, domain_urls: list[str]) -> tuple[list[Any], list[Any], list[Any]]:
         """
@@ -181,7 +210,11 @@ class DocumentRetrievalFromWebsites:
     def _generate_urls(self, domain_url: str) -> list[str]:
         """Generate URLs from domain URL using URL path generator"""
         return self.url_path_generator.generate(domain_url)
-        
+    
+    def _get_timestamp(self) -> Any:
+        """Get current timestamp from timestamp service"""
+        return datetime.now()
+
     def _determine_webpage_type(self, url: str) -> WebpageType:
         """
         Determine whether a webpage is static or dynamic
@@ -199,7 +232,7 @@ class DocumentRetrievalFromWebsites:
         for indicator in dynamic_indicators:
             if indicator in url.lower():
                 return WebpageType.DYNAMIC
-                
+
         return WebpageType.STATIC
 
     def _create_documents(self, raw_strings: list[str], url: str) -> list[Any]:
@@ -207,12 +240,18 @@ class DocumentRetrievalFromWebsites:
         # Implementation would create document objects from raw text content
         # TODO: This is a placeholder implementation
         documents = []
-        for i, content in enumerate(raw_strings):
+        for idx, content in enumerate(raw_strings):
+            try:
+                id: str = self._get_cid(content + url)
+            except Exception as e:
+                msg = f"Failed to generate CID for document {idx} from URL '{url}': {e}"
+                self.logger.exception(msg)
+                raise RuntimeError(msg) from e
+
             documents.append({
-                "id": f"{url}_{i}",
-                "hash": hash(content + url),
+                "id": id,
                 "content": content,
                 "url": url,
-                "timestamp": self.resources["timestamp_service"].now()
+                "timestamp": datetime.now()
             })
         return documents

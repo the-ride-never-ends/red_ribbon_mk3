@@ -10,11 +10,11 @@ from pydantic import AfterValidator as AV, BaseModel, DirectoryPath, Field, NonN
 import yaml
 
 
-def _load_config(config_path: str) -> dict[str, Any]:
+def _load_config(config_path: Path) -> dict[str, Any]:
     """Load configuration from a YAML file.
     
     Args:
-        config_path (str): Path to the YAML configuration file.
+        config_path (Path): Path to the YAML configuration file.
     
     Returns:
         dict[str, Any]: Parsed configuration dictionary.
@@ -143,7 +143,9 @@ def _make_gif(
     finally:
         if frame_one is not None:
             frame_one.close()
-        _ = [frame.close() for frame in frames if isinstance(frame, Image.Image)]
+        for frame in frames:
+            if isinstance(frame, Image.Image):
+                frame.close()
 
 
 def _args_from_argparse() -> _MakeGifArgs:
@@ -192,7 +194,7 @@ def main() -> None:
 
     _make_gif(
         output_path=args.output_path,
-        frame_folder=args.frame_folder,
+        frame_folder=str(args.frame_folder),
         name_pattern=args.name_pattern,
         extension=args.extension,
         duration=args.duration,

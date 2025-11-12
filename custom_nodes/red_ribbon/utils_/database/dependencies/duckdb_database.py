@@ -198,7 +198,7 @@ class DuckDbDatabase:
             params: Optional[ Tuple | Dict[str, Any]] = None, 
             num_results: int = 1,
             return_format: Optional[str] = None,
-            ) -> List[Dict[str, Any]] | None:
+            ) -> List[Dict[str, Any]] | List[tuple[Any, ...]] | Dict[str, Any] | Any | None:
 
         if return_format not in DuckDbDatabase.FETCH_METHODS:
             raise ValueError(f"Return formate '{return_format}' is not supported by duckdb. Must be one of {DuckDbDatabase.FETCH_METHODS}")
@@ -319,7 +319,7 @@ class DuckDbDatabase:
             raise e
 
     @classmethod
-    def get_cursor(conn: duckdb.DuckDBPyConnection) -> duckdb.DuckDBPyConnection:
+    def get_cursor(cls, conn: duckdb.DuckDBPyConnection) -> duckdb.DuckDBPyConnection:
         """
         Get a cursor from a DuckDB connection.
         
@@ -346,7 +346,7 @@ class DuckDbDatabase:
             raise e
 
     @classmethod
-    def get_session(conn: duckdb.DuckDBPyConnection) -> Never:
+    def get_session(cls, conn: duckdb.DuckDBPyConnection) -> Never:
         """
         Get a session from a DuckDB connection.
         
@@ -380,7 +380,7 @@ class DuckDbDatabase:
                     conn: duckdb.DuckDBPyConnection, 
                     name: str, 
                     function: Callable, 
-                    argument_types: Optional[List[str]] = [], 
+                    argument_types: List[str] = [], 
                     return_type: Optional[Any] = None,
                     side_effects: Optional[bool] = False
                     ) -> None:
@@ -406,14 +406,14 @@ class DuckDbDatabase:
 
                 # Infer the python types from the function via its type hint
                 if return_type is None:
-                    return_type = DUCKDB_TYPE_DICT.get(type_hints.pop('return', None), None)
+                    return_type = DUCKDB_TYPE_DICT.get(type_hints.pop('return', ""), "")  # type: ignore[arg-type]
 
                 if argument_types is None:
                     argument_types = [DUCKDB_TYPE_DICT.get(type, None) for type in type_hints.values() if type != 'return']
 
             conn.create_function(
-                name, function, parameters=argument_types, 
-                return_type=return_type, side_effects=side_effects
+                name, function, parameters=argument_types,  # type: ignore[arg-type]
+                return_type=return_type, side_effects=side_effects  # type: ignore[arg-type]
             )
         except Exception as e:
             cls.logger.error(f"Error registering function with DuckDB: {e}")

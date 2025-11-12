@@ -7,19 +7,15 @@ through a dependency injection pattern.
 """
 from contextlib import contextmanager
 import logging
-import os
+from pathlib import Path
 from queue import Queue
 from threading import Lock
 import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, TypeVar, cast
 
 
 from custom_nodes.red_ribbon.utils_.configs import Configs
-
-
-C = TypeVar('C') # 'C' for connection type
-S = TypeVar('S') # 'S' for session type
 
 
 class Database:
@@ -54,7 +50,7 @@ class Database:
 
     def __init__(self, *,
                  configs: Configs, 
-                 resources: Dict[str, Callable]
+                 resources: dict[str, Any]
                  ) -> None:
         """
         Initialize the database manager.
@@ -70,16 +66,16 @@ class Database:
 
         self.logger: logging.Logger = self.resources['logger']
 
-        self._session: Optional[S] = None
-        self._transaction_conn: Optional[C] = None
-        self._db_type: Optional[str] = self.resources.get("db_type", "duckdb")
-        self._read_only: Optional[bool] = self.resources.get("read_only", False)
-        self._db_path: Optional[str] = self.resources.get("db_path", self.configs.AMERICAN_LAW_DATA_DIR)
+        self._session: Optional[Any] = None
+        self._transaction_conn: Optional[Any] = None
+        self._db_type: Optional[str] = self.resources["db_type"]
+        self._read_only: Optional[bool] = self.resources["read_only"]
+        self._db_path: Optional[Path] = self.configs.paths.AMERICAN_LAW_DATA_DIR
 
         # Connection pool settings
-        self._connection_pool_size: int = self.configs.DATABASE_CONNECTION_POOL_SIZE
-        self._connection_timeout: float = self.configs.DATABASE_CONNECTION_TIMEOUT
-        self._connection_max_age: float = self.configs.DATABASE_CONNECTION_MAX_AGE
+        self._connection_pool_size: int = self.configs.database.DATABASE_CONNECTION_POOL_SIZE
+        self._connection_timeout: float = self.configs.database.DATABASE_CONNECTION_TIMEOUT
+        self._connection_max_age: float = self.configs.database.DATABASE_CONNECTION_MAX_AGE
 
         # Initialize connection pool
         self._connection_pool: Queue = Queue(maxsize=self._connection_pool_size)
@@ -138,7 +134,7 @@ class Database:
 
         for _ in range(self._connection_pool_size):
             try:
-                conn = self._connect()
+                conn: Any = self._connect()
                 self._connection_pool.put({
                     'connection': conn,
                     'created_at': time.monotonic(),
@@ -182,7 +178,7 @@ class Database:
         self._session = None
 
 
-    def _get_connection_from_pool(self) -> C:
+    def _get_connection_from_pool(self) -> Any:
         """
         Get a connection from the pool or create a new one if needed.
 
@@ -231,7 +227,7 @@ class Database:
             return conn_info['connection']
 
 
-    def _return_connection_to_pool(self, conn: C) -> None:
+    def _return_connection_to_pool(self, conn: Any) -> None:
         """
         Return a connection to the pool if space is available.
         
@@ -267,7 +263,7 @@ class Database:
             except Exception as e2:
                 self.logger.warning(f"Error closing connection: {e2}\n{traceback.format_exc()}")
 
-    def connect(self) -> C:
+    def connect(self) -> Any:
         """
         Establish a connection to the database.
         
@@ -275,7 +271,7 @@ class Database:
         """
         # Do nothing if already connected.
         try:
-            conn = self._get_connection_from_pool()
+            conn: Any = self._get_connection_from_pool()
             self.logger.debug("Database connection established")
         except Exception as e:
             self.logger.exception(f"Error establishing database connection: {e}")
@@ -283,7 +279,7 @@ class Database:
         return conn
 
 
-    def close(self, conn: C) -> None:
+    def close(self, conn: Any) -> None:
         """
         Return the current database connection to the pool.
         Also closes an active session first, if one exists.
@@ -301,21 +297,22 @@ class Database:
         self.logger.debug("Database connection closed")
 
 
-    def close_session(self, conn: C) -> None:
+    def close_session(self, conn: Any) -> None:
         """
         Close the current database session if it exists.
         """
-        if self._session:
+        if self._session and self._close_session is not None:
             try:
                 self._close_session(conn)
                 self._session = None
                 self.logger.debug("Session closed")
             except Exception as e:
                 self.logger.exception(f"Error closing session: {e}")
-        self.logger.debug("No session to close")
+        else:
+            self.logger.debug("No session to close")
         return
 
-    def get_cursor(self, conn: C) -> Any:
+    def get_cursor(self, conn: Any) -> Any:
         """
         Get a cursor for the database connection.
         
@@ -429,7 +426,7 @@ class Database:
         ) -> Any | None:
         """
         Execute a multi-statement SQL script, either from a string or a file.
-        NOTE: Either script or path must be provided, not both.
+        Either script or path must be provided, not both.
 
         Args:
             script: Optional SQL script to execute
@@ -440,35 +437,42 @@ class Database:
             The result of the script execution.
 
         Raises:
-            Exception: If script execution fails
+            ValueError: If neither or both script and path are provided
+            TypeError: If script or path is not a string if provided
+            FileNotFoundError: If the specified file does not exist
+            IOError: If there is an error reading the file
+            RuntimeError: If there is an error executing the script
         """
         if script is None and path is None:
             raise ValueError("Either script or path must be provided.")
-        elif script is None and path is None:
+        elif script is not None and path is not None:
             raise ValueError("Both script and path are set. Provide one or the other, but not both.")
-        else:
+        elif script is not None and path is None:
             if not isinstance(script, str):
-                raise TypeError("Script must be a string, got {type(script).__name__}.")
-            if path is not None:
-                # If a path is provided, read the script from the file.
-                if os.path.exists(path):
-                    try:
-                        with open(path, 'r') as file:
-                            script = file.read()
-                    except Exception as e:
-                        raise IOError(f"Error reading file {path}: {e}") from e
-                else:
-                    raise FileNotFoundError(f"File not found: {path}")
+                raise TypeError(f"Script must be a string if provided, got {type(script).__name__}.")
+        else:
+            if not isinstance(path, str):
+                raise TypeError(f"Path must be a string if provided, got {type(script).__name__}.")
+
+            # If a path is provided, read the script from the file.
+            try:
+                with open(path, 'r') as file:
+                    script = file.read()
+            except FileNotFoundError as e:
+                raise FileNotFoundError(f"File not found: '{path}'") from e
+            except Exception as e:
+                raise IOError(f"Error reading file '{path}': {e}") from e
+
         try:
             return self.execute(script, params)
         except Exception as e:
-            self.logger.exception(f"Error executing script: {e}")
-            self.logger.debug(f"Script: {script}")
-            self.logger.debug(f"Path: {path}")
-            self.logger.debug(f"Params: {params}")
-            raise e
+            msg = f"Unexpected error executing SQL script: {e}"
+            debug_msg = f"Script: {script}\nPath: {path}\nParams: {params}"
+            self.logger.exception(msg)
+            self.logger.debug(debug_msg)
+            raise RuntimeError(msg) from e
 
-    def commit(self, connection: C) -> None:
+    def commit(self, connection: Any) -> None:
         """
         Commit the current transaction.
 
@@ -484,7 +488,7 @@ class Database:
             self.logger.exception(f"Error during commit: {e}")
             raise e
 
-    def rollback(self, connection: C) -> None:
+    def rollback(self, connection: Any) -> None:
         """
         Rollback the current transaction.
 
@@ -500,7 +504,7 @@ class Database:
             self.logger.exception(f"Error during rollback: {e}")
             raise e
 
-    def begin(self, connection: C) -> C:
+    def begin(self, connection: Any) -> Any:
         """
         Begin a new transaction.
 
@@ -520,7 +524,7 @@ class Database:
             raise e
 
     @contextmanager
-    def connection_context_manager(self) -> C:
+    def connection_context_manager(self) -> Generator[Any, None, None]:
         """
         Connection context manager.
         NOTE: Because this yields a connection, it directly accesses the functions of the dependency.
@@ -533,7 +537,7 @@ class Database:
                 conn.execute("SELECT * FROM ...")
         """
         errored = None
-        conn = self._get_connection_from_pool()
+        conn: Any = self._get_connection_from_pool()
         try:
             yield conn
         except Exception as e:
@@ -545,7 +549,7 @@ class Database:
                 raise errored
 
     @contextmanager
-    def transaction_context_manager(self) -> C:
+    def transaction_context_manager(self) -> Generator[Any, None, None]:
         """
         Transaction context manager.
         NOTE: Because this yields a connection, it directly accesses the functions of the dependency.
@@ -559,7 +563,7 @@ class Database:
                 trans.execute("UPDATE ...")
         """
         errored = None
-        conn = self._get_connection_from_pool()
+        conn: Any = self._get_connection_from_pool()
 
         try:
             yield conn

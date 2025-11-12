@@ -155,7 +155,7 @@ class CustomFunctionNode:
             # Execute custom function
             exec(compiled_mlp_fn, globals(), local_env)
             tup = (x, kwargs_dict.values()) if kwargs_dict else (x,)
-            result = local_env[function_name](*tup)
+            result = local_env[function_name](*tup)  # type: ignore[operator]
             if not isinstance(result, Tensor):
                 raise ValueError(f"Custom function must return a Tensor, got {type(result).__name__}.")
 

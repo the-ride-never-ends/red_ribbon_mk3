@@ -10,9 +10,7 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 
-from ..resources.top10_document_retrieval._cosine_similarity import cosine_similarity
-from ..resources.top10_document_retrieval._dot_product import dot_product
-from ..resources.top10_document_retrieval._euclidean_distance import euclidean_distance
+
 from .dataclasses import Document, Vector
 
 from custom_nodes.red_ribbon.utils_ import make_duckdb_database, DatabaseAPI
@@ -93,6 +91,28 @@ class Top10DocumentRetrieval:
     def class_name(self) -> str:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
+
+    def run(self, 
+            input_data_point: str = None, 
+            documents: Optional[list[Any]] = None, 
+            document_vectors: Optional[list[Any]] = None
+            ) -> dict[str, Document]:
+        """
+        Public method to run the document retrieval flow.
+
+        Args:
+            input_data_point: The query or information request
+            documents: Optional list of documents to search
+            document_vectors: Optional list of document vectors to search
+
+        Returns:
+            Dictionary of Documents containing potentially relevant documents, along with potentially relevant metadata.
+            Keys are:
+                "relevant_documents": list[Document] List of potentially relevant documents
+                "scores": (dict[str, float]) Dictionary of document IDs to similarity scores
+                "top_doc_ids": (list[str]) List of top document IDs
+        """
+        return self.execute(input_data_point, documents, document_vectors)
 
     def execute(self, 
                 input_data_point: str = None, 
@@ -345,6 +365,10 @@ def make_top10_document_retrieval(
     Returns:
         Instance of Top10DocumentRetrieval
     """
+    from ..resources.top10_document_retrieval._cosine_similarity import cosine_similarity
+    from ..resources.top10_document_retrieval._dot_product import dot_product
+    from ..resources.top10_document_retrieval._euclidean_distance import euclidean_distance
+
     _resources = {
         "logger": resources.get("logger", logger),
         "database": resources.get("database", make_duckdb_database()),

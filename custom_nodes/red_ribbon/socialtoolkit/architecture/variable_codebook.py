@@ -12,10 +12,25 @@ from pydantic import BaseModel, Field
 
 
 from typing import Annotated
-from pydantic import BaseModel, PlainSerializer, PlainValidator
+from pydantic import BaseModel, ValidationError
 
 
+def _validate_string(value: Any, name: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"Expected string for '{name}', got {type(value).__name__}")
+    value = value.strip()
+    if not value:
+        raise ValueError("String value cannot be empty or whitespace")
+    return value
 
+def _validate_base_model(value: Any, model: type[BaseModel], name: str) -> BaseModel:
+    if not isinstance(value, model):
+        raise TypeError(f"Expected instance of '{model.__name__}' for '{name}', got {type(value).__name__}")
+    try:
+        model.model_validate(value)
+    except ValidationError as e:
+        raise ValueError(f"Validation failed for '{name}': {e}") from e
+    return value
 
 # Define serializer/deserializer functions
 def serialize_digraph(graph: nx.DiGraph) -> dict:
@@ -448,7 +463,7 @@ class PromptDecisionTree(BaseModel):
     _graph = None
 
     @property
-    def graph(self) -> nx.DiGraph:
+    def graph(self) -> Optional[nx.DiGraph]:
         return self._graph
 
     def __init__(self, **data: Any) -> None:
@@ -734,7 +749,7 @@ class VariableCodebook:
         >>> prompts = codebook.get_prompt_sequence_for_input("What is the city sales tax rate?")
     """
     
-    def __init__(self, *, resources: dict[str, Callable], configs: VariableCodebookConfigs):
+    def __init__(self, *, resources: dict[str, Any], configs: VariableCodebookConfigs):
         """
         Initialize with injected dependencies and configuration
         
@@ -810,6 +825,7 @@ class VariableCodebook:
             ...     input_data_point="What is the city tax rate?"
             ... )
         """
+        return self.run(action, **kwargs)
 
     def run(self, action: str, **kwargs) -> dict[str, Any]:
         """
@@ -857,8 +873,9 @@ class VariableCodebook:
                     - 'error' (str): A descriptive error message if an operation fails.
 
         Raises:
-            ValueError: If action is not recognized or required parameters are missing.
-            TypeError: If parameter types don't match expected types for the action.
+            TypeError: If action is not a string, or if kwarg parameters have incorrect types.
+            ValueError: If action is not recognized or its required parameters are invalid.
+            KeyError: If required kwarg parameters for the specified action are missing.
             RuntimeError: If operation fails unexpectedly.
 
         Examples:
@@ -879,25 +896,57 @@ class VariableCodebook:
             >>> new_var = Variable(label="Income Tax", item_name="income_tax", ...)
             >>> result = codebook.run("add_variable", variable=new_var)
         """
+        variable_name: str
+        input_data_point: str
+        variable: Variable
+
         self.logger.info(f"Starting variable codebook operation: {action}")
 
-        variable_name: str = kwargs.get("variable_name", "")
-        input_data_point: str = kwargs.get("input_data_point", "")
-        variable: Any = kwargs.get("variable")
+        _validate_string(action, "action")
 
-        match action:
-            case "get_variable":
-                return self._get_variable(variable_name=variable_name)
-            case "get_prompt_sequence":
-                return self._get_prompt_sequence(variable_name=variable_name, input_data_point=input_data_point)
-            case "get_assumptions":
-                self._get_assumptions(variable_name=variable_name)
-            case "add_variable":
-                return self._add_variable(variable=variable)
-            case "update_variable":
-                return self._update_variable(variable_name=variable_name, variable=variable)
-            case _:
-                self._log_then_raise(ValueError, f"Unknown action: {action}")
+        try:
+            match action:
+                case "get_variable" | "get_prompt_sequence" | "get_assumptions":
+                    variable_name = kwargs.pop("variable_name")
+                    _validate_string(variable_name, "variable_name")
+                case "add_variable":
+                    variable = kwargs.pop("variable")
+                    _validate_base_model(variable, Variable, "variable")
+                case "update_variable":
+                    variable_name = kwargs.pop("variable_name")
+                    _validate_string(variable_name, "variable_name")
+                    _validate_base_model(variable, Variable, "variable")
+                case _:
+                    msg = f"Unknown action: {action}"
+                    self.logger.error(msg)
+                    raise ValueError(msg)
+        except KeyError as e:
+            msg = f"Missing required kwarg for action '{action}': {e}"
+            self.logger.exception(msg)
+            raise e
+
+        self.logger.debug(f"Executing action '{action}' with parameters: {kwargs}")
+
+        try:
+            match action:
+                case "get_variable":
+                    return self._get_variable(variable_name=variable_name)
+                case "get_prompt_sequence":
+                    return self._get_prompt_sequence(variable_name=variable_name, input_data_point=input_data_point)
+                case "get_assumptions":
+                    return self._get_assumptions(variable_name=variable_name)
+                case "add_variable":
+                    return self._add_variable(variable=variable)
+                case "update_variable":
+                    return self._update_variable(variable_name=variable_name, variable=variable)
+                case _:
+                    msg = f"Unknown action: {action}"
+                    self.logger.error(msg)
+                    raise ValueError(msg)
+        except Exception as e:
+            msg = f"Error executing action '{action}': {e}"
+            self.logger.exception(msg)
+            raise RuntimeError(msg) from e
 
 
     def get_prompt_sequence_for_input(self, input_data_point: str) -> list[str]:
@@ -1034,20 +1083,16 @@ class VariableCodebook:
             "variable": variable
         }
 
-    def _get_assumptions(self, variable_name: str | Path | BaseModel) -> dict[str, Any]:
+    def _get_assumptions(self, variable_name: str) -> dict[str, Any]:
         """
         Get the assumptions for a variable
-        
+
         Args:
             variable_name: Name of the variable
-            
+
         Returns:
             Dictionary containing the assumptions
         """
-        # Load the variable if not already loaded
-        if not isinstance(variable_name, str):
-            pass
-
         # Get the variable
         variable_result = self._get_variable(variable_name)
         
@@ -1085,7 +1130,9 @@ class VariableCodebook:
         
         # Save to storage if available
         if self.storage_service:
-            self.storage_service.save(variable)
+            storage = self.resources.get('storage_service')
+            assert storage is not None and hasattr(storage, 'save'), "storage_service must have save method"
+            storage.save(variable)
 
         return {
             "success": True,
@@ -1115,7 +1162,9 @@ class VariableCodebook:
         
         # Save to storage if available
         if self.storage_service:
-            self.storage_service.save_variable(variable)
+            storage = self.resources.get('storage_service')
+            assert storage is not None and hasattr(storage, 'save_variable'), "storage_service must have save_variable method"
+            storage.save_variable(variable)
         
         return {
             "success": True,
@@ -1126,7 +1175,9 @@ class VariableCodebook:
         """Load variables from storage"""
         try:
             if self.storage_service:
-                variables = self.storage_service.load_variables(self.configs.variables_path)
+                storage = self.resources.get('storage_service')
+                assert storage is not None and hasattr(storage, 'load_variables'), "storage_service must have load_variables method"
+                variables = storage.load_variables(self.configs.variables_path)
 
                 if variables:
                     self.variables = {var.item_name: var for var in variables}

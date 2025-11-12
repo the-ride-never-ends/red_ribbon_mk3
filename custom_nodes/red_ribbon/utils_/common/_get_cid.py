@@ -13,18 +13,20 @@ class IpfsMultiformats:
         return None
 
     # Step 1: Hash the file content with SHA-256
-    def get_file_sha256(self, file_path: str) -> bytes:
+    def get_file_sha256(self, file_path: str | bytes) -> bytes:
         """
         Calculate the SHA-256 hash of a file. 
         This method reads the file in 8192-byte chunks to handle large files
         without loading everything into memory all at once.
 
         Args:
-            file_path (str): The path to the file to be hashed.
+            file_path (str | bytes): The path to the file to be hashed.
 
         Returns:
             bytes: The SHA-256 hash of the file content.
         """
+        if isinstance(file_path, bytes):
+            file_path = file_path.decode('utf-8')
         hasher = hashlib.sha256()
         with open(file_path, 'rb') as f:
             while chunk := f.read(8192):
@@ -60,20 +62,23 @@ class IpfsMultiformats:
             str: The generated CID as a string.
         """
 
-        if os.path.isfile(file_data):
+        if isinstance(file_data, str) and os.path.isfile(file_data):
             file_content_hash = self.get_file_sha256(file_data)
             mh = self.get_multihash_sha256(file_content_hash)
-            cid = CID('base32', 'raw', mh)
+            cid = CID('base32', 1, 0x55, mh)  # 0x55 is the multicodec for 'raw'
 
         else:
             with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
                 filename = f.name
                 with open(filename, 'w') as f_new:
-                    f_new.write(file_data)
+                    if isinstance(file_data, bytes):
+                        f_new.write(file_data.decode('utf-8'))
+                    else:
+                        f_new.write(str(file_data))
 
                 file_content_hash = self.get_file_sha256(filename)
                 mh = self.get_multihash_sha256(file_content_hash)
-                cid = CID('base32', 1, 'raw', mh)
+                cid = CID('base32', 1, 0x55, mh)  # 0x55 is the multicodec for 'raw'
             os.remove(filename)
 
         return str(cid)

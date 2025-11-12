@@ -1,28 +1,23 @@
 import ast
+import asyncio
 from datetime import datetime
 import os
-from pathlib import Path
+import re
 import uuid
-import asyncio
-
-from easy_nodes import Choice
-
-from datetime import datetime
 
 
 from folder_paths import output_directory # type: ignore
-import re
 
-def get_file_friendly_date():
-    """
-    Get a file-friendly date string.
-    """
+
+from custom_nodes.red_ribbon.custom_easy_nodes import Choice
+
+
+def get_file_friendly_date() -> str:
+    """Get a file-friendly date string."""
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-def make_id():
-    """
-    Generate a unique identifier for the node.
-    """
+def make_id() -> str:
+    """Generate a unique identifier for the node."""
     return str(uuid.uuid4().hex[:16])
 
 class FunctionLibraryNode:
@@ -37,7 +32,6 @@ class FunctionLibraryNode:
     Outputs:
       - function_code: String representation of the selected function
     """
-    
     @classmethod
     def INPUT_TYPES(cls):
         return {

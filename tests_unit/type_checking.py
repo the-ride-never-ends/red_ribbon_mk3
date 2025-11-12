@@ -75,6 +75,9 @@ def type_check(save_results: bool = True, timeout: int = 120) -> bool:
             time.sleep(0.1)
             output_path =  _make_filepath()
 
+        # Get the last line of stdout to determine summary
+        final_line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else "No output"
+
         try:
             with open(output_path, 'w') as f:
                 f.write(f"Return code: {return_code}\n")
@@ -86,7 +89,7 @@ def type_check(save_results: bool = True, timeout: int = 120) -> bool:
     if return_code == 0:
         print("Type checking passed without errors.")
     else:
-        print(f"Type checking found issues. See '{output_path}' for details.")
+        print(f"{final_line}.  See '{output_path}' for details.")
 
     return return_code == 0, output_path
 

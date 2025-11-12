@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal, Never
 
 
@@ -49,18 +50,29 @@ class Prompt(BaseModel):
         """
         if not kwargs:
             return self.model_dump()
-        
+
         sys_kwargs = {k: v for k, v in kwargs.items() if k in self.system_prompt.content}
         user_kwargs = {k: v for k, v in kwargs.items() if k in self.user_prompt.content}
 
         self.system_prompt.content = safe_format(self.system_prompt.content, **sys_kwargs)
         self.user_prompt.content = safe_format(self.user_prompt.content, **user_kwargs)
+        return self.model_dump()
 
 
 def load_prompt_from_yaml(name: str, configs: Configs, **kwargs) -> Prompt:
+    assert hasattr(configs, 'PROMPTS_DIR'), "Configs must have PROMPTS_DIR attribute"
     prompt_dir = configs.PROMPTS_DIR
+    assert isinstance(prompt_dir, Path), "PROMPTS_DIR must be a Path object"
     prompt_path = prompt_dir / f"{name}.yaml"
+    assert prompt_path.is_file(), f"Prompt YAML file '{prompt_path}' does not exist."
 
-    with open(prompt_path, 'r') as file:
-        prompt = dict(yaml.safe_load(file))
-        return Prompt.model_validate(prompt).safe_format(**kwargs)
+    try:
+        with open(prompt_path, 'r') as file:
+            prompt_dict = dict(yaml.safe_load(file))
+            prompt_obj = Prompt.model_validate(prompt_dict)
+            prompt_obj.safe_format(**kwargs)
+            return prompt_obj
+    except Exception as e:
+        msg = f"Unexpected Error loading prompt from YAML file '{prompt_path}': {e}"
+        logger.error(msg)
+        raise IOError(msg) from e

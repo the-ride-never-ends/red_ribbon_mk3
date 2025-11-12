@@ -20,15 +20,15 @@ from pydantic import (
 from custom_nodes.red_ribbon.utils_.common import get_cid
 from ._errors import DataclassError
 
-def _check_gnis(value: Any) -> int:
+def check_gnis(value: Any) -> int:
     if not isinstance(value, (str, int)):
         raise TypeError(f"GNIS must be an integer or string, got {type(value).__name__}")
     try:
         return int(value)
     except Exception as e:
-        raise ValueError(f"GNIS must be convertible to an integer, got value: {value}") from e
+        raise ValueError(f"GNIS '{value}' must be convertible to an integer.\n{e}") from e
 
-GNIS = Ann[PositiveInt, BV(_check_gnis)]
+GNIS = Ann[PositiveInt, BV(check_gnis)]
 
 def _check_cid(value: Any) -> str:
 
@@ -39,17 +39,27 @@ def _check_cid(value: Any) -> str:
         case str():
             if not value.startswith(expected_prefix):
                 raise ValueError(f"CID must start with '{expected_prefix}', got '{value[:len(expected_prefix)]}'")
-            if value != expected_length:
+            if len(value) != expected_length:
                 raise ValueError(f"CID must be {expected_length} characters long, got {len(value)}")
             if not value.isalnum():
                 raise ValueError("CID contains non-alphanumeric characters")
             if not value.islower():
                 raise ValueError("CID contains upper case characters")
+            return value
         case _:
             raise TypeError(f"CID must be a string, got {type(value).__name__}")
 
+class CID(BaseModel):
+    """Content Identifier (CID) model with validation."""
+    cid: Ann[str, AV(_check_cid)] = Field(..., description="Content Identifier (CID)")
 
-CID = Ann[str, AV(_check_cid)]
+def assert_valid_cid(value: Any) -> dict[str, Any]:
+    """Assertion function for Testing purposes."""
+    try:
+        CID(cid=value)
+        return {"valid": True}
+    except Exception:
+        return {"valid": False, "error": str(value)}
 
 
 class HtmlParquet(BaseModel):
@@ -96,7 +106,7 @@ class Section(BaseModel):
     Section from a document
 
     Attributes:
-        cid (str): Law ID
+        cid (CID): Law ID
         bluebook_cid (str): Bluebook citation ID
         title (str): Title of the law
         chapter (str): Chapter information
@@ -105,7 +115,7 @@ class Section(BaseModel):
         bluebook_citation (str): Formatted Bluebook citation
         html (str, optional): HTML content if available
     """
-    cid: str = Field(..., min_length=1)
+    cid: CID = Field(..., min_length=1)
     doc_order: NonNegativeInt
     bluebook_cid: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
@@ -129,29 +139,33 @@ class Document(BaseModel):
     """
     section_list: list[Section] = Field(exclude=True)
 
-    _cid: str = None
-    _place_name: str = None
-    _state_name: str = None
+    _cid: Optional[CID] = None
+    _place_name: Optional[str] = None
+    _state_name: Optional[str] = None
 
     @computed_field # type: ignore[prop-decorator]
     @cached_property
-    def cid(self) -> str:
+    def cid(self) -> CID:
         if self._cid is None and self.section_list:
-            concatenated_cids = ''.join([section.cid for section in self.section_list])
-            self._cid = get_cid(concatenated_cids)
-        return self._cid
+            concatenated_cids = ''.join([str(section.cid) for section in self.section_list])  # type: ignore[misc]
+            cid_str = get_cid(concatenated_cids)
+            self._cid = cid_str  # type: ignore[assignment]
+            assert self._cid is not None, "CID should not be None after assignment."
+        return self._cid  # type: ignore[return-value]
 
     @property
     def place_name(self) -> str:
         if self._place_name is None and self.section_list:
             self._place_name = self.section_list[0].place_name
-        return self._place_name
+            assert self._place_name is not None, "Place name should not be None after assignment."
+        return self._place_name  # type: ignore[return-value]
 
     @property
     def state_name(self) -> str:
         if self._state_name is None and self.section_list:
             self._state_name = self.section_list[0].state_name
-        return self._state_name
+            assert self._state_name is not None, "Place name should not be None after assignment."
+        return self._state_name  # type: ignore[return-value]
 
     @computed_field # type: ignore[prop-decorator]
     @cached_property
@@ -165,8 +179,39 @@ class Document(BaseModel):
 
 
 class Vector(BaseModel):
-    cid: str = Field(..., min_length=1)
+    """Embedding vector associated with a Law CID."""
+    cid: CID = Field(..., min_length=1)
     embedding: list[float]
+
+def make_section(input_dict: dict[str, Any]) -> Section:
+    """
+    Create a Section object from a dictionary.
+
+    Args:
+        input_dict (dict): Dictionary representing a Section.
+
+    Returns:
+        Section: A Section object created from the input dictionary.
+
+    Raises:
+        TypeError: If input_dict is not a dict.
+        ValueError: If input_dict is an empty dict.
+        DataclassError: If there is an error creating the Section object.
+    """
+    if not isinstance(input_dict, dict):
+        raise TypeError(f"input_dict must be a dict, got {type(input_dict).__name__}")
+    if not input_dict:
+        raise ValueError("input_dict cannot be an empty dict")
+
+    try:
+        section = Section(**input_dict)
+    except ValidationError as e:
+        raise DataclassError(f"Error creating Section object: {e}") from e
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error creating Section object: {e}") from e
+
+    return section
+
 
 def make_document(inputs: list[dict[str, Any]]) -> Document:
     """
@@ -185,25 +230,21 @@ def make_document(inputs: list[dict[str, Any]]) -> Document:
     """
     if not isinstance(inputs, list):
         raise TypeError(f"inputs must be a list, got {type(inputs).__name__}")
-    if not list:
+    if len(inputs) == 0:
         raise ValueError("inputs list cannot be empty")
-
-    section_list = []
     for idx, item in enumerate(inputs):
         if not isinstance(item, dict):
-            raise TypeError(f"Each item in inputs must be a dict, got {type(item).__name__} at index {idx}")
+            raise TypeError(f"Item at index {idx} in inputs must be a dict, got {type(item).__name__}")
         if not item:
-            raise ValueError(f"Item at index {idx} is an empty dict")
+            raise ValueError(f"Item at index {idx} in inputs cannot be an empty dict")
 
-        try:
-            section = Section(**item)
-        except ValidationError as e:
-            raise DataclassError(f"Error creating Section object at index {idx}: {e}") from e
-        section_list.append(section)
+    section_list = [
+        make_section(item) for item in inputs
+    ]
 
     try:
-        document = Document(section_list=section_list)
+        return Document(section_list=section_list)
     except ValidationError as e:
         raise DataclassError(f"Error creating Document object: {e}") from e
-
-    return document
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error creating Document object: {e}") from e

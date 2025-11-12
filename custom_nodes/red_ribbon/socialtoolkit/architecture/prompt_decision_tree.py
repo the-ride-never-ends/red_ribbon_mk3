@@ -1,17 +1,21 @@
 
+from datetime import datetime
 from enum import Enum
 import logging
 from typing import Dict, List, Any, Callable, Optional, Iterable, Literal
+from pathlib import Path
+import json
 
 
 import networkx as nx
-from pydantic import BaseModel, PositiveFloat, Field, PositiveInt, NonNegativeInt
+from pydantic import BaseModel, PositiveFloat, Field, PositiveInt, NonNegativeInt, NonNegativeFloat
 
 
 from .dataclasses import Document, Section
-from .variable_codebook import Variable
+from .variable_codebook import Variable, VariableCodebook
 from ._errors import InitializationError
 from ..configs_.socialtoolkit_configs import SocialtoolkitConfigs
+from custom_nodes.red_ribbon.utils_.llm_ import LLM
 
 
 class PromptDecisionTreeConfigs(BaseModel):
@@ -19,7 +23,7 @@ class PromptDecisionTreeConfigs(BaseModel):
     max_tokens_per_prompt: PositiveInt = 2000
     max_pages_to_concatenate: PositiveInt = 10
     max_iterations: NonNegativeInt = 5
-    confidence_threshold: NonNegativeInt = Field(default=0.7, ge=0.0, le=1.0)
+    confidence_threshold: NonNegativeFloat = Field(default=0.7, ge=0.0, le=1.0)
     context_window_size: PositiveInt = 8192  # Maximum context window size for LLM
     enable_human_review: bool = True
 
@@ -28,6 +32,7 @@ class PromptDecisionTreeNodeType(str, Enum):
     """Types of nodes in the prompt decision tree"""
     INIT = "init"
     GET_TEXT = "get_text"
+    QUESTION = "question"
     FINAL = "final"
 
 class PromptDecisionTreeEdge(BaseModel):
@@ -101,11 +106,15 @@ class PromptDecisionTree:
         self.resources = resources
         self.configs = configs
 
-        # Extract needed services from resources
-        self.logger: logging.Logger = resources['logger']
-        self.llm = resources["llm"]
-        self.variable_codebook = resources["variable_codebook"]
-        self.extract_text_from_html = resources["extract_text_from_html"]
+        self.max_tokens_per_prompt: int  = configs.max_tokens_per_prompt
+        self.max_iterations:        int  = configs.max_iterations
+        self.human_review:          bool = configs.enable_human_review
+        self.review_folder:         Path = configs.review_folder
+
+        self.logger:                 logging.Logger        = resources['logger']
+        self.llm:                    LLM                   = resources["llm"]
+        self.variable_codebook:      VariableCodebook      = resources["variable_codebook"]
+        self.extract_text_from_html: Callable              = resources["extract_text_from_html"]
 
         self.logger.info("PromptDecisionTree initialized.")
 
@@ -114,7 +123,7 @@ class PromptDecisionTree:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def run(self, relevant_sections: list[Section], variable: Variable) -> Dict[str, Any]:
+    def run(self, relevant_sections: list[Section], variable: Variable) -> dict[str, Any]:
         """
         Execute the prompt decision tree and return detailed results.
         
@@ -139,7 +148,7 @@ class PromptDecisionTree:
             raise TypeError(f"variable must be an instance of Variable, got {type(variable).__name__}")
         else:
             try:
-                variable.model_validate()
+                Variable.model_validate(variable)
             except Exception as e:
                 raise ValueError(f"Invalid Variable data: {e}") from e
 
@@ -151,7 +160,7 @@ class PromptDecisionTree:
                 raise TypeError(f"section {idx} must be type Section, got {type(section).__name__}")
             else:
                 try:
-                    section.model_validate()
+                    Section.model_validate(section)
                 except Exception as e:
                     raise ValueError(f"Invalid Section data for section {idx}: {e}") from e
 
@@ -164,7 +173,7 @@ class PromptDecisionTree:
         # Step 3: Flag errors for review if enabled
         if result['success'] == False:
             if self.configs.enable_human_review:
-                result = self._request_human_review(result, concatenated_pages)
+                self._save_for_review(result, concatenated_pages)
 
         self.logger.info(f"Completed prompt decision tree execution. Result Status: {result['success']}")
         return result
@@ -214,11 +223,11 @@ class PromptDecisionTree:
         concatenated_text = ""
 
         for idx, page in enumerate(pages, start=1):
-            title = page.get("title", f"Relevant Document {idx}")
-            citation = page.get("bluebook_citation")
+            title = getattr(page, "title", f"Relevant Document {idx}")
+            citation = page.bluebook_citation
             assert citation is not None, "Bluebook citation is required in each page."
 
-            html = page.get("html")
+            html = page.html
             assert html is not None, "HTML content is required in each page."
             content = self.extract_text_from_html(html)
             
@@ -233,7 +242,7 @@ class PromptDecisionTree:
             concatenated_text += page_text
 
         # Tokenize the text to see if it's within context window
-        tokens = self.llm.tokenizer.tokenize(concatenated_text)
+        tokens = self.llm.tokenizer.tokenize(concatenated_text)  # type: ignore[attr-defined]
         if tokens > self.configs.context_window_size:
             self.logger.warning(
                 f"Concatenated document exceeds context window size "
@@ -242,14 +251,14 @@ class PromptDecisionTree:
             )
             # Truncate to fit context window
             truncated_tokens = tokens[:self.configs.context_window_size]
-            concatenated_text = self.llm.tokenizer.decode(truncated_tokens)
+            concatenated_text = self.llm.tokenizer.decode(truncated_tokens)  # type: ignore[attr-defined]
 
         return concatenated_text.strip()
     
     def _execute_decision_tree(self, 
                              document_text: str, 
                              variable: list[str], 
-                             ) -> Dict[str, Any]:
+                             ) -> dict[str, Any]:  # type: ignore[return]
         """
         Execute the prompt decision tree
 
@@ -272,18 +281,18 @@ class PromptDecisionTree:
         iteration = 0
         responses = []
         output_data_point = None
-        output_dict = {"success": None, "msg": None}
+        output_dict = {"success": None, "msg": None, "document_text": None}
         try:
             # Start with the first node
             current_node = decision_tree[0]
 
             # Follow the decision tree until a final node is reached or max iterations is exceeded
-            while not current_node.is_final and iteration < self.configs.max_iterations:
+            while not current_node.is_final and iteration < self.max_iterations:
                 # Generate prompt for the current node
                 prompt = self._generate_node_prompt(current_node, document_text)
-                
+
                 # Get response from LLM#
-                llm_response = self.llm.generate(prompt, max_tokens=self.configs.max_tokens_per_prompt)
+                llm_response = self.llm.generate(prompt, max_tokens=self.max_tokens_per_prompt)  # type: ignore[attr-defined]
                 responses.append({
                     "node_id": current_node.id,
                     "prompt": prompt,
@@ -322,16 +331,17 @@ class PromptDecisionTree:
             output_dict = {
                 "success": False,
                 "msg": f"{type(e).__name__}: {str(e)}",
+                "document_text": document_text,
             }
+            return output_dict
         else:
             output_dict.update({
                 "output_data_point": output_data_point,
-                "document_text": document_text,
                 "responses": responses,
                 "iterations": iteration
             })
             return output_dict
-    
+
     def _create_decision_tree(self, variable: list[str]) -> list[PromptDecisionTreeNode]:
         """
         Create a decision tree from a prompt sequence
@@ -456,50 +466,31 @@ Your answer should be concise, factual, and directly address the question.
             
         return cleaned_response
     
-    def _request_human_review(self, result: Dict[str, Any], document_text: str) -> Dict[str, Any]:
+    def _save_for_review(self, result: dict[str, Any], document_text: str) -> None:
         """
-        Request human review for errors or low confidence results
+        Save the result for human review if enabled.
         
         Args:
             result: Result from decision tree execution
             document_text: Document text
-            
-        Returns:
-            Updated result after human review
         """
-        if self.human_review:
-            review_request = {
-                "error": result.get("error"),
-                "document_text": document_text,
-                "responses": result.get("responses", [])
-            }
+        output_dict = {
+            ""
+            "error": result.get("msg", "Unknown Error"),
+            "document_text": document_text,
+            "responses": result.get("responses", [])
+        }
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        review_file = self.review_folder / f"review_request_{timestamp}.json"
 
-            human_review_result = self.human_review.review(review_request)
+        try:
+            review_request_json = json.dumps(output_dict, indent=2)
+            with open(review_file, 'w') as f:
+                f.write(review_request_json)
+        except json.JSONDecodeError as e:
+            raise IOError(f"Failed to serialize review request to JSON: {e}") from e
+        except Exception as e:
+            raise IOError(f"Unexpected error while writing review request to JSON: {e}") from e
+        else:
+            self.logger.info(f"Saved review request to '{review_file}'")
 
-            if human_review_result.get("success"):
-                result["output_data_point"] = human_review_result.get("output_data_point", "")
-                result["human_reviewed"] = True
-                result["success"] = True
-                result.pop("error", None)
-        
-        return result
-
-
-logger = logging.getLogger(__name__)
-
-
-def _make_prompt_decision_tree(
-        resources: Optional[dict[str, Callable]] = {},
-        configs: Optional[BaseModel] = SocialtoolkitConfigs(),
-        ) -> PromptDecisionTree:
-    """
-    Factory function to create PromptDecisionTree instance.
-    """
-    _resources = {
-        "llm": resources.get("llm"),
-        "extract_text_from_html": resources.get("extract_text_from_html"),
-    }
-    try:
-        return PromptDecisionTree(resources=_resources, configs=configs)
-    except Exception as e:
-        raise InitializationError(f"Failed to initialize PromptDecisionTree: {e}") from e
