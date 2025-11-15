@@ -174,8 +174,8 @@ def make_socialtoolkit_pipeline(
         raise ResourceError(f"Unexpected error initializing dependencies for {name}: {e}") from e
 
     try:
-        return SocialtoolkitPipeline(_resources, configs)
-    except KeyError:
+        return SocialtoolkitPipeline(resources=_resources, configs=configs)
+    except KeyError as e:
         raise ResourceError(f"Missing required resource for {name}: {e}") from e
     except AttributeError as e:
         raise ConfigurationError(f"Missing required configuration for {name}: {e}") from e
