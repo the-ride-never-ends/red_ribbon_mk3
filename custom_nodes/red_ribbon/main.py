@@ -81,7 +81,7 @@ ClassInstance = TypeVar('ClassInstance')
 
 class RedRibbon:
     """Main interface for the Red Ribbon package"""
-    _instance: 'RedRibbon' = None
+    _instance: Optional['RedRibbon'] = None
     _initialized: bool = False
 
     def __new__(cls, *args, **kwargs) -> 'RedRibbon':
@@ -221,6 +221,7 @@ def database_enter(
     """
     Select a database type to use in the pipeline.
     """
+    database_api: DatabaseAPI
     if DEMO_MODE:
         from .socialtoolkit import demo_database_enter
         database_api = demo_database_enter()
@@ -250,7 +251,7 @@ def database_enter(
         # TODO add the rest of the supported database types
         match type:
             case "duckdb": 
-                database_api: DatabaseAPI = make_duckdb_database(configs=configs)
+                database_api = make_duckdb_database(configs=configs)
             case _:
                 raise NotImplementedError(f"Database type '{type}' is not supported yet. Sorry!")
         red_ribbon.database = database_api
@@ -273,6 +274,7 @@ def load_data(
         urls = demo_load_data()
     else:
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         print("Loading URLs from input file...")
         urls = red_ribbon.socialtoolkit.execute(
             "load_data",
@@ -298,6 +300,7 @@ def document_retrieval_from_websites(
         return demo_document_retrieval_from_websites(links)
     else:
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         #with DatabaseAPI() as db: # TODO
         return red_ribbon.socialtoolkit.execute(
             "document_retrieval_from_websites",
@@ -324,6 +327,7 @@ def document_storage(
         return demo_document_storage()
     else:
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         return red_ribbon.socialtoolkit.execute(
             "document_storage",
             db_service=None,
@@ -369,6 +373,7 @@ def top10_document_retrieval(
         return demo_top10_document_retrieval(laws, return_how_many)
     else:
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         return red_ribbon.socialtoolkit.execute(
             "top10_document_retrieval",
             question,
@@ -398,6 +403,7 @@ def relevance_assessment(
     else:
         print("Running relevance assessment...")
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         try:
             with open("question.txt", "r") as f:
                 question = f.read()
@@ -434,6 +440,7 @@ def variable_codebook(
     else:
         print("Loading variable codebook...")
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         try:
             with DatabaseAPI() as db:
                 prompts = red_ribbon.socialtoolkit.execute(
@@ -466,6 +473,7 @@ def prompt_decision_tree(
     else:
         documents = laws
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
         try:
             with open("question.txt", "r") as f:
                 question = f.read()
@@ -505,7 +513,6 @@ def llm_api(
     temperature = 0.7
     max_tokens = 4096
     top_p = 1.0
-    red_ribbon
     if DEMO_MODE:
         from .socialtoolkit._demo_mode import demo_llm_api
         llm = demo_llm_api(name, instructions, red_ribbon)
@@ -513,6 +520,7 @@ def llm_api(
         print("Loading LLM...")
 
         _raise_if_no_socialtoolkit()
+        assert red_ribbon.socialtoolkit is not None
 
         llm = red_ribbon.socialtoolkit.execute(
             "llm",
@@ -555,8 +563,9 @@ def answer(
 
 # Main function that can be called when using this as a script
 def main() -> None:
+    from .__version__ import __version__
     print("Red Ribbon package loaded successfully")
-    print(f"Version: {red_ribbon.version()}")
+    print(f"Version: {__version__}")
     print("Available components:")
     print("- SocialToolkit")
     print("- RedRibbon Core")

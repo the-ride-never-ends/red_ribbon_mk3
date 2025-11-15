@@ -111,7 +111,8 @@ class DuckDbSqlDatabase(BaseModel):
                     case "tuple":
                         return cursor.fetchall()
                     case _: # This route is for database alterations like CREATE TABLE
-                        return
+                        return None
+        return None
 
     def close(self):
         if self._conn:
@@ -251,7 +252,7 @@ class LLMOutput(BaseModel):
         else: 
             return 0
 
-    def response(self) -> Any:
+    def parse_response(self) -> Any:
         return self.response_parser(self.response)
 
 

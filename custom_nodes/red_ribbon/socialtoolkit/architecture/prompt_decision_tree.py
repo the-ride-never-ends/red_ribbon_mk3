@@ -93,7 +93,7 @@ class PromptDecisionTree:
     """
 
     def __init__(self, *,
-                 resources: dict[str, Callable], 
+                 resources: dict[str, Any], 
                  configs: PromptDecisionTreeConfigs
                 ):
         """
@@ -281,7 +281,7 @@ class PromptDecisionTree:
         iteration = 0
         responses = []
         output_data_point = None
-        output_dict = {"success": None, "msg": None, "document_text": None}
+        output_dict: dict[str, Any] = {"success": None, "msg": None, "document_text": None}
         try:
             # Start with the first node
             current_node = decision_tree[0]

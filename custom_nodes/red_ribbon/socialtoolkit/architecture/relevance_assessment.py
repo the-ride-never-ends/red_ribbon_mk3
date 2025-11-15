@@ -372,10 +372,12 @@ class RelevanceAssessment:
         Returns:
             Dictionary mapping document IDs to lists of page numbers
         """
-        page_numbers = {}
+        page_numbers: dict[str, list[int]] = {}
         
         for page in relevant_pages:
             doc_id = page.get("doc_id")
+            if doc_id is None:
+                continue
             page_number = page.get("page_number", 1)  # Default to page 1 if not specified
             
             if doc_id not in page_numbers:

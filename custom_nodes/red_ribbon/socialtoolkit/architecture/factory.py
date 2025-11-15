@@ -1,8 +1,11 @@
 
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar, Type
 
 
 from pydantic import BaseModel, ValidationError
+
+
+T = TypeVar('T')
 
 
 from ..configs_.socialtoolkit_configs import SocialtoolkitConfigs
@@ -38,7 +41,7 @@ def _validate_resources(resources: dict[str, Any], name: str) -> None:
         raise TypeError(f"Resources for {name} must be a dictionary, got {type(resources).__name__}")
 
 
-def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Any]) -> Callable:
+def _initialize(Class: Type[T], configs: BaseModel, resources: dict[str, Any]) -> T:
     """
     Generic initializer for classes with resources and configs
     
@@ -61,7 +64,7 @@ def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Any]) 
     _validate_resources(resources, class_name)
 
     try:
-        return Class(resources=resources, configs=configs)
+        return Class(resources=resources, configs=configs)  # type: ignore[call-arg]
     except KeyError as e:
         raise ResourceError(f"Missing required resource for {class_name}: {e}") from e
     except AttributeError as e:
@@ -148,12 +151,11 @@ def make_socialtoolkit_pipeline(
     _validate_resources(resources, name)
 
     try:
-        kwargs = {
-            "resources": {
+        shared_resources = {
             "llm": resources.get("llm", make_llm()),
             "db": resources.get("db", make_duckdb_database()),
             "logger": resources.get("logger", make_logger("socialtoolkit_pipeline")),
-        }}
+        }
     except (ConfigurationError, ResourceError, InitializationError) as e:
         raise e
     except Exception as e:
@@ -161,12 +163,12 @@ def make_socialtoolkit_pipeline(
 
     try:
         _resources = {
-            "document_retrieval": resources.get("document_retrieval", make_document_retrieval_from_websites(**kwargs)),
-            "document_storage": resources.get("document_storage", make_document_storage(**kwargs)),
-            "top10_document_retrieval": resources.get("top10_document_retrieval", make_top10_document_retrieval(**kwargs)),
-            "relevance_assessment": resources.get("relevance_assessment", make_relevance_assessment(**kwargs)),
-            "prompt_decision_tree": resources.get("prompt_decision_tree", make_prompt_decision_tree(**kwargs)),
-            "variable_codebook": resources.get("variable_codebook", make_variable_codebook(**kwargs)),
+            "document_retrieval": resources.get("document_retrieval", make_document_retrieval_from_websites(resources=shared_resources)),
+            "document_storage": resources.get("document_storage", make_document_storage(resources=shared_resources)),
+            "top10_document_retrieval": resources.get("top10_document_retrieval", make_top10_document_retrieval(resources=shared_resources)),
+            "relevance_assessment": resources.get("relevance_assessment", make_relevance_assessment(resources=shared_resources)),
+            "prompt_decision_tree": resources.get("prompt_decision_tree", make_prompt_decision_tree(resources=shared_resources)),
+            "variable_codebook": resources.get("variable_codebook", make_variable_codebook(resources=shared_resources)),
         }
     except (ConfigurationError, ResourceError, InitializationError) as e:
         raise e
@@ -174,8 +176,8 @@ def make_socialtoolkit_pipeline(
         raise ResourceError(f"Unexpected error initializing dependencies for {name}: {e}") from e
 
     try:
-        return SocialtoolkitPipeline(_resources, configs)
-    except KeyError:
+        return SocialtoolkitPipeline(resources=_resources, configs=configs)
+    except KeyError as e:
         raise ResourceError(f"Missing required resource for {name}: {e}") from e
     except AttributeError as e:
         raise ConfigurationError(f"Missing required configuration for {name}: {e}") from e

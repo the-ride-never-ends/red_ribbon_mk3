@@ -59,10 +59,10 @@ class SocialtoolkitPipeline:
         self.configs = configs
         self.logger: logging.Logger = logging.getLogger(self.class_name)
 
-        self.approved_document_sources: list[str] = self.configs.approved_document_sources
+        self.approved_document_sources: list[str] = self.configs.approved_document_sources or []
 
-        self._web_scraper: Type = None
-        self._omni_converter: Type = None
+        self._web_scraper: Optional[Type[Any]] = None
+        self._omni_converter: Optional[Type[Any]] = None
         self._db = None
 
         self.llm: LLM = resources["llm"]
@@ -181,7 +181,7 @@ class SocialtoolkitPipeline:
         stored_docs: list[Document]
         stored_vectors: list[Vector]
         try:
-            retrieve_result = self.document_storage.execute(retrieve_action, query)
+            retrieve_result = self.document_storage.execute(retrieve_action, query=query)
         except Exception as e:
             raise DocumentStorageError(f"Unexpected exception while retrieving documents: {e}") from e
 
@@ -195,7 +195,7 @@ class SocialtoolkitPipeline:
 
         # Step 6: Perform top-10 document retrieval
         try:
-            potentially_relevant_docs: dict[str, Document] = self.top10_document_retrieval.execute(
+            top10_result: dict[str, Any] = self.top10_document_retrieval.execute(
                 query, 
                 stored_docs, 
                 stored_vectors
@@ -203,27 +203,29 @@ class SocialtoolkitPipeline:
         except Exception as e:
             raise Top10DocumentRetrievalError(f"Unexpected exception during top-10 document retrieval: {e}") from e
 
+        potentially_relevant_docs = top10_result.get("relevant_documents", [])
         if not potentially_relevant_docs:
             self.logger.warning(f"No potentially relevant documents found for query '{query}'")
             return {}
 
         # Step 7: Perform relevance assessment
         try:
-            relevant_documents: dict[str, Document] = self.relevance_assessment.execute(
+            relevance_result: dict[str, Any] = self.relevance_assessment.execute(
                 potentially_relevant_docs,
                 variable,
             )
         except Exception as e:
             raise RelevanceAssessmentError(f"Unexpected exception during relevance assessment: {e}") from e
 
-        if not relevant_documents:
+        relevant_pages = relevance_result.get("relevant_pages", [])
+        if not relevant_pages:
             self.logger.warning(f"No relevant documents found after relevance assessment for query '{query}'")
             return {}
 
         # Step 8: Execute prompt decision tree
         try:
             result: dict[str, str] = self.prompt_decision_tree.execute(
-                relevant_documents,
+                relevant_pages,
                 variable,
             )
         except Exception as e:

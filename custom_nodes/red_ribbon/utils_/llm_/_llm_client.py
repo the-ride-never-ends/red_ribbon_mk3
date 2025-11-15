@@ -146,6 +146,8 @@ class AsyncLLMInput(BaseModel):
             system_message: The system prompt
         """
         user_message = user_message.strip('\n').strip()
+        # TODO: Implement RAG logic
+        return None
 
 
 class AsyncLLMOutput(BaseModel):
@@ -188,7 +190,7 @@ class LLMOutput(BaseModel):
         else: 
             return 0
 
-    def response(self) -> Any:
+    def parse_response(self) -> Any:
         return self.response_parser(self.response)
 
 def _validate_texts(texts: list[str]) -> None:
