@@ -251,7 +251,7 @@ class LLMOutput(BaseModel):
         else: 
             return 0
 
-    def response(self) -> Any:
+    def parse_response(self) -> Any:
         return self.response_parser(self.response)
 
 

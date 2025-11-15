@@ -227,7 +227,6 @@ def demo_prompt_decision_tree() -> str:
 
 def demo_variable_codebook(question: str, documents: list[str]) -> str:
     global ANSWER
-    ANSWER: str
     print("Loading AI instructions...")
     random_sleep(2,3)
     match question:
