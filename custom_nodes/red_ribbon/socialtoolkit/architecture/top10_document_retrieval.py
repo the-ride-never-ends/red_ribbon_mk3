@@ -93,10 +93,10 @@ class Top10DocumentRetrieval:
         return self.__class__.__name__.lower()
 
     def run(self, 
-            input_data_point: str = None, 
+            input_data_point: Optional[str] = None, 
             documents: Optional[list[Any]] = None, 
             document_vectors: Optional[list[Any]] = None
-            ) -> dict[str, Document]:
+            ) -> dict[str, Any]:
         """
         Public method to run the document retrieval flow.
 
@@ -115,10 +115,10 @@ class Top10DocumentRetrieval:
         return self.execute(input_data_point, documents, document_vectors)
 
     def execute(self, 
-                input_data_point: str = None, 
+                input_data_point: Optional[str] = None, 
                 documents: Optional[list[Any]] = None, 
                 document_vectors: Optional[list[Any]] = None
-                ) -> dict[str, Document]:
+                ) -> dict[str, Any]:
         """
         Execute the document retrieval flow.
 
