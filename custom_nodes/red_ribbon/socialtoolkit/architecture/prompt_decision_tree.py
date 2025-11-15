@@ -93,7 +93,7 @@ class PromptDecisionTree:
     """
 
     def __init__(self, *,
-                 resources: dict[str, Callable], 
+                 resources: dict[str, Any], 
                  configs: PromptDecisionTreeConfigs
                 ):
         """
@@ -321,14 +321,14 @@ class PromptDecisionTree:
             final_response = responses[-1]["response"] if responses else ""
             output_data_point = self._extract_output_data_point(final_response)
             
-            output_dict = {
+            output_dict: dict[str, Any] = {
                 "success": True,
                 "msg": "Successfully executed decision tree",
             }
             
         except Exception as e:
             self.logger.exception(f"Error executing decision tree: {e}")
-            output_dict = {
+            output_dict: dict[str, Any] = {
                 "success": False,
                 "msg": f"{type(e).__name__}: {str(e)}",
                 "document_text": document_text,

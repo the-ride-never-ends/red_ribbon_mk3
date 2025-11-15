@@ -372,7 +372,7 @@ class RelevanceAssessment:
         Returns:
             Dictionary mapping document IDs to lists of page numbers
         """
-        page_numbers = {}
+        page_numbers: dict[str, list[int]] = {}
         
         for page in relevant_pages:
             doc_id = page.get("doc_id")
