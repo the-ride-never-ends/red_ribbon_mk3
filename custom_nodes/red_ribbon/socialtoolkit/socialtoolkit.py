@@ -19,6 +19,12 @@ from typing import Any, Optional, TypeVar, Callable
 
 # Integrated Pipeline
 from .architecture.socialtoolkit_pipeline import SocialtoolkitPipeline
+from .architecture.document_retrieval_from_websites import DocumentRetrievalFromWebsites
+from .architecture.document_storage import DocumentStorage
+from .architecture.top10_document_retrieval import Top10DocumentRetrieval
+from .architecture.relevance_assessment import RelevanceAssessment
+from .architecture.variable_codebook import VariableCodebook
+from .architecture.prompt_decision_tree import PromptDecisionTree
 from ..utils_ import (
     Configs,
     LLM,
@@ -51,7 +57,7 @@ class SocialToolkitAPI:
     Properties:
         version (str): The version of the Socialtoolkit package.
     """
-    def __init__(self, resources: dict[str, Callable[..., Any]], configs: Configs):
+    def __init__(self, resources: dict[str, Any], configs: Configs):
         self.configs = configs
         self.resources = resources
 
@@ -60,15 +66,15 @@ class SocialToolkitAPI:
         self._db:                               DatabaseAPI = self.resources["db"]
 
         # Piece-wise Pipeline
-        self._document_retrieval_from_websites: Callable[..., Any] = self.resources["document_retrieval_from_websites"]
-        self._document_storage:                 Callable[..., Any] = self.resources["document_storage"]
-        self._top10_document_retrieval:         Callable[..., Any] = self.resources["top10_document_retrieval"]
-        self._relevance_assessment:             Callable[..., Any] = self.resources["relevance_assessment"]
-        self._variable_codebook:                Callable[..., Any] = self.resources["variable_codebook"]
-        self._prompt_decision_tree:             Callable[..., Any] = self.resources["prompt_decision_tree"]
+        self._document_retrieval_from_websites: DocumentRetrievalFromWebsites = self.resources["document_retrieval_from_websites"]
+        self._document_storage:                 DocumentStorage = self.resources["document_storage"]
+        self._top10_document_retrieval:         Top10DocumentRetrieval = self.resources["top10_document_retrieval"]
+        self._relevance_assessment:             RelevanceAssessment = self.resources["relevance_assessment"]
+        self._variable_codebook:                VariableCodebook = self.resources["variable_codebook"]
+        self._prompt_decision_tree:             PromptDecisionTree = self.resources["prompt_decision_tree"]
 
         # Full Pipeline
-        self._socialtoolkit_pipeline:           Callable[..., Any] = self.resources["socialtoolkit_pipeline"]
+        self._socialtoolkit_pipeline:           SocialtoolkitPipeline = self.resources["socialtoolkit_pipeline"]
 
     @property
     def version(self) -> str:
