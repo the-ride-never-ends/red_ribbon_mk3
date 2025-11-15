@@ -281,7 +281,7 @@ class PromptDecisionTree:
         iteration = 0
         responses = []
         output_data_point = None
-        output_dict = {"success": None, "msg": None, "document_text": None}
+        output_dict: dict[str, Any] = {"success": None, "msg": None, "document_text": None}
         try:
             # Start with the first node
             current_node = decision_tree[0]
@@ -321,14 +321,14 @@ class PromptDecisionTree:
             final_response = responses[-1]["response"] if responses else ""
             output_data_point = self._extract_output_data_point(final_response)
             
-            output_dict: dict[str, Any] = {
+            output_dict = {
                 "success": True,
                 "msg": "Successfully executed decision tree",
             }
             
         except Exception as e:
             self.logger.exception(f"Error executing decision tree: {e}")
-            output_dict: dict[str, Any] = {
+            output_dict = {
                 "success": False,
                 "msg": f"{type(e).__name__}: {str(e)}",
                 "document_text": document_text,

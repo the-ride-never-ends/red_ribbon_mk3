@@ -376,6 +376,8 @@ class RelevanceAssessment:
         
         for page in relevant_pages:
             doc_id = page.get("doc_id")
+            if doc_id is None:
+                continue
             page_number = page.get("page_number", 1)  # Default to page 1 if not specified
             
             if doc_id not in page_numbers:

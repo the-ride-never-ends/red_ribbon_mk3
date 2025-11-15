@@ -81,16 +81,15 @@ class SocialToolkitAPI:
         return __version__
 
     def document_retrieval_from_websites(self, 
-                                        action: str, 
                                         domain_urls: list[str]
-                                        ) -> tuple[Any, Any, Any]:
-        return self._document_retrieval_from_websites.execute(action, domain_urls)
+                                        ) -> dict[str, Any]:
+        return self._document_retrieval_from_websites.execute(domain_urls)
 
 
     def document_storage(self, 
-                         action: str, *args, **kwargs
-                        ) -> Optional[tuple[Any, Any]]:
-        return self._document_storage.execute(action, *args, **kwargs)
+                         action: str, **kwargs
+                        ) -> dict[str, Any]:
+        return self._document_storage.execute(action, **kwargs)
 
 
     def top10_document_retrieval(self,
@@ -104,9 +103,13 @@ class SocialToolkitAPI:
 
 
     def  relevance_assessment(self,
-                              action: str, *args, **kwargs
-                             ) -> Optional[Any]:
-        return self._relevance_assessment.execute(action, *args, **kwargs)
+                              potentially_relevant_docs: list[Any],
+                              variable: Any,
+                              llm: Optional[Any] = None
+                             ) -> dict[str, Any]:
+        from .architecture.dataclasses import Document
+        from .architecture.variable_codebook import Variable
+        return self._relevance_assessment.execute(potentially_relevant_docs, variable, llm)  # type: ignore[arg-type]
 
 
     def variable_codebook(self, 
@@ -116,10 +119,11 @@ class SocialToolkitAPI:
 
 
     def prompt_decision_tree(self,
-                             action: str, *args, **kwargs
-                            ) -> Optional[Any]:
-        """"""
-        return self._prompt_decision_tree.execute(action, *args, **kwargs)
+                             relevant_sections: list[Any],
+                             variable: Any
+                            ) -> dict[str, Any]:
+        from .architecture.variable_codebook import Variable
+        return self._prompt_decision_tree.execute(relevant_sections, variable)  # type: ignore[arg-type]
 
 
     def socialtoolkit_pipeline(self, input_data_point: str, *args, **kwargs) -> dict[str, str] | list[dict[str, str]]:
