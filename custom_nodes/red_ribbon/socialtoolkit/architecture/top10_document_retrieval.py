@@ -29,7 +29,7 @@ class Top10DocumentRetrievalConfigs(BaseModel):
     """Configuration for Top-10 Document Retrieval workflow"""
     retrieval_count: int = 10  # Number of documents to retrieve
     similarity_threshold: float = 0.6  # Minimum similarity score
-    ranking_method: RankingMethod = RankingMethod.COSINE_SIMILARITY.value
+    ranking_method: RankingMethod = RankingMethod.COSINE_SIMILARITY
     use_filter: bool = False  # Whether to filter results
     filter_criteria: dict[str, Any] = {}
     use_reranking: bool = False  # Whether to use re-ranking
@@ -206,7 +206,7 @@ SELECT * FROM document_vectors;
 """
         return self.db.execute()
 
-    def _run_ranking_method(self, query_vector: list[float], vector: dict[str, list[float]]) -> Callable:
+    def _run_ranking_method(self, query_vector: list[float], vector: dict[str, list[float]]) -> float:
         match self.ranking_method:
                 # Calculate similarity score based on the configured method
             case "cosine_similarity":
@@ -330,7 +330,7 @@ SELECT * FROM document_vectors;
             if doc_id in doc_map
         ]
 
-    def _vector_functions(self, vec1: list[float], vec2: list[float], func: Callable) -> list[float]:
+    def _vector_functions(self, vec1: list[float], vec2: list[float], func: Callable) -> float:
         if not vec1 or not vec2:
             return 0.0
         try:
