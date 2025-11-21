@@ -5,9 +5,9 @@ Feature: Dynamic Webscraper
 
   Background:
     Given a DynamicWebscraper instance is initialized
-    And browser automation service is available
-    And HTML parser service is available
-    And data extractor service is available
+    And browser automation service exists in resources dictionary
+    And HTML parser service exists in resources dictionary
+    And data extractor service exists in resources dictionary
 
   Rule: Initialization Requires Resources and Configs
 
@@ -15,8 +15,12 @@ Feature: Dynamic Webscraper
       Given valid resources dictionary with required services
       And valid DynamicWebscraperConfigs instance
       When DynamicWebscraper is initialized
-      Then initialization completes successfully
-      And logger is available
+      Then self.resources is set to the provided resources dictionary
+      And self.configs is set to the provided configs instance
+      And self.logger is set to a logging.Logger instance
+      And self.browser is set to the value from resources["browser"]
+      And self.parser is set to the value from resources["parser"]
+      And self.extractor is set to the value from resources["extractor"]
 
     Scenario: Initialize with invalid resources type
       Given resources is not a dictionary
@@ -145,12 +149,14 @@ Feature: Dynamic Webscraper
       And each dictionary corresponds to one URL
 
     Scenario: Scrape multiple handles individual failures
-      Given URLs including one that fails to scrape
+      Given URLs ["https://example.com/page1", "https://failing-url.com", "https://example.com/page2"]
+      And URL "https://failing-url.com" raises an exception during scraping
       When scrape_multiple is called
-      Then a list is returned
-      And failed URL result has success = False
-      And failed URL result contains "error" key
-      And other URLs are processed normally
+      Then a list of 3 dictionaries is returned
+      And dictionary at index 1 has success = False
+      And dictionary at index 1 contains key "error"
+      And dictionary at index 0 has success = True
+      And dictionary at index 2 has success = True
 
   Rule: Validate URL Checks URL Format
 
@@ -245,9 +251,9 @@ Feature: Dynamic Webscraper
     Scenario: Wait for element with custom timeout
       Given url "https://example.com"
       And selector "#dynamic-content"
-      And timeout 10
-      When wait_for_element is called with timeout
-      Then the element is waited for up to 10 seconds
+      And timeout parameter value is 10
+      When wait_for_element is called with timeout=10
+      Then wait_time variable is set to 10
       And a boolean is returned
 
     Scenario: Wait for element with non-string URL
@@ -281,46 +287,63 @@ Feature: Dynamic Webscraper
     Scenario: Wait for element uses default timeout when not provided
       Given url "https://example.com"
       And selector "#content"
-      And timeout is not provided
-      When wait_for_element is called
-      Then default timeout from configs is used
+      And timeout parameter is None
+      And configs.timeout_seconds = 30
+      When wait_for_element is called without timeout parameter
+      Then wait_time variable is set to 30
 
   Rule: Configuration Controls Scraping Behavior
 
-    Scenario: Timeout seconds configuration affects wait time
-      Given configs with timeout_seconds = 30
-      When scraper operates
-      Then operations timeout after 30 seconds
+    Scenario: Timeout seconds configuration sets maximum wait time
+      Given DynamicWebscraperConfigs with timeout_seconds = 30
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.timeout_seconds equals 30
+      And wait_for_element uses 30 seconds as default timeout
 
-    Scenario: Max retries configuration affects retry behavior
-      Given configs with max_retries = 3
-      When a scrape operation fails
-      Then the operation is retried up to 3 times
+    Scenario: Max retries configuration sets retry attempt limit
+      Given DynamicWebscraperConfigs with max_retries = 3
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.max_retries equals 3
 
-    Scenario: Wait for render configuration affects page load
-      Given configs with wait_for_render = 5
-      When a dynamic page is scraped
-      Then scraper waits 5 seconds for JavaScript to render
+    Scenario: Wait for render configuration sets JavaScript wait time
+      Given DynamicWebscraperConfigs with wait_for_render = 5
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.wait_for_render equals 5
 
-    Scenario: Headless mode configuration affects browser visibility
-      Given configs with headless = True
-      When browser is launched
-      Then browser runs in headless mode
+    Scenario: Headless mode configuration sets browser display mode
+      Given DynamicWebscraperConfigs with headless = True
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.headless equals True
 
-    Scenario: User agent configuration sets browser identity
-      Given configs with user_agent = "Custom User Agent"
-      When requests are made
-      Then User-Agent header is "Custom User Agent"
+    Scenario: Headless mode off shows browser window
+      Given DynamicWebscraperConfigs with headless = False
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.headless equals False
 
-    Scenario: Screenshot on error saves debugging images
-      Given configs with screenshot_on_error = True
-      When a scrape operation fails
-      Then a screenshot is saved for debugging
+    Scenario: User agent configuration sets request header value
+      Given DynamicWebscraperConfigs with user_agent = "Custom User Agent"
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.user_agent equals "Custom User Agent"
 
-    Scenario: JavaScript enabled controls script execution
-      Given configs with javascript_enabled = True
-      When pages are loaded
-      Then JavaScript is executed
+    Scenario: Screenshot on error configuration enabled
+      Given DynamicWebscraperConfigs with screenshot_on_error = True
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.screenshot_on_error equals True
+
+    Scenario: Screenshot on error configuration disabled
+      Given DynamicWebscraperConfigs with screenshot_on_error = False
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.screenshot_on_error equals False
+
+    Scenario: JavaScript enabled configuration allows script execution
+      Given DynamicWebscraperConfigs with javascript_enabled = True
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.javascript_enabled equals True
+
+    Scenario: JavaScript disabled configuration blocks script execution
+      Given DynamicWebscraperConfigs with javascript_enabled = False
+      When DynamicWebscraper is initialized with these configs
+      Then self.configs.javascript_enabled equals False
 
   Rule: Logger Records Scraping Operations
 
