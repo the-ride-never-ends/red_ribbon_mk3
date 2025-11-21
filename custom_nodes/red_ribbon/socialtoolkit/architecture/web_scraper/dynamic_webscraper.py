@@ -55,19 +55,21 @@ class DynamicWebscraper:
             KeyError: If required resources are missing
             TypeError: If resources or configs are wrong type
         """
+        # Validate types before assignment
         if not isinstance(resources, dict):
             raise TypeError(f"resources must be dict, got {type(resources).__name__}")
         if not isinstance(configs, DynamicWebscraperConfigs):
             raise TypeError(f"configs must be DynamicWebscraperConfigs, got {type(configs).__name__}")
             
+        # Assign after validation
         self.resources = resources
         self.configs = configs
-        self.logger: logging.Logger = resources.get("logger", logging.getLogger(__name__))
         
-        # Extract services from resources
-        self.browser = resources.get("browser")
-        self.parser = resources.get("parser")
-        self.extractor = resources.get("extractor")
+        # Extract services with consistent pattern
+        self.logger: logging.Logger = resources.get("logger", logging.getLogger(__name__))
+        self.browser = resources.get("browser", None)
+        self.parser = resources.get("parser", None)
+        self.extractor = resources.get("extractor", None)
         
         self.logger.info("DynamicWebscraper initialized")
     
@@ -85,7 +87,7 @@ class DynamicWebscraper:
                 - content: str of extracted text content
                 - html: str of rendered HTML
                 - metadata: dict with page metadata (title, description, etc.)
-                - timestamp: datetime of when page was scraped
+                - timestamp: datetime or None when page was scraped
                 
         Raises:
             TypeError: If url is not a string
@@ -188,10 +190,11 @@ class DynamicWebscraper:
             return False
         
         try:
-            # Basic validation - would be more sophisticated in real implementation
+            # Basic validation using pydantic's validation
+            from pydantic import ValidationError
             HttpUrl(url)
             return True
-        except Exception:
+        except (ValidationError, Exception):
             return False
     
     def get_page_title(self, url: str) -> str:
