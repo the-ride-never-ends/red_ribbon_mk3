@@ -2,7 +2,7 @@
 Unit tests for DynamicWebscraper
 
 Tests are based on the Gherkin feature file specification.
-All test docstrings are taken verbatim from the Gherkin scenarios.
+All test docstrings include the complete Given/When/Then structure.
 """
 
 import pytest
@@ -193,33 +193,52 @@ def valid_resources_dictionary():
     pass
 
 
+
 # ============================================================================
 # Test Class: Scrape Method Returns HTML Content
 # ============================================================================
 
-class TestScrapeMethodReturnsHTMLContent:
+class TestScrapeMethodReturnsHtmlContent:
     """Rule: Scrape Method Returns HTML Content"""
 
     def test_scrape_returns_html_with_valid_structure(self):
-        """Scenario: Scrape returns HTML with valid structure"""
+        """Scenario: Scrape returns HTML with valid structure
+        Given a valid URL "https://example.com/dynamic-page"
+        When scrape is called
+        Then result["html"] contains "<html>"
+        """
         pass
 
     def test_scrape_returns_html_with_body_tag(self):
-        """Scenario: Scrape returns HTML with body tag"""
+        """Scenario: Scrape returns HTML with body tag
+        Given a valid URL "https://example.com/dynamic-page"
+        When scrape is called
+        Then result["html"] contains "<body>"
+        """
         pass
 
     def test_scrape_returns_html_with_closing_tags(self):
-        """Scenario: Scrape returns HTML with closing tags"""
+        """Scenario: Scrape returns HTML with closing tags
+        Given a valid URL "https://example.com/dynamic-page"
+        When scrape is called
+        Then result["html"] contains "</html>"
+        """
         pass
 
-    def test_scrape_returns_non_empty_html_string(self):
-        """Scenario: Scrape returns non-empty HTML string"""
+    def test_scrape_returns_nonempty_html_string(self):
+        """Scenario: Scrape returns non-empty HTML string
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then result["html"] is not empty
+        """
         pass
 
     def test_scrape_returns_html_as_string_type(self):
-        """Scenario: Scrape returns HTML as string type"""
+        """Scenario: Scrape returns HTML as string type
+        Given a valid URL "https://example.com"
+        When scrape is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Method Returns Extracted Text Content
@@ -229,17 +248,27 @@ class TestScrapeMethodReturnsExtractedTextContent:
     """Rule: Scrape Method Returns Extracted Text Content"""
 
     def test_scrape_returns_extracted_content(self):
-        """Scenario: Scrape returns extracted content"""
+        """Scenario: Scrape returns extracted content
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then result["content"] is a string
+        """
         pass
 
     def test_scrape_content_references_the_url(self):
-        """Scenario: Scrape content references the URL"""
+        """Scenario: Scrape content references the URL
+        Given a valid URL "https://example.com/page1"
+        When scrape is called
+        Then result["content"] contains "https://example.com/page1"
+        """
         pass
 
-    def test_scrape_returns_non_empty_content(self):
-        """Scenario: Scrape returns non-empty content"""
+    def test_scrape_returns_nonempty_content(self):
+        """Scenario: Scrape returns non-empty content
+        Given a valid URL "https://example.com"
+        When scrape is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Method Returns Success Status
@@ -249,13 +278,19 @@ class TestScrapeMethodReturnsSuccessStatus:
     """Rule: Scrape Method Returns Success Status"""
 
     def test_scrape_with_valid_url_returns_success_true(self):
-        """Scenario: Scrape with valid URL returns success True"""
+        """Scenario: Scrape with valid URL returns success True
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then result["success"] equals True
+        """
         pass
 
     def test_scrape_result_includes_requested_url(self):
-        """Scenario: Scrape result includes requested URL"""
+        """Scenario: Scrape result includes requested URL
+        Given a valid URL "https://example.com/test"
+        When scrape is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Method Returns Metadata Dictionary
@@ -265,21 +300,35 @@ class TestScrapeMethodReturnsMetadataDictionary:
     """Rule: Scrape Method Returns Metadata Dictionary"""
 
     def test_scrape_returns_metadata_with_title_key(self):
-        """Scenario: Scrape returns metadata with title key"""
+        """Scenario: Scrape returns metadata with title key
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then result["metadata"]["title"] exists
+        """
         pass
 
     def test_scrape_metadata_title_is_a_string(self):
-        """Scenario: Scrape metadata title is a string"""
+        """Scenario: Scrape metadata title is a string
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then result["metadata"]["title"] is a string
+        """
         pass
 
     def test_scrape_returns_metadata_with_description_key(self):
-        """Scenario: Scrape returns metadata with description key"""
+        """Scenario: Scrape returns metadata with description key
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then result["metadata"]["description"] exists
+        """
         pass
 
     def test_scrape_metadata_description_is_a_string(self):
-        """Scenario: Scrape metadata description is a string"""
+        """Scenario: Scrape metadata description is a string
+        Given a valid URL "https://example.com"
+        When scrape is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Method Validates Input Parameters
@@ -288,54 +337,90 @@ class TestScrapeMethodReturnsMetadataDictionary:
 class TestScrapeMethodValidatesInputParameters:
     """Rule: Scrape Method Validates Input Parameters"""
 
-    def test_scrape_with_non_string_url_raises_typeerror(self):
-        """Scenario: Scrape with non-string URL raises TypeError"""
+    def test_scrape_with_nonstring_url_raises_typeerror(self):
+        """Scenario: Scrape with non-string URL raises TypeError
+        Given url parameter is an integer 12345
+        When scrape is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_scrape_with_empty_string_url_raises_valueerror(self):
-        """Scenario: Scrape with empty string URL raises ValueError"""
+        """Scenario: Scrape with empty string URL raises ValueError
+        Given url parameter is an empty string ""
+        When scrape is called
+        Then a ValueError is raised
+        """
         pass
 
-    def test_scrape_with_whitespace_only_url_raises_valueerror(self):
-        """Scenario: Scrape with whitespace-only URL raises ValueError"""
+    def test_scrape_with_whitespaceonly_url_raises_valueerror(self):
+        """Scenario: Scrape with whitespace-only URL raises ValueError
+        Given url parameter is "   "
+        When scrape is called
+        Then a ValueError is raised
+        """
         pass
 
     def test_scrape_typeerror_message_indicates_type_requirement(self):
-        """Scenario: Scrape TypeError message indicates type requirement"""
+        """Scenario: Scrape TypeError message indicates type requirement
+        Given url parameter is an integer 12345
+        When scrape is called
+        Then error message contains "url must be str"
+        """
         pass
 
     def test_scrape_valueerror_message_indicates_empty_constraint(self):
-        """Scenario: Scrape ValueError message indicates empty constraint"""
+        """Scenario: Scrape ValueError message indicates empty constraint
+        Given url parameter is an empty string ""
+        When scrape is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Multiple Method Returns List of HTML Results
 # ============================================================================
 
-class TestScrapeMultipleMethodReturnsListOfHTMLResults:
+class TestScrapeMultipleMethodReturnsListOfHtmlResults:
     """Rule: Scrape Multiple Method Returns List of HTML Results"""
 
     def test_scrape_multiple_returns_list_of_dictionaries(self):
-        """Scenario: Scrape multiple returns list of dictionaries"""
+        """Scenario: Scrape multiple returns list of dictionaries
+        Given URLs ["https://example.com/page1", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then a list of 2 dictionaries is returned
+        """
         pass
 
     def test_scrape_multiple_first_result_contains_html(self):
-        """Scenario: Scrape multiple first result contains HTML"""
+        """Scenario: Scrape multiple first result contains HTML
+        Given URLs ["https://example.com/page1", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then result[0]["html"] contains "<html>"
+        """
         pass
 
     def test_scrape_multiple_second_result_contains_html(self):
-        """Scenario: Scrape multiple second result contains HTML"""
+        """Scenario: Scrape multiple second result contains HTML
+        Given URLs ["https://example.com/page1", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then result[1]["html"] contains "<html>"
+        """
         pass
 
     def test_scrape_multiple_each_result_has_unique_url(self):
-        """Scenario: Scrape multiple each result has unique URL"""
+        """Scenario: Scrape multiple each result has unique URL
+        Given URLs ["https://example.com/page1", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then result[0]["url"] equals "https://example.com/page1"
+        """
         pass
 
     def test_scrape_multiple_second_result_has_correct_url(self):
-        """Scenario: Scrape multiple second result has correct URL"""
+        """Scenario: Scrape multiple second result has correct URL
+        Given URLs ["https://example.com/page1", "https://example.com/page2"]
+        When scrape_multiple is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Multiple Method Handles Failures
@@ -345,25 +430,43 @@ class TestScrapeMultipleMethodHandlesFailures:
     """Rule: Scrape Multiple Method Handles Failures"""
 
     def test_scrape_multiple_with_failing_url_returns_list(self):
-        """Scenario: Scrape multiple with failing URL returns list"""
+        """Scenario: Scrape multiple with failing URL returns list
+        Given URLs ["https://example.com/page1", "https://failing-url.com", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then a list of 3 dictionaries is returned
+        """
         pass
 
     def test_scrape_multiple_failing_url_has_success_false(self):
-        """Scenario: Scrape multiple failing URL has success False"""
+        """Scenario: Scrape multiple failing URL has success False
+        Given URLs ["https://example.com/page1", "https://failing-url.com", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then result[1]["success"] equals False
+        """
         pass
 
     def test_scrape_multiple_failing_url_includes_error_key(self):
-        """Scenario: Scrape multiple failing URL includes error key"""
+        """Scenario: Scrape multiple failing URL includes error key
+        Given URLs ["https://example.com/page1", "https://failing-url.com", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then result[1]["error"] exists
+        """
         pass
 
     def test_scrape_multiple_successful_urls_have_success_true(self):
-        """Scenario: Scrape multiple successful URLs have success True"""
+        """Scenario: Scrape multiple successful URLs have success True
+        Given URLs ["https://example.com/page1", "https://failing-url.com", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then result[0]["success"] equals True
+        """
         pass
 
     def test_scrape_multiple_third_url_succeeds_despite_earlier_failure(self):
-        """Scenario: Scrape multiple third URL succeeds despite earlier failure"""
+        """Scenario: Scrape multiple third URL succeeds despite earlier failure
+        Given URLs ["https://example.com/page1", "https://failing-url.com", "https://example.com/page2"]
+        When scrape_multiple is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Scrape Multiple Method Validates Input Parameters
@@ -372,54 +475,90 @@ class TestScrapeMultipleMethodHandlesFailures:
 class TestScrapeMultipleMethodValidatesInputParameters:
     """Rule: Scrape Multiple Method Validates Input Parameters"""
 
-    def test_scrape_multiple_with_non_list_parameter_raises_typeerror(self):
-        """Scenario: Scrape multiple with non-list parameter raises TypeError"""
+    def test_scrape_multiple_with_nonlist_parameter_raises_typeerror(self):
+        """Scenario: Scrape multiple with non-list parameter raises TypeError
+        Given urls parameter is a string "https://example.com"
+        When scrape_multiple is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_scrape_multiple_with_empty_list_raises_valueerror(self):
-        """Scenario: Scrape multiple with empty list raises ValueError"""
+        """Scenario: Scrape multiple with empty list raises ValueError
+        Given urls parameter is an empty list []
+        When scrape_multiple is called
+        Then a ValueError is raised
+        """
         pass
 
-    def test_scrape_multiple_with_non_string_elements_raises_typeerror(self):
-        """Scenario: Scrape multiple with non-string elements raises TypeError"""
+    def test_scrape_multiple_with_nonstring_elements_raises_typeerror(self):
+        """Scenario: Scrape multiple with non-string elements raises TypeError
+        Given urls parameter contains [123, "https://example.com"]
+        When scrape_multiple is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_scrape_multiple_typeerror_message_indicates_list_requirement(self):
-        """Scenario: Scrape multiple TypeError message indicates list requirement"""
+        """Scenario: Scrape multiple TypeError message indicates list requirement
+        Given urls parameter is a string "https://example.com"
+        When scrape_multiple is called
+        Then error message contains "urls must be list"
+        """
         pass
 
     def test_scrape_multiple_valueerror_message_indicates_empty_constraint(self):
-        """Scenario: Scrape multiple ValueError message indicates empty constraint"""
+        """Scenario: Scrape multiple ValueError message indicates empty constraint
+        Given urls parameter is an empty list []
+        When scrape_multiple is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Validate URL Method Checks Format
 # ============================================================================
 
-class TestValidateURLMethodChecksFormat:
+class TestValidateUrlMethodChecksFormat:
     """Rule: Validate URL Method Checks Format"""
 
     def test_validate_url_with_valid_https_url_returns_true(self):
-        """Scenario: Validate URL with valid HTTPS URL returns True"""
+        """Scenario: Validate URL with valid HTTPS URL returns True
+        Given url "https://example.com"
+        When validate_url is called
+        Then True is returned
+        """
         pass
 
     def test_validate_url_with_path_returns_true(self):
-        """Scenario: Validate URL with path returns True"""
+        """Scenario: Validate URL with path returns True
+        Given url "https://secure.example.com/path"
+        When validate_url is called
+        Then True is returned
+        """
         pass
 
     def test_validate_url_with_invalid_format_returns_false(self):
-        """Scenario: Validate URL with invalid format returns False"""
+        """Scenario: Validate URL with invalid format returns False
+        Given url "not a url"
+        When validate_url is called
+        Then False is returned
+        """
         pass
 
-    def test_validate_url_with_non_string_parameter_returns_false(self):
-        """Scenario: Validate URL with non-string parameter returns False"""
+    def test_validate_url_with_nonstring_parameter_returns_false(self):
+        """Scenario: Validate URL with non-string parameter returns False
+        Given url parameter is an integer 12345
+        When validate_url is called
+        Then False is returned
+        """
         pass
 
     def test_validate_url_with_empty_string_returns_false(self):
-        """Scenario: Validate URL with empty string returns False"""
+        """Scenario: Validate URL with empty string returns False
+        Given url ""
+        When validate_url is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Get Page Title Method Extracts Title
@@ -429,65 +568,113 @@ class TestGetPageTitleMethodExtractsTitle:
     """Rule: Get Page Title Method Extracts Title"""
 
     def test_get_page_title_returns_string(self):
-        """Scenario: Get page title returns string"""
+        """Scenario: Get page title returns string
+        Given a valid URL "https://example.com"
+        When get_page_title is called
+        Then a string is returned
+        """
         pass
 
-    def test_get_page_title_with_non_string_url_raises_typeerror(self):
-        """Scenario: Get page title with non-string URL raises TypeError"""
+    def test_get_page_title_with_nonstring_url_raises_typeerror(self):
+        """Scenario: Get page title with non-string URL raises TypeError
+        Given url parameter is not a string
+        When get_page_title is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_get_page_title_with_empty_url_raises_valueerror(self):
-        """Scenario: Get page title with empty URL raises ValueError"""
+        """Scenario: Get page title with empty URL raises ValueError
+        Given url parameter is an empty string
+        When get_page_title is called
+        Then a ValueError is raised
+        """
         pass
 
     def test_get_page_title_when_scraping_fails_raises_runtimeerror(self):
-        """Scenario: Get page title when scraping fails raises RuntimeError"""
+        """Scenario: Get page title when scraping fails raises RuntimeError
+        Given a URL that fails to scrape
+        When get_page_title is called
+        Then a RuntimeError is raised
+        """
         pass
 
     def test_get_page_title_typeerror_message_indicates_type_requirement(self):
-        """Scenario: Get page title TypeError message indicates type requirement"""
+        """Scenario: Get page title TypeError message indicates type requirement
+        Given url parameter is not a string
+        When get_page_title is called
+        Then error message contains "url must be str"
+        """
         pass
 
     def test_get_page_title_valueerror_message_indicates_empty_constraint(self):
-        """Scenario: Get page title ValueError message indicates empty constraint"""
+        """Scenario: Get page title ValueError message indicates empty constraint
+        Given url parameter is an empty string
+        When get_page_title is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Extract Links Method Returns URL List
 # ============================================================================
 
-class TestExtractLinksMethodReturnsURLList:
+class TestExtractLinksMethodReturnsUrlList:
     """Rule: Extract Links Method Returns URL List"""
 
     def test_extract_links_returns_list_of_strings(self):
-        """Scenario: Extract links returns list of strings"""
+        """Scenario: Extract links returns list of strings
+        Given a valid URL "https://example.com"
+        When extract_links is called
+        Then a list is returned
+        """
         pass
 
     def test_extract_links_from_page_with_no_links_returns_empty_list(self):
-        """Scenario: Extract links from page with no links returns empty list"""
+        """Scenario: Extract links from page with no links returns empty list
+        Given a page with no links
+        When extract_links is called
+        Then an empty list is returned
+        """
         pass
 
     def test_extract_links_from_page_with_10_links_returns_10_urls(self):
-        """Scenario: Extract links from page with 10 links returns 10 URLs"""
+        """Scenario: Extract links from page with 10 links returns 10 URLs
+        Given a page with 10 links
+        When extract_links is called
+        Then a list of 10 strings is returned
+        """
         pass
 
-    def test_extract_links_with_non_string_url_raises_typeerror(self):
-        """Scenario: Extract links with non-string URL raises TypeError"""
+    def test_extract_links_with_nonstring_url_raises_typeerror(self):
+        """Scenario: Extract links with non-string URL raises TypeError
+        Given url parameter is not a string
+        When extract_links is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_extract_links_with_empty_url_raises_valueerror(self):
-        """Scenario: Extract links with empty URL raises ValueError"""
+        """Scenario: Extract links with empty URL raises ValueError
+        Given url parameter is an empty string
+        When extract_links is called
+        Then a ValueError is raised
+        """
         pass
 
     def test_extract_links_typeerror_message_indicates_type_requirement(self):
-        """Scenario: Extract links TypeError message indicates type requirement"""
+        """Scenario: Extract links TypeError message indicates type requirement
+        Given url parameter is not a string
+        When extract_links is called
+        Then error message contains "url must be str"
+        """
         pass
 
     def test_extract_links_valueerror_message_indicates_empty_constraint(self):
-        """Scenario: Extract links ValueError message indicates empty constraint"""
+        """Scenario: Extract links ValueError message indicates empty constraint
+        Given url parameter is an empty string
+        When extract_links is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: Wait For Element Method Returns Boolean
@@ -497,105 +684,195 @@ class TestWaitForElementMethodReturnsBoolean:
     """Rule: Wait For Element Method Returns Boolean"""
 
     def test_wait_for_element_that_appears_returns_true(self):
-        """Scenario: Wait for element that appears returns True"""
+        """Scenario: Wait for element that appears returns True
+        Given url "https://example.com"
+        When wait_for_element is called with selector "#content"
+        Then True is returned
+        """
         pass
 
     def test_wait_for_element_with_custom_timeout_logs_timeout_value(self):
-        """Scenario: Wait for element with custom timeout logs timeout value"""
+        """Scenario: Wait for element with custom timeout logs timeout value
+        Given url "https://example.com"
+        And selector "#dynamic-content"
+        And timeout 10
+        When wait_for_element is called
+        Then log message contains "(timeout: 10s)"
+        """
         pass
 
     def test_wait_for_element_without_timeout_uses_default(self):
-        """Scenario: Wait for element without timeout uses default"""
+        """Scenario: Wait for element without timeout uses default
+        Given url "https://example.com"
+        When wait_for_element is called with selector "#content"
+        Then log message contains "(timeout: 30s)"
+        """
         pass
 
-    def test_wait_for_element_with_non_string_url_raises_typeerror(self):
-        """Scenario: Wait for element with non-string URL raises TypeError"""
+    def test_wait_for_element_with_nonstring_url_raises_typeerror(self):
+        """Scenario: Wait for element with non-string URL raises TypeError
+        Given url parameter is not a string
+        When wait_for_element is called with selector "#content"
+        Then a TypeError is raised
+        """
         pass
 
-    def test_wait_for_element_with_non_string_selector_raises_typeerror(self):
-        """Scenario: Wait for element with non-string selector raises TypeError"""
+    def test_wait_for_element_with_nonstring_selector_raises_typeerror(self):
+        """Scenario: Wait for element with non-string selector raises TypeError
+        Given url "https://example.com"
+        And selector parameter is not a string
+        When wait_for_element is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_wait_for_element_with_empty_url_raises_valueerror(self):
-        """Scenario: Wait for element with empty URL raises ValueError"""
+        """Scenario: Wait for element with empty URL raises ValueError
+        Given url parameter is an empty string
+        When wait_for_element is called with selector "#content"
+        Then a ValueError is raised
+        """
         pass
 
     def test_wait_for_element_with_empty_selector_raises_valueerror(self):
-        """Scenario: Wait for element with empty selector raises ValueError"""
+        """Scenario: Wait for element with empty selector raises ValueError
+        Given url "https://example.com"
+        And selector parameter is an empty string
+        When wait_for_element is called
+        Then a ValueError is raised
+        """
         pass
 
     def test_wait_for_element_url_typeerror_message_indicates_type_requirement(self):
-        """Scenario: Wait for element URL TypeError message indicates type requirement"""
+        """Scenario: Wait for element URL TypeError message indicates type requirement
+        Given url parameter is not a string
+        When wait_for_element is called with selector "#content"
+        Then error message contains "url must be str"
+        """
         pass
 
     def test_wait_for_element_selector_typeerror_message_indicates_type_requirement(self):
-        """Scenario: Wait for element selector TypeError message indicates type requirement"""
+        """Scenario: Wait for element selector TypeError message indicates type requirement
+        Given url "https://example.com"
+        And selector parameter is not a string
+        When wait_for_element is called
+        Then error message contains "selector must be str"
+        """
         pass
 
     def test_wait_for_element_url_valueerror_message_indicates_empty_constraint(self):
-        """Scenario: Wait for element URL ValueError message indicates empty constraint"""
+        """Scenario: Wait for element URL ValueError message indicates empty constraint
+        Given url parameter is an empty string
+        When wait_for_element is called with selector "#content"
+        Then error message contains "url cannot be empty"
+        """
         pass
 
     def test_wait_for_element_selector_valueerror_message_indicates_empty_constraint(self):
-        """Scenario: Wait for element selector ValueError message indicates empty constraint"""
+        """Scenario: Wait for element selector ValueError message indicates empty constraint
+        Given url "https://example.com"
+        And selector parameter is an empty string
+        When wait_for_element is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: DynamicWebscraper Initialization Validates Parameters
 # ============================================================================
 
-class TestDynamicWebscraperInitializationValidatesParameters:
+class TestDynamicwebscraperInitializationValidatesParameters:
     """Rule: DynamicWebscraper Initialization Validates Parameters"""
 
     def test_initialize_with_valid_resources_and_configs_succeeds(self):
-        """Scenario: Initialize with valid resources and configs succeeds"""
+        """Scenario: Initialize with valid resources and configs succeeds
+        Given valid resources dictionary
+        When DynamicWebscraper.__init__ is called with valid configs
+        Then no exception is raised
+        """
         pass
 
-    def test_initialize_with_non_dict_resources_raises_typeerror(self):
-        """Scenario: Initialize with non-dict resources raises TypeError"""
+    def test_initialize_with_nondict_resources_raises_typeerror(self):
+        """Scenario: Initialize with non-dict resources raises TypeError
+        Given resources parameter is not a dictionary
+        When DynamicWebscraper.__init__ is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_initialize_with_invalid_configs_raises_typeerror(self):
-        """Scenario: Initialize with invalid configs raises TypeError"""
+        """Scenario: Initialize with invalid configs raises TypeError
+        Given configs parameter is not a DynamicWebscraperConfigs instance
+        When DynamicWebscraper.__init__ is called
+        Then a TypeError is raised
+        """
         pass
 
     def test_initialize_resources_typeerror_message_indicates_dict_requirement(self):
-        """Scenario: Initialize resources TypeError message indicates dict requirement"""
+        """Scenario: Initialize resources TypeError message indicates dict requirement
+        Given resources parameter is not a dictionary
+        When DynamicWebscraper.__init__ is called
+        Then error message contains "resources must be dict"
+        """
         pass
 
     def test_initialize_configs_typeerror_message_indicates_type_requirement(self):
-        """Scenario: Initialize configs TypeError message indicates type requirement"""
+        """Scenario: Initialize configs TypeError message indicates type requirement
+        Given configs parameter is not a DynamicWebscraperConfigs instance
+        When DynamicWebscraper.__init__ is called
+        """
         pass
-
 
 # ============================================================================
 # Test Class: DynamicWebscraper Logs Operations
 # ============================================================================
 
-class TestDynamicWebscraperLogsOperations:
+class TestDynamicwebscraperLogsOperations:
     """Rule: DynamicWebscraper Logs Operations"""
 
     def test_initialize_logs_initialization_message(self):
-        """Scenario: Initialize logs initialization message"""
+        """Scenario: Initialize logs initialization message
+        Given valid resources and configs
+        When DynamicWebscraper.__init__ is called
+        Then "DynamicWebscraper initialized" is logged at INFO level
+        """
         pass
 
     def test_scrape_logs_webpage_url(self):
-        """Scenario: Scrape logs webpage URL"""
+        """Scenario: Scrape logs webpage URL
+        Given a valid URL "https://example.com"
+        When scrape is called
+        Then "Scraping dynamic webpage: https://example.com" is logged at INFO level
+        """
         pass
 
     def test_scrape_multiple_logs_url_count(self):
-        """Scenario: Scrape multiple logs URL count"""
+        """Scenario: Scrape multiple logs URL count
+        Given URLs ["https://example.com/page1", "https://example.com/page2"]
+        When scrape_multiple is called
+        Then "Scraping 2 dynamic webpages" is logged at INFO level
+        """
         pass
 
     def test_scrape_multiple_logs_individual_failure(self):
-        """Scenario: Scrape multiple logs individual failure"""
+        """Scenario: Scrape multiple logs individual failure
+        Given URLs with one that fails
+        When scrape_multiple is called
+        Then "Failed to scrape" is logged at ERROR level
+        """
         pass
 
     def test_extract_links_logs_url(self):
-        """Scenario: Extract links logs URL"""
+        """Scenario: Extract links logs URL
+        Given a valid URL "https://example.com"
+        When extract_links is called
+        Then "Extracting links from: https://example.com" is logged at INFO level
+        """
         pass
 
     def test_wait_for_element_logs_selector_and_timeout(self):
-        """Scenario: Wait for element logs selector and timeout"""
+        """Scenario: Wait for element logs selector and timeout
+        Given url "https://example.com"
+        When wait_for_element is called with selector "#content"
+        Then log message contains "Waiting for element '#content'"
+        """
         pass
