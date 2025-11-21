@@ -5,9 +5,9 @@ Feature: Dynamic Webscraper
 
   Background:
     Given a DynamicWebscraper instance is initialized
-    And browser automation service exists in resources dictionary
-    And HTML parser service exists in resources dictionary
-    And data extractor service exists in resources dictionary
+    And resources dictionary may contain browser automation service
+    And resources dictionary may contain HTML parser service
+    And resources dictionary may contain data extractor service
 
   Rule: Initialization Requires Resources and Configs
 
@@ -18,9 +18,9 @@ Feature: Dynamic Webscraper
       Then self.resources is set to the provided resources dictionary
       And self.configs is set to the provided configs instance
       And self.logger is set to a logging.Logger instance
-      And self.browser is set to the value from resources["browser"]
-      And self.parser is set to the value from resources["parser"]
-      And self.extractor is set to the value from resources["extractor"]
+      And self.browser is set to resources.get("browser", None)
+      And self.parser is set to resources.get("parser", None)
+      And self.extractor is set to resources.get("extractor", None)
 
     Scenario: Initialize with invalid resources type
       Given resources is not a dictionary
@@ -33,6 +33,16 @@ Feature: Dynamic Webscraper
       When DynamicWebscraper initialization is attempted
       Then a TypeError is raised
       And error message indicates "configs must be DynamicWebscraperConfigs"
+
+    Scenario: Initialize with empty resources dictionary
+      Given resources is an empty dictionary {}
+      And valid DynamicWebscraperConfigs instance
+      When DynamicWebscraper is initialized
+      Then self.resources equals {}
+      And self.browser is None
+      And self.parser is None
+      And self.extractor is None
+      And self.logger is a logging.Logger instance
 
   Rule: Scrape Method Accepts String URL
 
@@ -253,7 +263,7 @@ Feature: Dynamic Webscraper
       And selector "#dynamic-content"
       And timeout parameter value is 10
       When wait_for_element is called with timeout=10
-      Then wait_time variable is set to 10
+      Then log message contains "(timeout: 10s)"
       And a boolean is returned
 
     Scenario: Wait for element with non-string URL
@@ -290,7 +300,7 @@ Feature: Dynamic Webscraper
       And timeout parameter is None
       And configs.timeout_seconds = 30
       When wait_for_element is called without timeout parameter
-      Then wait_time variable is set to 30
+      Then log message contains "(timeout: 30s)"
 
   Rule: Configuration Controls Scraping Behavior
 
