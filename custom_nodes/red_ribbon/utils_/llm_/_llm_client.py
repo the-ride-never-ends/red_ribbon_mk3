@@ -7,7 +7,7 @@ import os
 import logging
 from pathlib import Path
 import sqlite3
-from typing import Annotated as Ann, Any, Callable, Coroutine, Dict, List, Literal, Never, Optional, Type, Union
+from typing import Annotated as Ann, Any, Callable, Optional, Type, Union
 from functools import cached_property
 
 
@@ -15,7 +15,7 @@ import duckdb
 import numpy as np
 import pandas as pd
 from openai import AsyncOpenAI, OpenAI, OpenAIError
-from openai.types import Completion, CreateEmbeddingResponse, ChatModel, EmbeddingModel
+from openai.types import Completion, CreateEmbeddingResponse, ChatModel, EmbeddingModel, ModerationModel
 from pydantic import (
     AfterValidator as AV, 
     BaseModel, 
@@ -37,16 +37,18 @@ from ._get_api_cost import get_api_cost
 from ._embeddings_manager import EmbeddingsManager
 
 
-def __validate(_Model: BaseModel, value: Any, name: str):
+def __validate(_Model: Type, value: Any, name: str):
     try:
         _Model(value=value)
     except ValidationError as e:
         raise ValueError(f"'{name}' must be a { _Model.value.annotation}: {e.errors()}") from e
 
-def _validate_strings(list_of_strings: list[str]) -> None:
+def _validate_strings(list_of_strings: list[str] | str) -> None:
     """Type checker for list of texts"""
+    if isinstance(list_of_strings, str):
+        list_of_strings = [list_of_strings]
     class _Model(BaseModel):
-        value: list[str] = Field(..., min_items=1)
+        value: list[str] = Field(..., ge=1)
     __validate(_Model, list_of_strings, "list_of_strings")
 
 def _strip(text: str) -> str:
@@ -104,7 +106,7 @@ class OpenAiLLMOutput(BaseModel):
     @property
     def raw_response(self) -> Optional[str]:
         """The raw response text from the LLM"""
-        return self.completion.choices[0].message.content
+        return self.completion.choices[0].text
 
     @computed_field # type: ignore[prop-decorator]
     @cached_property
@@ -122,7 +124,7 @@ class OpenAiLLMOutput(BaseModel):
     def cost(self) -> float:
         if self.raw_response is None:
             return 0.0
-        result = get_api_cost(self.system_prompt, self.user_message, self.response, self.model)
+        result = get_api_cost(self.system_prompt, self.user_message, out=self.response, model=self.model)
         return float(result) if result is not None else 0.0
 
 
@@ -158,7 +160,7 @@ class OpenAiEmbeddingGeneration(BaseModel):
     client: OpenAI = Field(..., exclude=True)
     async_client: AsyncOpenAI = Field(..., exclude=True)
     embedding_model: EmbeddingModel = Field(default="text-embedding-3-small", ge=1)
-    texts: Ann[Union[list[str] | str], AV(_validate_strings)]
+    texts: Ann[Union[list[str], str], AV(_validate_strings)]
 
     _raw_response: Optional[CreateEmbeddingResponse] = PrivateAttr(default=None)
 
@@ -277,10 +279,10 @@ class OpenAiLLMGeneration(BaseModel):
     async_client: AsyncOpenAI = Field(..., exclude=True)
     configs: Configs = Field(...,exclude=True)
     user_message: Ann[str, AV(_strip)] = Field(
-        ..., ge=1, default="Write a test response telling the user that the LLM client is working."
+        min_length=1, default="Write a test response telling the user that the LLM client is working."
     )
-    system_prompt: Ann[str, AV(_strip)] = Field(..., default="You are a helpful assistant.")
-    model: ChatModel = Field(default="gpt-5",ge=1)
+    system_prompt: Ann[str, AV(_strip)] = Field(default="You are a helpful assistant.")
+    model: ChatModel = Field(default="gpt-5",min_length=1)
     max_tokens: PositiveInt = 4096
     temperature: NonNegativeFloat = 0.0 # Deterministic output
     response_parser: Callable = Field(default_factory=lambda: lambda x: x, exclude=True)
@@ -308,15 +310,14 @@ class OpenAiLLMGeneration(BaseModel):
         }
 
     def _parse_output(self, response: Completion) -> OpenAiLLMOutput:
-        self._raw_response: str | None = response.choices[0].message.content
+        self._raw_response: Completion | None = response
         if self._raw_response is None:
             raise ValueError("Response from chat completion was None.")
         try:
             return OpenAiLLMOutput(
-                response=self._raw_response,
+                completion=self._raw_response,
                 system_prompt=self.system_prompt,
                 user_message=self.user_message,
-                context_used=response.usage.total_tokens,
                 model=self.model,
                 response_parser=self.response_parser,
                 total_tokens=response.usage.total_tokens if response.usage else 0,
@@ -362,9 +363,9 @@ class OpenAiClient:
         self.resources = resources
         self.configs = configs
 
-        self.model: str = configs.OPENAI_MODEL
-        self.embedding_model: str = configs.OPENAI_EMBEDDING_MODEL
-        self.moderation_model: str = configs.OPENAI_MODERATION_MODEL
+        self.model: ChatModel = configs.OPENAI_MODEL
+        self.embedding_model: EmbeddingModel = configs.OPENAI_EMBEDDING_MODEL
+        self.moderation_model: ModerationModel = configs.OPENAI_MODERATION_MODEL
         self.embedding_dimensions: int = configs.EMBEDDING_DIMENSIONS
         self.temperature: float = configs.TEMPERATURE
         self.max_tokens: int = configs.MAX_TOKENS
@@ -421,15 +422,19 @@ class OpenAiClient:
             raise RuntimeError(f"Unexpected error during moderation: {e}") from e
         return self._was_flagged(texts, response)
 
-    async def async_moderate(self, texts: str | list[str]) -> dict[str, Any]:
+    async def async_moderate(self, texts: str | list[str]) -> bool:
         """
-        Docstring for async_moderate
+        Check if text content violates OpenAI's usage policies using the moderation API.
         
-        :param self: Description
-        :param texts: Description
-        :type texts: str | list[str]
-        :return: Description
-        :rtype: dict[str, Any]
+        Args:
+            texts: Single string or list of strings to check for policy violations
+            
+        Returns:
+            bool: True if content is flagged as violating policies, False otherwise
+            
+        Raises:
+            OpenAIError: If the moderation API call fails
+            RuntimeError: If an unexpected error occurs during moderation
         """
         if not isinstance(texts, list):
             texts = [texts]
@@ -502,7 +507,7 @@ class OpenAiClient:
                              user_message: str, 
                              system_prompt: str, 
                              response_parser: Callable,
-                             model: Optional[str], 
+                             model: Optional[ChatModel], 
                              temperature: Optional[float], 
                              max_tokens: Optional[int], 
                              ) -> OpenAiLLMGeneration:
@@ -526,7 +531,7 @@ class OpenAiClient:
                             user_message: str = "Write a test response telling the user that the LLM client is working.",
                             system_prompt: str = "You are a helpful assistant.",
                             response_parser: Callable = lambda x: x,
-                            model: Optional[str] = None,
+                            model: Optional[ChatModel] = None,
                             temperature: Optional[float] = None,
                             max_tokens: Optional[int] = None,
                             ) -> Optional[Any]:
@@ -566,10 +571,10 @@ class OpenAiClient:
                     user_message: str = "Write a test response telling the user that the LLM client is working.",
                     system_prompt: str = "You are a helpful assistant.",
                     response_parser: Callable = lambda x: x,
-                    model: Optional[str] = None,
+                    model: Optional[ChatModel] = None,
                     temperature: Optional[float] = None,
                     max_tokens: Optional[int] = None,
-                    ) -> str:
+                    ) -> Optional[str]:
         """
         Generate a response using the OpenAI API.
 
@@ -638,6 +643,8 @@ class AsyncOpenAiClient:
         # Set data paths
         self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
         self.db_path: Path = configs.paths.AMERICAN_LAW_DB_PATH
+
+        self.clean_html: Callable = resources['clean_html']
 
         logger.info(f"Initialized AsyncLLMClient client")
 
@@ -862,9 +869,10 @@ class AsyncOpenAiClient:
     For legal citations, use Bluebook format when available. Be concise but thorough.
             """
         # Generate response using OpenAI
-        prompt: Prompt = load_prompt_from_yaml("generate_rag_response", self.configs, query=query, context=context_text)
+        prompt_dir = self.configs.paths.PROMPTS_DIR
+        prompt: Prompt = load_prompt_from_yaml("generate_rag_response", prompt_dir=prompt_dir, query=query, context=context_text)
         if system_prompt is not None:
-            prompt.system_prompt = system_prompt.strip()
+            prompt.system_prompt.content = system_prompt.strip()
         
         try:
             response = await self.client.chat.completions.create(

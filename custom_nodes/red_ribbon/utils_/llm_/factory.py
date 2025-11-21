@@ -18,7 +18,7 @@ LLM = LLMInterface
 
 def _validate_configs(configs: Configs) -> None:
     try:
-        configs.model_validate()
+        Configs.model_validate(configs)
     except Exception as e:
         raise ConfigurationError(f"Invalid configurations: {e}") from e
 

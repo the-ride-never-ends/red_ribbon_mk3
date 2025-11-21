@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 import traceback
 from unittest.mock import MagicMock, AsyncMock
+from typing import Optional, Callable
 
 
 import pytest
@@ -37,7 +38,7 @@ def mock_logger():
     return mock_logger
 
 
-def make_mock_llm(return_values: dict = None) -> AsyncMock:
+def make_mock_llm(return_values: Optional[dict] = None) -> Callable:
     """Creates a mocked LLM instance for testing."""
 
     def _make_mock_llm():
@@ -58,7 +59,7 @@ def make_mock_llm(return_values: dict = None) -> AsyncMock:
     except Exception as e:
         raise
 
-def make_mock_db(attributes: dict = None) -> MagicMock:
+def make_mock_db(attributes: Optional[dict] = None) -> Callable:
     """Creates a mocked DatabaseAPI instance for testing."""
 
     def _make_mock_db():
@@ -88,7 +89,7 @@ def mock_storage_service():
 
 
 @pytest.fixture
-def mock_configs() -> Configs:
+def mock_configs() -> VariableCodebookConfigs:
     """Creates a VariableCodebookConfigs instance for testing."""
     try:
         mock_configs = VariableCodebookConfigs()

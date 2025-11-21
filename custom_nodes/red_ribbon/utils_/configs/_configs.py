@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Optional, Literal
 
 
-
+from openai.types import EmbeddingModel, ChatModel, ModerationModel
 from pydantic import (
     BaseModel, 
     DirectoryPath, 
@@ -113,6 +113,9 @@ class Configs(BaseModel):
     paths:             Paths = Field(default_factory=Paths)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
 
+
+    INPUT_DATAPOINT: str = "sales tax info"  # Example input data point
+
     # Top-10 Document Retrieval
     RETRIEVAL_COUNT: PositiveInt = 10  # Number of documents to retrieve
     similarity_threshold: float = 0.6  # Minimum similarity score
@@ -124,10 +127,10 @@ class Configs(BaseModel):
 
     # LLM
     OPENAI_API_KEY:                   SecretStr = Field(default_factory=lambda: SecretStr(os.environ.get("OPENAI_API_KEY", "")), min_length=1)
-    OPENAI_MODEL:                     str = Field(default="gpt-4o-mini", min_length=1)
-    OPENAI_SMALL_MODEL:               str = Field(default="gpt-5-nano", min_length=1)
-    OPENAI_EMBEDDING_MODEL:           str = Field(default="text-embedding-3-small", min_length=1)
-    OPENAI_MODERATION_MODEL:          str = Field(default="omni-moderation-latest", min_length=1)
+    OPENAI_MODEL:                     ChatModel = Field(default="gpt-4o-mini", min_length=1)
+    OPENAI_SMALL_MODEL:               ChatModel = Field(default="gpt-5-nano", min_length=1)
+    OPENAI_EMBEDDING_MODEL:           EmbeddingModel = Field(default="text-embedding-3-small", min_length=1)
+    OPENAI_MODERATION_MODEL:          ModerationModel = Field(default="omni-moderation-latest", min_length=1)
     DEFAULT_SYSTEM_PROMPT:            str = Field(default="You are a helpful assistant.")
     EMBEDDING_DIMENSIONS:             PositiveInt = 1536
     TEMPERATURE:                      PositiveFloat = 0.0

@@ -33,7 +33,7 @@ class EmbeddingsManager:
     """
     
     def __init__(self, *, 
-                 configs: Optional[Configs],
+                 configs: Configs,
                  resources: dict[str, Any]
                  ) -> None:
         """

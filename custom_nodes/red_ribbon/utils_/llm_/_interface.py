@@ -5,7 +5,7 @@ Provides access to OpenAI-powered legal research and RAG components.
 import logging
 from pathlib import Path
 import re
-from typing import Dict, Any, Callable, List, Optional, Union
+from typing import Dict, Any, Callable, Optional, Union
 
 
 from custom_nodes.red_ribbon.utils_ import logger as module_logger, Configs
@@ -241,6 +241,10 @@ class LLMInterface:
                 temperature=0 # Deterministic output
             )
             if response.choices:
+                if response.choices[0].message.content is None:
+                    self.logger.error("Response content is None")
+                    return "OTHER"  # Default fallback
+
                 choice_content = response.choices[0].message.content.strip().lower()
                 self.logger.debug(f"Determine intent content: '{choice_content}'")
 
@@ -277,7 +281,7 @@ class LLMInterface:
         query: str,
         file_id: Optional[str] = None,
         top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[Dict[str, Any]]:
         """
         Search for relevant documents using embeddings.
         
@@ -290,8 +294,12 @@ class LLMInterface:
             List of relevant documents with similarity scores
         """
         # Generate embedding for the query
-        query_embedding = self.openai_client.get_embeddings(query)
-        
+        try:
+            query_embedding = self.openai_client.get_embeddings(query)[0]
+        except Exception as e:
+            self.logger.error(f"Error generating query embedding: {e}")
+            return []
+
         if file_id:
             # Search in a specific file
             results = self.embeddings_manager.search_embeddings_in_file(
@@ -320,7 +328,7 @@ class LLMInterface:
     def generate_citation_answer(
         self,
         query: str,
-        citation_codes: List[str],
+        citation_codes: list[str],
         system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -371,15 +379,15 @@ For legal citations, use Bluebook format when available. Be concise but thorough
                     {"role": "user", "content": f"Question: {query}\n\n{context_text}"}
                 ]
             )
-            
+
             return {
                 "query": query,
                 "response": response.choices[0].message.content,
                 "context_used": [doc.get('bluebook_citation', 'No citation') for doc in context_docs],
                 "model_used": self.openai_client.model,
-                "total_tokens": response.usage.total_tokens
+                "total_tokens": response.usage.total_tokens if response.usage else 0
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error generating citation answer: {e}")
             return {
@@ -482,8 +490,8 @@ Return ONLY the SQL query without any explanations."""
             )
             
             # Extract the SQL query
-            sql_query = response.choices[0].message.content.strip()
-            
+            sql_query = response.choices[0].message.content.strip() if response.choices and response.choices[0].message.content else ""
+
             # Basic validation to ensure it looks like SQL
             if not re.search(r'SELECT|select', sql_query):
                 self.logger.warning(f"Generated SQL doesn't contain SELECT statement: {sql_query}")

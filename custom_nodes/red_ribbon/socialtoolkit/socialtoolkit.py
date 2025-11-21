@@ -38,20 +38,10 @@ class SocialToolkitAPI:
         resources (dict[str, Any]): A dictionary of instantiated classes used to run Socialtoolkit.
         configs (Configs): The configuration settings for Socialtoolkit.
 
-    Private Attributes:
-        _document_retrieval_from_websites (Callable[..., Any]): The class instance for document retrieval from websites.
-        _document_storage (Callable[..., Any]): The class instance for document storage.
-        _top10_document_retrieval (Callable[..., Any]): The class instance for top 10 document retrieval.
-        _relevance_assessment (Callable[..., Any]): The class instance for relevance assessment.
-        _llm (Callable[..., Any]): The class instance for the LLM service.
-        _variable_codebook (Callable[..., Any]): The class instance for the variable codebook.
-        _prompt_decision_tree (Callable[..., Any]): The class instance for the prompt decision tree.
-        _socialtoolkit_pipeline (Callable[..., Any]): The class instance for the Socialtoolkit pipeline.
-
     Properties:
         version (str): The version of the Socialtoolkit package.
     """
-    def __init__(self, resources: dict[str, Callable[..., Any]], configs: Configs):
+    def __init__(self, resources: dict[str, Any], configs: Configs):
         self.configs = configs
         self.resources = resources
 
@@ -60,15 +50,15 @@ class SocialToolkitAPI:
         self._db:                               DatabaseAPI = self.resources["db"]
 
         # Piece-wise Pipeline
-        self._document_retrieval_from_websites: Callable[..., Any] = self.resources["document_retrieval_from_websites"]
-        self._document_storage:                 Callable[..., Any] = self.resources["document_storage"]
-        self._top10_document_retrieval:         Callable[..., Any] = self.resources["top10_document_retrieval"]
-        self._relevance_assessment:             Callable[..., Any] = self.resources["relevance_assessment"]
-        self._variable_codebook:                Callable[..., Any] = self.resources["variable_codebook"]
-        self._prompt_decision_tree:             Callable[..., Any] = self.resources["prompt_decision_tree"]
+        self._document_retrieval_from_websites: Any = self.resources["document_retrieval_from_websites"]
+        self._document_storage:                 Any = self.resources["document_storage"]
+        self._top10_document_retrieval:         Any = self.resources["top10_document_retrieval"]
+        self._relevance_assessment:             Any = self.resources["relevance_assessment"]
+        self._variable_codebook:                Any = self.resources["variable_codebook"]
+        self._prompt_decision_tree:             Any = self.resources["prompt_decision_tree"]
 
         # Full Pipeline
-        self._socialtoolkit_pipeline:           Callable[..., Any] = self.resources["socialtoolkit_pipeline"]
+        self._socialtoolkit_pipeline:           Any = self.resources["socialtoolkit_pipeline"]
 
     @property
     def version(self) -> str:
@@ -94,7 +84,8 @@ class SocialToolkitAPI:
 
 
     def llm(self, action: str, *args, **kwargs) -> Optional[Any]:
-        return self._llm.execute(action, *args, **kwargs)
+        raise NotImplementedError("LLM function not implemented yet")
+        # return self._llm.execute(action, *args, **kwargs)
 
 
     def  relevance_assessment(self,
@@ -195,7 +186,7 @@ class SocialToolKitResources:
     """Container for classes used to run Socialtoolkit in ComfyUI"""
 
     _configs: InitVar[Configs]
-    resources: dict[str, Callable[..., Any]] = field(default_factory=dict)
+    resources: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self, _configs):
         # Piece-wise Pipeline
@@ -222,7 +213,7 @@ class SocialToolKitResources:
 def make_socialtoolkit_api(configs: Configs = Configs()) -> SocialToolkitAPI:
     """Factory function to create a SocialToolkitAPI instance."""
     try:
-        configs.model_validate()
+        Configs.model_validate(configs)
     except Exception as e:
         raise ConfigurationError(f"Invalid socialtoolkit configuration: {e}") from e
     
@@ -248,7 +239,7 @@ def main() -> int:
         print("Socialtoolkit loaded successfully")
         print(f"Version: {api.version}")
         print("Running pipeline based on settings in yaml files...")
-        response = api.execute("socialtoolkit_pipeline", configs.input_data_point)
+        response = api.execute("socialtoolkit_pipeline", configs.INPUT_DATAPOINT)
         print(response)
     except Exception as e:
         print(f"Error running socialtoolkit: {e}")

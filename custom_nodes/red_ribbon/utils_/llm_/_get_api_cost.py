@@ -5,14 +5,23 @@ import tiktoken
 
 
 from ._constants import MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS
-
+from ..logger import logger
 
 def _check_if_string(value: Any, name: str) -> None:
     if not isinstance(value, str):
         raise TypeError(f"'{name}' must be a string, got {type(value).__name__}")
 
-def get_api_cost(prompt: str, data: str, out: str, model: str, logger: logging.Logger) -> Optional[int]:
+def get_api_cost(
+        prompt: str, 
+        data: str, 
+        out: Optional[str], 
+        model: str = "gpt-4o", 
+        logger: logging.Logger = logger
+        ) -> Optional[int]:
     """Calculate the cost of an LLM API call based on token usage."""
+
+    if out is None:
+        return 0
 
     _check_if_string(prompt, "prompt")
     _check_if_string(data, "data")

@@ -30,13 +30,13 @@ def is_nested(value: Any, containers: Iterable[Type]) -> bool:
         if isinstance(value, cont):
             if isinstance(value, dict):
                 for item in value.values():
-                    if isinstance(item, containers):
+                    if isinstance(item, containers): # type: ignore
                         return True
                     if is_nested(item, containers):
                         return True
             else:
                 for item in value:
-                    if isinstance(item, containers):
+                    if isinstance(item, containers): # type: ignore
                         return True
                     if is_nested(item, containers):
                         return True

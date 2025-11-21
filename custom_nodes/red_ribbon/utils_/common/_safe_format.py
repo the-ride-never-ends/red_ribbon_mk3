@@ -1,7 +1,7 @@
 import string
 
 
-class SafeFormatter(string.Formatter):
+class _SafeFormatter(string.Formatter):
     def get_value(self, key, args, kwargs):
         if isinstance(key, str):
             return kwargs.get(key, "{" + key + "}")
@@ -15,6 +15,7 @@ class SafeFormatter(string.Formatter):
             return [(format_string, None, None, None)]
 
 
+_formatter = _SafeFormatter()
+
 def safe_format(format_string, *args, **kwargs):
-    formatter = SafeFormatter()
-    return formatter.format(format_string, *args, **kwargs)
+    return _formatter.format(format_string, *args, **kwargs)
