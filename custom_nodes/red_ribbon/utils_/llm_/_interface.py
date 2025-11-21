@@ -2,16 +2,16 @@
 API interface for the LLM integration with the American Law dataset.
 Provides access to OpenAI-powered legal research and RAG components.
 """
-import os
+import logging
 from pathlib import Path
 import re
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, Callable, List, Optional, Union
 
 
-from custom_nodes.red_ribbon.utils_.logger import logger
-from custom_nodes.red_ribbon.utils_.configs import Configs
-from .dependencies.openai_client import OpenAIClient
+from custom_nodes.red_ribbon.utils_ import logger as module_logger, Configs
+from ._llm_client import OpenAiClient, OpenAiLLMOutput
 from ._embeddings_manager import EmbeddingsManager
+from ._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
 
 
 def _validate_sql(sql_query: str, fix_broken_queries: bool = True) -> Optional[str]:
@@ -24,50 +24,46 @@ def _validate_sql(sql_query: str, fix_broken_queries: bool = True) -> Optional[s
     Returns:
         bool: True if valid, False otherwise
     """
-    logger.debug(f"Validating SQL query: {sql_query}")
+    module_logger.debug(f"Validating SQL query: {sql_query}")
 
     # Check if it's an empty string
     if not sql_query.strip():
-        logger.warning("Empty SQL query string provided.")
+        module_logger.warning("Empty SQL query string provided.")
         return None
     
     # Check if it any markdown patterns.
     if "```sql" in sql_query or "```" in sql_query:
-        logger.warning("SQL query contains markdown code blocks.")
+        module_logger.warning("SQL query contains markdown code blocks.")
         if fix_broken_queries:
             # Remove markdown code blocks
             sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
-            logger.info("Removed markdown code blocks from SQL query.")
-            logger.debug(f"Cleaned SQL query after markdown removal: {sql_query}")
+            module_logger.info("Removed markdown code blocks from SQL query.")
+            module_logger.debug(f"Cleaned SQL query after markdown removal: {sql_query}")
         else:
-            logger.error("SQL query contains markdown code blocks and fix_broken_queries is False.")
+            module_logger.error("SQL query contains markdown code blocks and fix_broken_queries is False.")
             return None
 
     # Check if it's got SELECT in it
     if not re.search(r'^\s*SELECT\s', sql_query, re.IGNORECASE):
-        logger.warning("SQL query does not start with SELECT.")
+        module_logger.warning("SQL query does not start with SELECT.")
         return None
 
     # Check if it's got doubled elements like SELECT SELECT or LIMIT 10 LIMIT 20
     sql_query = re.sub(r'\b(SELECT|LIMIT)\s+\1', r'\1', sql_query, flags=re.IGNORECASE).strip()
-    logger.debug(f"Cleaned SQL query after doubled elements removal: {sql_query}")
+    module_logger.debug(f"Cleaned SQL query after doubled elements removal: {sql_query}")
     return sql_query if sql_query else None
 
 
 class LLMInterface:
     """
-    Interface for interacting with OpenAI LLM capabilities for the American Law dataset.
+    Interface for interacting with LLM capabilities for the American Law dataset.
     Provides a simplified API for accessing embeddings search and RAG functionality.
     """
-    
-    def __init__(
-        self, *,
-        resources: dict[str, Callable],
-        configs: Configs,
-    ):
+
+    def __init__(self, *, resources: dict[str, Any], configs: Configs,) -> None:
         """
         Initialize the LLM interface.
-        
+
         Args:
             api_key: OpenAI API key
             model: OpenAI model to use
@@ -78,24 +74,74 @@ class LLMInterface:
         self.resources = resources
         self.configs = configs
 
-        self.api_key: str = configs.OPENAI_API_KEY
-        
         self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
         self.db_path: Path = configs.paths.AMERICAN_LAW_DB_PATH
-        self.model: str = configs.OPENAI_MODEL
-        self.embedding_model: str = configs.OPENAI_EMBEDDING_MODEL
+        self.default_system_prompt: str = configs.DEFAULT_SYSTEM_PROMPT
 
-        # Initialize clients
-        self.openai_client: OpenAIClient = OpenAIClient(
-            api_key=self.api_key,
-            model=self.model,
-            embedding_model=self.embedding_model,
-            configs=self.configs
-        )
-        logger.info(f"Initialized LLM interface with model: {self.model}")
-    
-        self.embeddings_manager = EmbeddingsManager(configs=self.configs)
-        logger.info(f"Initialized Embeddings Manager with model: {self.embedding_model}")
+
+        self.logger: logging.Logger = resources['logger']
+        self.openai_client: OpenAiClient = resources['openai_client']
+        self.embeddings_manager: EmbeddingsManager = resources['embeddings_manager']
+
+        self.logger.info(f"Initialized LLMInterface successfully.")
+        self.logger.debug(f"LLMInterface attributes\n '{dir(self)}'")
+
+
+    def generate(self, 
+                 user_message: str, 
+                 custom_system_prompt: Optional[str] = None,
+                 temperature: Optional[float] = None, 
+                 max_tokens: Optional[int] = None,
+                 response_parser: Optional[Callable[[str], Any]] = None
+                 ) -> dict[str, Union[str, int]]:
+        try:
+            llm_output: OpenAiLLMOutput = self.openai_client.get_response(
+                user_message=user_message,
+                system_prompt=custom_system_prompt or self.default_system_prompt,
+                temperature=temperature or self.openai_client.temperature,
+                max_tokens=max_tokens or self.openai_client.max_tokens,
+                response_parser=response_parser or (lambda x: x)
+            )
+            response = {
+                "response": llm_output.response,
+                "total_tokens": llm_output.total_tokens
+            }
+        except Exception as e:
+            self.logger.exception(f"Error in LLM generation: {e}")
+            response = {
+                "response": f"Error generating response: {str(e)}",
+                "total_tokens": 0
+            }
+        return response
+
+
+    async def async_generate(self, 
+                 user_message: str, 
+                 custom_system_prompt: Optional[str] = None,
+                 temperature: Optional[float] = None, 
+                 max_tokens: Optional[int] = None,
+                 response_parser: Optional[Callable[[str], Any]] = None
+                 ) -> dict[str, Union[str, int]]:
+        try:
+            llm_output: OpenAiLLMOutput = await self.openai_client.async_get_response(
+                user_message=user_message,
+                system_prompt=custom_system_prompt or self.default_system_prompt,
+                temperature=temperature or self.openai_client.temperature,
+                max_tokens=max_tokens or self.openai_client.max_tokens,
+                response_parser=response_parser or (lambda x: x)
+            )
+            response = {
+                "response": llm_output.response,
+                "total_tokens": llm_output.total_tokens
+            }
+        except Exception as e:
+            self.logger.exception(f"Error in LLM async generation: {e}")
+            response = {
+                "response": f"Error generating async response: {str(e)}",
+                "total_tokens": 0
+            }
+        return response
+
 
 
     def ask_question(
@@ -119,11 +165,12 @@ class LLMInterface:
         Returns:
             Dictionary with the generated response and additional information
         """
-        logger.info(f"Processing question: {query}")
-        
+        self.logger.info(f"Processing question: {query}")
+        default_system_prompt = "You are a legal research assistant specializing in American municipal and county laws."
+
         if use_rag:
             # Use RAG to generate a response with context
-            response = self.openai_client.generate_rag_response(
+            return self.generate_rag_response(
                 query=query,
                 use_embeddings=use_embeddings,
                 document_limit=document_limit,
@@ -132,46 +179,25 @@ class LLMInterface:
         else:
             # Use OpenAI directly without RAG context
             try:
-                chat_response = self.openai_client.client.chat.completions.create(
-                    model=self.openai_client.model,
-                    temperature=self.openai_client.temperature,
-                    max_tokens=self.openai_client.max_tokens,
-                    messages=[
-                        {"role": "system", "content": custom_system_prompt or "You are a legal research assistant specializing in American municipal and county laws."},
-                        {"role": "user", "content": query}
-                    ]
+                llm_output: OpenAiLLMOutput = self.openai_client.get_response(
+                    user_message=query,
+                    system_prompt=custom_system_prompt or default_system_prompt
                 )
-                
                 response = {
                     "query": query,
-                    "response": chat_response.choices[0].message.content,
-                    "context_used": [],
+                    "response": llm_output.response,
                     "model_used": self.openai_client.model,
-                    "total_tokens": chat_response.usage.total_tokens
+                    "total_tokens": llm_output.total_tokens
                 }
             except Exception as e:
-                logger.error(f"Error in direct LLM query: {e}")
+                self.logger.exception(f"Error in direct LLM query: {e}")
                 response = {
                     "query": query,
                     "response": f"Error generating response: {str(e)}",
-                    "context_used": [],
                     "model_used": self.openai_client.model,
-                    "error": str(e)
+                    "total_tokens": 0
                 }
-        
         return response
-
-
-    def _generic_response(self, message: Optional[str] = None, system_prompt: Optional[str] = None) -> str:
-        return self.openai_client.client.chat.completions.create(
-            model="gpt4o",
-            messages=[
-                {"role": "system", "content": system_prompt.strip()},
-                {"role": "user", "content": message.strip()}
-            ],
-            max_tokens=1024,
-            temperature=0 # Deterministic output
-        )
 
 
     def determine_user_intent(self, message: str) -> str:
@@ -190,10 +216,10 @@ class LLMInterface:
             input=message,
         )
         if response.results[0].flagged:
-            logger.warning(f"Message flagged by moderation: {message}")
+            self.logger.warning(f"Message flagged by moderation: {message}")
             return "OTHER"
  
-        logger.debug(f"Entering Determine Intent")
+        self.logger.debug(f"Entering Determine Intent")
         system_prompt = """
         You are an intent classifier for a legal search system. Your job is to determine what the user wants to do with their query.
         Classify the user's intent into one of these categories:
@@ -216,12 +242,12 @@ class LLMInterface:
             )
             if response.choices:
                 choice_content = response.choices[0].message.content.strip().lower()
-                logger.debug(f"Determine intent content: '{choice_content}'")
+                self.logger.debug(f"Determine intent content: '{choice_content}'")
 
                 if "```" in choice_content:
                     choice_content = choice_content.split("```")[1].strip()
                 
-                logger.debug(f"Determine intent content after stripping: '{choice_content}'")
+                self.logger.debug(f"Determine intent content after stripping: '{choice_content}'")
 
                 # Extract intent from the classifier response
                 if "search" in choice_content:
@@ -235,14 +261,14 @@ class LLMInterface:
                 else:
                     # Default fallback if the response doesn't match any category.
                     # This includes cases where the model returns a malformed or .
-                    logger.error("Response did not match expected intent categories")
-                    logger.debug(f"Response content: {choice_content}")
+                    self.logger.error("Response did not match expected intent categories")
+                    self.logger.debug(f"Response content: {choice_content}")
                     return "OTHER"  # Default to search as fallback
             else:
-                logger.error("No valid choice in the GPT response")
+                self.logger.error("No valid choice in the GPT response")
                 return "OTHER"  # Default fallback
         except Exception as e:
-            logger.error(f"Error in determine_intent_basic: {e}", exc_info=True)
+            self.logger.error(f"Error in determine_intent_basic: {e}", exc_info=True)
             return "OTHER"  # Fallback in case of exception
 
 
@@ -264,7 +290,7 @@ class LLMInterface:
             List of relevant documents with similarity scores
         """
         # Generate embedding for the query
-        query_embedding = self.openai_client.get_single_embedding(query)
+        query_embedding = self.openai_client.get_embeddings(query)
         
         if file_id:
             # Search in a specific file
@@ -355,7 +381,7 @@ For legal citations, use Bluebook format when available. Be concise but thorough
             }
             
         except Exception as e:
-            logger.error(f"Error generating citation answer: {e}")
+            self.logger.error(f"Error generating citation answer: {e}")
             return {
                 "query": query,
                 "response": f"Error generating response: {str(e)}",
@@ -379,7 +405,7 @@ For legal citations, use Bluebook format when available. Be concise but thorough
         Returns:
             Dictionary with the generated SQL query and additional information
         """
-        logger.info(f"Converting query to SQL: {query}")
+        self.logger.info(f"Converting query to SQL: {query}")
         
         # Define available tables and their schema for context
         schema_info = """
@@ -460,14 +486,14 @@ Return ONLY the SQL query without any explanations."""
             
             # Basic validation to ensure it looks like SQL
             if not re.search(r'SELECT|select', sql_query):
-                logger.warning(f"Generated SQL doesn't contain SELECT statement: {sql_query}")
+                self.logger.warning(f"Generated SQL doesn't contain SELECT statement: {sql_query}")
                 sql_query = f"-- Warning: This may not be a valid SQL query\n{sql_query}"
 
             sql_query = _validate_sql(sql_query)
             if sql_query is None:
-                logger.error("SQL query validation failed or returned empty. The LLM probably messed up.")
+                self.logger.error("SQL query validation failed or returned empty. The LLM probably messed up.")
             else:
-                logger.info(f"SQL query validated successfully")
+                self.logger.info(f"SQL query validated successfully")
 
             output_dict = {
                 "original_query": query,
@@ -479,9 +505,103 @@ Return ONLY the SQL query without any explanations."""
             return output_dict
         
         except Exception as e:
-            logger.error(f"Error converting query to SQL: {e}")
+            self.logger.error(f"Error converting query to SQL: {e}")
             return {
                 "original_query": query,
                 "sql_query": f"-- Error generating SQL query: {str(e)}",
+                "error": str(e)
+            }
+        
+    async def generate_rag_response(
+        self, 
+        query: str, 
+        use_embeddings: bool = True,
+        top_k: int = 5,
+        system_prompt: Optional[str] = None
+    ) -> dict[str, Any]:
+        """
+        Generate a response using RAG (Retrieval Augmented Generation).
+        
+        Args:
+            query: User query
+            use_embeddings: Whether to use embeddings for search
+            top_k: Number of context documents to include
+            system_prompt: Custom system prompt
+            
+        Returns:
+            Dictionary with the generated response and context used
+        """
+        # Retrieve relevant context
+        context_docs = []
+        
+        if use_embeddings:
+            # Use embedding-based semantic search
+            context_docs = await self.search_embeddings(query, top_k=top_k)
+        else:
+            # Use database text search as fallback
+            context_docs = await self.query_database(query, limit=top_k)
+
+        # Build context for the prompt
+        context_text = "Relevant legal information:\n\n"
+        references = "Citation(s):\n\n"
+
+        for i, doc in enumerate(context_docs):
+            context_text += f"[{i+1}] {doc.get('title', 'Untitled')} - {doc.get('place_name', 'Unknown location')}, {doc.get('state_name', 'Unknown state')}\n"
+            references += f"{i+1}. {doc.get('bluebook_citation', 'No citation available')}\n"
+            context_text += f"Citation: {doc.get('bluebook_citation', 'No citation available')}\n"
+            # Limit html to avoid excessively long prompts
+            html = doc.get('html', '')
+            if html:
+                # Turn the HTML into a string.
+                content = self.clean_html(html)
+                content = content[:1000] + "..." if len(content) > 1000 else content
+                context_text += f"Content: {content}\n\n"
+        
+        # Default system prompt if none provided
+        if system_prompt is None:
+            system_prompt = """
+    You are a legal research assistant specializing in American municipal and county laws. 
+    Answer questions based on the provided legal context information. 
+    If the provided context doesn't contain enough information to answer the question confidently, 
+    acknowledge the limitations of the available information and suggest what additional 
+    information might be helpful.
+    For legal citations, use Bluebook format when available. Be concise but thorough.
+            """
+
+        # Generate response using OpenAI
+        prompt: Prompt = load_prompt_from_yaml(
+            "generate_rag_response", self.configs, self.logger, query=query, context=context_text
+        )
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                messages=[
+                    {"role": "system", "content": system_prompt.strip()},
+                    {"role": "user", "content": f"Question: {query}\n\n{context_text}"}
+                ]
+            )
+            
+            generated_response = response.choices[0].message.content.strip()
+            
+            # Append the citations
+            generated_response += f"\n\n{references.strip()}"
+            
+            return {
+                "query": query,
+                "response": generated_response,
+                "context_used": [doc.get('bluebook_citation', 'No citation') for doc in context_docs],
+                "model_used": self.model,
+                "total_tokens": response.usage.total_tokens
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error generating RAG response: {e}")
+            return {
+                "query": query,
+                "response": f"Error generating response: {str(e)}",
+                "context_used": [],
+                "model_used": self.model,
                 "error": str(e)
             }

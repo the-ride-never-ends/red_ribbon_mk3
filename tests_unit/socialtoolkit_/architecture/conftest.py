@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import traceback
 from unittest.mock import MagicMock, AsyncMock
 
 
@@ -17,18 +18,17 @@ from custom_nodes.red_ribbon.socialtoolkit.architecture import (
 from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import Variable, VariableCodebookConfigs
 
 
-from custom_nodes.red_ribbon.utils_.llm import LLM
-from custom_nodes.red_ribbon.utils_.database import DatabaseAPI
-from custom_nodes.red_ribbon.utils_.logger import logger
-from custom_nodes.red_ribbon.utils_.configs import Configs, configs as real_configs
+from custom_nodes.red_ribbon.utils_ import LLM, logger, DatabaseAPI, Configs, configs as real_configs
 
-import traceback
+
+
 
 class FixtureError(Exception):
     """Custom exception for fixture errors."""
     def __init__(self, msg: str):
-        msg = f"{msg}\n*********\nTRACEBACK\n*********\n{traceback.print_exc()}"
+        msg = f"{msg}\n*********\nTRACEBACK\n*********\n{traceback.format_exc()}"
         super().__init__(msg)
+
 
 @pytest.fixture
 def mock_logger():

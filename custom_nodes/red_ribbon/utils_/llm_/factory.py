@@ -1,9 +1,8 @@
 
-from typing import Any, Callable, Optional, Type, Union
+from typing import Any
 
 
 from ._llm_client import OpenAiClient
-from ._async_interface import AsyncLLMInterface
 from ._embeddings_manager import EmbeddingsManager
 from ._interface import LLMInterface
 
@@ -13,10 +12,8 @@ from ..logger import logger
 from custom_nodes.red_ribbon._custom_errors import InitializationError, ResourceError, ConfigurationError
 
 
-from openai import OpenAIError, AsyncOpenAI, OpenAI
-
-
-LLM = Union[LLMInterface, AsyncLLMInterface]
+# Define a type alias for LLM
+LLM = LLMInterface
 
 
 def _validate_configs(configs: Configs) -> None:
@@ -32,31 +29,39 @@ def _make_embeddings_manager(
     ) -> EmbeddingsManager:
     _validate_configs(configs)
     try:
-        return EmbeddingsManager(configs=configs, resources=resources)
+        _resources = {
+            "logger": resources.get("logger" , logger),
+        }
+    except Exception as e:
+        raise ResourceError(f"Failed to initialize EmbeddingsManager resources: {e}") from e
+
+    try:
+        return EmbeddingsManager(configs=configs, resources=_resources)
     except Exception as e:
         raise InitializationError(f"Failed to initialize EmbeddingsManager: {e}") from e
 
 
 def _make_openai_client(configs: Configs = Configs(), resources: dict[str, Any] = {}) -> OpenAiClient:
-    _validate_configs(configs)
-    try:
-        return OpenAiClient(configs=configs, resources=resources)
-    except Exception as e:
-        raise InitializationError(f"Failed to initialize OpenAiClient: {e}") from e
-
-
-def _make_async_openai_client(configs: Configs = Configs(), resources: dict[str, Any] = {}) -> OpenAiClient:
     """Factory function to create OpenAiClient instance"""
     _validate_configs(configs)
+    api_key = configs.OPENAI_API_KEY.get_secret_value()
+
+    try:
+        from openai import AsyncOpenAI, OpenAI
+    except ImportError as e:
+        raise ImportError("openai package is required to use OpenAiClient. Please install it via 'pip install openai'.") from e
+
     try:
         _resources = {
-            "client": resources.get("client", AsyncOpenAI(api_key=configs.OPENAI_API_KEY.get_secret_value())),
+            "logger": resources.get("logger" , logger),
+            "async_client": resources.get("async_client", AsyncOpenAI(api_key=api_key)),
+            "client": resources.get("client", OpenAI(api_key=api_key)),
         }
     except Exception as e:
         raise ResourceError(f"Failed to initialize OpenAiClient resources: {e}") from e
 
     try:
-        return OpenAiClient(configs=configs, resources=resources)
+        return OpenAiClient(configs=configs, resources=_resources)
     except Exception as e:
         raise InitializationError(f"Failed to initialize OpenAiClient: {e}") from e
 
@@ -68,6 +73,7 @@ def make_llm(configs: Configs = Configs(), resources: dict[str, Any] = {}) -> LL
         llm_resources = {
             "logger": resources.get("logger" , logger),
             "embeddings_manager": resources.get("embeddings_manager", _make_embeddings_manager()),
+            "openai_client": resources.get("openai_client", _make_openai_client()),
         }
     except Exception as e:
         raise ResourceError(f"Failed to initialize LLM resources for LLMInterface: {e}") from e
@@ -76,23 +82,3 @@ def make_llm(configs: Configs = Configs(), resources: dict[str, Any] = {}) -> LL
         return LLMInterface(resources=llm_resources, configs=configs)
     except Exception as e:
         raise InitializationError(f"Failed to initialize LLMInterface: {e}") from e
-
-
-def make_async_llm(configs: Configs = Configs(), resources: dict[str, Any] = {}) -> LLM:
-    _validate_configs(configs)
-
-    try:
-        llm_resources = {
-            "logger": resources.get("logger" , logger),
-            "embeddings_manager": resources.get("embeddings_manager", _make_embeddings_manager()),
-            "llm": resources.get("llm", _make_async_openai_client()),
-        }
-    except Exception as e:
-        raise ResourceError(f"Failed to initialize LLM resources for AsyncLLMInterface: {e}") from e
-
-    try:
-        return AsyncLLMInterface(resources=llm_resources, configs=configs)
-    except Exception as e:
-        raise InitializationError(f"Failed to initialize AsyncLLMInterface: {e}") from e
-
-

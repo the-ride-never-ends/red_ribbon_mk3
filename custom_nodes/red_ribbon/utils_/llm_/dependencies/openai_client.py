@@ -2,6 +2,7 @@
 OpenAI Client implementation for American Law database.
 Provides integration with OpenAI APIs and RAG components for legal research.
 """
+from pathlib import Path
 from typing import Callable, List, Literal, Dict, Any, Never, Optional
 
 
@@ -14,7 +15,10 @@ from pydantic import (
     computed_field, 
     PrivateAttr, 
     TypeAdapter, 
-    ValidationError
+    ValidationError,
+    NonNegativeFloat,
+    PositiveInt,
+    Field,
 )
 import tiktoken
 
@@ -25,7 +29,7 @@ from .._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
 from .._constants import MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS
 
 
-def _calc_cost(x: int, cost_per_1M: float) -> float:
+def _calc_cost(x: int, cost_per_1M: Optional[float] = None) -> float:
     """
     Calculate the cost of tokens based on the per-million token rate.
     
@@ -73,20 +77,20 @@ def calculate_cost(prompt: str, data: str, output: str, model: str) -> Optional[
         return None
 
     try:
-        tokenizer = tiktoken.encoding_for_model(model)
+        tokenizer: Callable = tiktoken.encoding_for_model(model)
 
         # Counting the total tokens for request and response separately
-        input_tokens = len(tokenizer.encode(prompt + data))
-        output_tokens = len(tokenizer.encode(str(output)))
+        input_tokens: int = len(tokenizer.encode(prompt + data))
+        output_tokens: int = len(tokenizer.encode(str(output)))
 
         # Actual costs per 1 million tokens
-        cost_per_1M_input_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["input"]
-        cost_per_1M_output_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["output"]
+        cost_per_1M_input_tokens: float = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["input"]
+        cost_per_1M_output_tokens: float = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["output"]
 
         # Calculate the cost, then add them.
-        output_cost = _calc_cost(output_tokens, cost_per_1M_output_tokens)
-        input_cost = _calc_cost(input_tokens, cost_per_1M_input_tokens)
-        total_cost = round(input_cost + output_cost, 2)
+        output_cost: float = _calc_cost(output_tokens, cost_per_1M_output_tokens)
+        input_cost: float = _calc_cost(input_tokens, cost_per_1M_input_tokens)
+        total_cost: float = round(input_cost + output_cost, 2)
         
         logger.debug(f"Total Cost: {total_cost} Cost breakdown:\n'input_tokens': {input_tokens}\n'output_tokens': {output_tokens}\n'input_cost': {input_cost}, 'output_cost': {output_cost}")
         return total_cost
@@ -112,7 +116,7 @@ class LLMOutput(BaseModel):
     llm_response: str
     system_prompt: str
     user_message: str
-    context_used: int
+    context_used: PositiveInt
     response_parser: Callable
 
     _configs: Configs = PrivateAttr(default=configs)
@@ -126,11 +130,11 @@ class LLMOutput(BaseModel):
         Returns:
             float: The estimated cost in USD
         """
-        if self.llm_response is not None:
-            cost = calculate_cost(self.system_prompt, self.user_message, self.llm_response, self._configs.OPENAI_MODEL)
-            return cost if cost is not None else 0
-        else: 
+        if self.llm_response is None:
             return 0
+        cost = calculate_cost(self.system_prompt, self.user_message, self.llm_response, self._configs.OPENAI_MODEL)
+        return cost if cost is not None else 0
+
 
     @computed_field # type: ignore[prop-decorator]
     @property
@@ -141,7 +145,8 @@ class LLMOutput(BaseModel):
         Returns:
             Any: The parsed response in the format determined by the parser
         """
-        return self.response_parser(self.llm_response)
+        response = self.response_parser(self.llm_response)
+        return response
 
 
 class LLMInput(BaseModel):
@@ -153,7 +158,7 @@ class LLMInput(BaseModel):
     that execute the LLM call and retrieve responses or embeddings.
     
     Attributes:
-        client (BaseModel): The OpenAI client instance
+        client (OpenAI): The OpenAI client instance
         user_message (str): The user's message to the LLM
         system_prompt (str): The system prompt for the LLM (default: "You are a helpful assistant.")
         use_rag (bool): Whether to use retrieval-augmented generation (default: False)
@@ -162,12 +167,12 @@ class LLMInput(BaseModel):
         response_parser (Callable): Function to parse the LLM response (default: identity function)
         format_dict (Optional[dict]): Dictionary for response formatting (default: None)
     """
-    client: BaseModel
-    user_message: str
+    client: OpenAI
+    user_message: str = Field(..., ge=1)
     system_prompt: str = "You are a helpful assistant."
     use_rag: bool = False
-    max_tokens: int = 4096
-    temperature: float = 0 # Deterministic output
+    max_tokens: PositiveInt = 4096
+    temperature: NonNegativeFloat = 0 # Deterministic output
     response_parser: Callable = lambda x: x # This should be a partial function.
     format_dict: Optional[dict] = None
 
@@ -175,19 +180,20 @@ class LLMInput(BaseModel):
 
     @computed_field # type: ignore[prop-decorator]
     @property
-    def response(self) -> Optional[LLMOutput]:
+    def response(self) -> LLMOutput | str:
         """
         Generate a response from the LLM using the configured parameters.
         
         This property sends the user message and system prompt to the LLM API
         and returns the structured response.
-        
+
         Returns:
-            Optional[LLMOutput]: The structured LLM response or an error message string
+            LLMOutput | str: The structured LLM response or an error message string
         """
+        model: str = self._configs.OPENAI_MODEL
         try:
             _response = self.client.chat.completions.create(
-                model=self._configs.OPENAI_MODEL,
+                model=model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 messages=[
@@ -256,10 +262,9 @@ class OpenAIClient:
     Client for OpenAI API integration with RAG capabilities for the American Law dataset.
     Handles embeddings integration and semantic search against the law database.
     """
-    
     def __init__(
         self, 
-        api_key: str = None,
+        api_key: Optional[str] = None,
         model: str = "gpt-4o",
         embedding_model: str = "text-embedding-3-small",
         embedding_dimensions: int = 1536,
@@ -287,15 +292,15 @@ class OpenAIClient:
             raise ValueError("OpenAI API key must be provided either as an argument or in the OPENAI_API_KEY environment variable")
         
         self.client = OpenAI(api_key=self.api_key)
-        self.model = model
-        self.embedding_model = embedding_model
-        self.embedding_dimensions = embedding_dimensions
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.model: str = model
+        self.embedding_model: str = embedding_model
+        self.embedding_dimensions: float = embedding_dimensions
+        self.temperature: float = temperature
+        self.max_tokens: int = max_tokens
         
         # Set data paths
-        self.data_path = configs.AMERICAN_LAW_DATA_DIR
-        self.db_path = configs.AMERICAN_LAW_DB_PATH
+        self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
+        self.db_path:Path = configs.paths.AMERICAN_LAW_DB_PATH
 
         logger.info(f"Initialized OpenAI client: LLM model: {model}, embedding model: {embedding_model}")
 
@@ -570,7 +575,7 @@ class OpenAIClient:
                     "model_used": self.model,
                     "error": "Response generation failed"
                 }
-            
+
         except Exception as e:
             logger.error(f"Error generating RAG response: {e}")
             return {

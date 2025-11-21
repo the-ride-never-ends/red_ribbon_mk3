@@ -67,12 +67,12 @@ _DEMO_RELEVANT_URLS: dict[str, list[str]] = {
 }
 
 
-_VECTOR_LENGTH: int = 3072 # See: https://platform.openai.com/docs/guides/embeddings
+_VECTOR_LENGTH: int = 3072 # NOTE: See: https://platform.openai.com/docs/guides/embeddings
 _SELECTED_DOMAIN_URLS: list[str] = []
 
 
 def _mock_internet_check(links: list) -> None:
-    print("Gettings laws from the web...")
+    print("Getting laws from the web...")
     #random_sleep()
     print("Checking government websites...")
     #random_sleep()
@@ -183,7 +183,6 @@ def demo_document_storage() -> dict:
 
 def demo_top10_document_retrieval(laws: list, return_how_many: int) -> list:
     print(f"Filtering down to {return_how_many} documents...")
-    random_sleep(3,5)
     print("Laws filtered successfully.")
     return laws
 
@@ -218,9 +217,9 @@ def demo_database_enter() -> str:
 
 def demo_prompt_decision_tree() -> str:
     show_text("AI is reviewing the laws...")
-    random_sleep(3,4)
+    random_sleep(1)
     show_text("Law review complete. Answering question...")
-    random_sleep(3,4)
+    random_sleep(1)
     print("Question answered.")
     answer: str = "blank"
     return answer
@@ -279,3 +278,40 @@ def demo_answer():
     print(f"The answer is: {ANSWER}")
     show_text(ANSWER)
 
+
+def demo_main(text: str):
+    """Main demo function."""
+    demo_load_data()
+    urls = _DEMO_INPUT_URLS
+    demo_document_retrieval_from_websites(urls)
+    demo_document_storage()
+    demo_database_enter()
+    demo_top10_document_retrieval([], 5)
+    mock_data = {
+        "question": text,
+        "documents": [],
+    }
+    question = demo_relevance_assessment(mock_data)
+    demo_variable_codebook(question, mock_data['documents'])
+    demo_prompt_decision_tree()
+
+    return ANSWER
+
+import argparse
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Demo Socialtoolkit")
+    parser.add_argument(
+        "--input_text",
+        type=str,
+        default="What is the local sales tax in Springhill, Lousiana?",
+        help="Input text for the demo",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = get_args()
+    try:
+        demo_main(args.input_text)
+    except Exception as e:
+        print(f"An error occurred during the demo: {e}")

@@ -21,9 +21,9 @@ from pydantic import (
 )
 import yaml
 
+
 from custom_nodes.red_ribbon._custom_errors import ConfigurationError
-from ..common.get_value_from_base_model import get_value_from_base_model
-from ..common.get_value_with_default_from_base_model import get_value_with_default_from_base_model
+from ..common import get_value_from_base_model, get_value_with_default_from_base_model
 
 
 _VERSION_DIR = Path(__file__).parent.parent.parent
@@ -53,6 +53,7 @@ class Paths(BaseModel):
     DB_PATH:               FilePath      = VERSION_DIR / "red_ribbon.db"
     AMERICAN_LAW_DATA_DIR: DirectoryPath = VERSION_DIR / "data"
     AMERICAN_LAW_DB_PATH:  FilePath      = VERSION_DIR / "data" / "american_law.db"
+    PROMPTS_DIR:           DirectoryPath = VERSION_DIR / "utils_" / "llm_" / "prompts"
 
     def __getitem__(self, key: str) -> Optional[Any]:
         return get_value_from_base_model(self, key)
@@ -119,12 +120,15 @@ class Configs(BaseModel):
     USE_FILTER: bool = False  # Whether to filter results
     FILTER_CRITERIA: dict[str, Any] = Field(default_factory=dict)
     USE_RERANKING: bool = False  # Whether to use re-ranking
+    OUTPUT_DIR: DirectoryPath = paths.LLM_OUTPUTS_DIR  # Directory to save outputs
 
     # LLM
     OPENAI_API_KEY:                   SecretStr = Field(default_factory=lambda: SecretStr(os.environ.get("OPENAI_API_KEY", "")), min_length=1)
     OPENAI_MODEL:                     str = Field(default="gpt-4o-mini", min_length=1)
     OPENAI_SMALL_MODEL:               str = Field(default="gpt-5-nano", min_length=1)
     OPENAI_EMBEDDING_MODEL:           str = Field(default="text-embedding-3-small", min_length=1)
+    OPENAI_MODERATION_MODEL:          str = Field(default="omni-moderation-latest", min_length=1)
+    DEFAULT_SYSTEM_PROMPT:            str = Field(default="You are a helpful assistant.")
     EMBEDDING_DIMENSIONS:             PositiveInt = 1536
     TEMPERATURE:                      PositiveFloat = 0.0
     MAX_TOKENS:                       PositiveInt = 4096

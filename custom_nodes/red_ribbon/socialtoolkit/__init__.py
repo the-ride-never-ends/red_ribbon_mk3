@@ -2,7 +2,7 @@
 Socialtoolkit - Turn Law into Datasets
 """
 
-from .socialtoolkit import make_socialtoolkit_api, SocialToolkitAPI
+from .socialtoolkit import make_socialtoolkit_api, SocialToolkitAPI, main
 from ._demo_mode import (
     demo_document_storage,
     demo_top10_document_retrieval,
@@ -14,6 +14,7 @@ from ._demo_mode import (
 )
 
 __all__ = [
+    "main",
     "make_socialtoolkit_api",
     "SocialToolkitAPI",
     "demo_document_storage",

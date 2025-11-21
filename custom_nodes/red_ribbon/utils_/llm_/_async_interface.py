@@ -60,23 +60,20 @@ class AsyncLLMInterface:
     Provides a simplified async API for accessing embeddings search and RAG functionality.
     """
 
-    def __init__(
-        self,
-        configs: Optional[Configs] = None,
-        resources: Optional[Dict[str, Callable]] = None
-    ):
+    def __init__(self, *, configs: Configs, resources: Dict[str, Any]) -> None:
         """
         Initialize the async LLM interface.
         
         Args:
-            api_key: OpenAI API key
             configs: Configuration object containing all required settings
+            resources: Dictionary containing pre-initialized resources like async_client and embeddings_manager
         """
         self.configs = configs
+        self.resources = resources
 
         self.api_key: str = configs.OPENAI_API_KEY.get_secret_value()
-        self.data_path: Path = configs.AMERICAN_LAW_DATA_DIR
-        self.db_path: Path = configs.AMERICAN_LAW_DB_PATH
+        self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
+        self.db_path: Path = configs.paths.AMERICAN_LAW_DB_PATH
         self.model: str = configs.OPENAI_MODEL
         self.embedding_model: str = configs.OPENAI_EMBEDDING_MODEL
 
@@ -84,7 +81,7 @@ class AsyncLLMInterface:
         self.async_client: AsyncOpenAIClient = resources["async_client"]
         logger.info(f"Initialized AsyncLLMInterface with model: {self.model}")
     
-        self.embeddings_manager = resources["embeddings_manager"]
+        self.embeddings_manager: EmbeddingsManager = resources["embeddings_manager"]
         logger.info(f"Initialized Embeddings Manager with model: {self.embedding_model}")
 
 

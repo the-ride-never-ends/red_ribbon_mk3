@@ -146,7 +146,11 @@ class SocialToolkitAPI:
             >>> print(response)
             >>> {
                    "input": "What is the local sales tax in Cheyenne, WY?",
-                   "output": "6%"
+                   "output": "6%",
+                   "sources": [
+                        "Bluebook Citation 1: ...",
+                        "Bluebook Citation 2: ..."
+                   ]
                 }
         """
         return self._socialtoolkit_pipeline.execute(input_data_point, *args, **kwargs)

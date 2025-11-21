@@ -4,11 +4,11 @@ Provides integration with OpenAI APIs and RAG components for legal research.
 """
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 
 import duckdb
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, APIError, OpenAIError, RateLimitError, Timeout,  APIConnectionError
 from openai.types.chat import ChatCompletionMessage
 import pandas as pd
 from pydantic import (
@@ -17,52 +17,12 @@ from pydantic import (
     FilePath,
     PrivateAttr, 
 )
-import tiktoken
 
-
-from custom_nodes.red_ribbon.utils_.logger import logger
-from custom_nodes.red_ribbon.utils_.configs import configs, Configs
-from .._constants import MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS
+from custom_nodes.red_ribbon.utils_ import logger, configs, Configs
 from .._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
 
 
-def calculate_cost(prompt: str, data: str, out: str, model: str) -> Optional[int]:
-    # Initialize the tokenizer for the GPT model
-    if model not in MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS:
-        logger.error(f"Model {model} not found in usage costs.")
-        return
-
-    if model not in tiktoken.model.MODEL_PREFIX_TO_ENCODING.keys() or model not in tiktoken.model.MODEL_TO_ENCODING.keys():
-        logger.error(f"Model {model} not found in tiktoken.")
-        return
-
-    tokenizer = tiktoken.encoding_for_model(model)
-
-    # request and response
-    request = str(prompt) + str(data)
-    response = str(out)
-
-    # Tokenize 
-    request_tokens = tokenizer.encode(request)
-    response_tokens = tokenizer.encode(response)
-
-    # Counting the total tokens for request and response separately
-    input_tokens = len(request_tokens)
-    output_tokens = len(response_tokens)
-
-    # Actual costs per 1 million tokens
-    cost_per_1M_input_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["input"]
-    cost_per_1M_output_tokens = MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS[model]["output"]
-
-    if cost_per_1M_output_tokens is None:
-        output_cost = 0
-    else:
-        output_cost = (output_tokens / 10**6) * cost_per_1M_output_tokens
-        
-    input_cost = (input_tokens / 10**6) * cost_per_1M_input_tokens
-    total_cost = input_cost + output_cost
-    return total_cost
-
+from .openai_client import calculate_cost
 
 
 class DuckDbSqlDatabase(BaseModel):
@@ -91,7 +51,7 @@ class DuckDbSqlDatabase(BaseModel):
     def execute_query(self, 
                       query: str, 
                       return_as: Optional[str] = None
-                      ) -> Optional[pd.DataFrame | List[Dict[str, Any]]] | List[tuple[Any, ...]]:
+                      ) -> Optional[pd.DataFrame | list[dict[str, Any]] | list[tuple[Any, ...]]]:
         if self._conn:
             with self._conn.cursor() as cursor:
                 try:
@@ -111,7 +71,7 @@ class DuckDbSqlDatabase(BaseModel):
                     case "tuple":
                         return cursor.fetchall()
                     case _: # This route is for database alterations like CREATE TABLE
-                        return
+                        return None
 
     def close(self):
         if self._conn:
@@ -172,7 +132,7 @@ class AsyncLLMInput(BaseModel):
         else:
             return "No response generated. Please try again."
 
-    async def _get_embedding(self, message: str) -> List[float]:
+    async def _get_embedding(self, message: str) -> list[float]:
         """
         Generate an embedding of the input message.
 
@@ -261,30 +221,21 @@ class AsyncOpenAIClient:
     Handles embeddings integration and semantic search against the law database.
     """
     
-    def __init__(
-        self, *,
-        resources: dict[str, Callable],
-        configs: Optional[Configs]
-    ):
+    def __init__(self, *, resources: dict[str, Any], configs: Configs) -> None:
         """
         Initialize the OpenAI client for American Law dataset RAG.
         
         Args:
-            api_key: OpenAI API key (defaults to OPENAI_API_KEY env variable)
-            model: OpenAI model to use for completion/chat
-            embedding_model: OpenAI model to use for embeddings
-            embedding_dimensions: Dimensions of the embedding vectors
-            temperature: Default temperature setting for LLM responses
-            max_tokens: Maximum tokens for LLM responses
-            configs: Configuration object
+            resources: Dictionary containing shared resources like logger and utilities
+            configs: Configuration object containing API keys, model settings, and paths
         """
         self.configs = configs
         self.resources = resources
 
         self.logger: logging.Logger = self.resources["logger"]
-        self.clean_html = self.resources["clean_html"]
+        self.clean_html: Callable = self.resources["clean_html"]
 
-        self.api_key: str = configs.OPENAI_API_KEY
+        self.api_key: str = configs.OPENAI_API_KEY.get_secret_value()
         if not self.api_key:
             raise ValueError("OpenAI API key must be provided either as an argument or in the OPENAI_API_KEY environment variable")
         
@@ -300,10 +251,10 @@ class AsyncOpenAIClient:
         self.client:               AsyncOpenAI = AsyncOpenAI(api_key=self.api_key)
 
         # Set data paths
-        self.data_path: Path = configs.AMERICAN_LAW_DATA_DIR
-        self.db_path:   Path = configs.AMERICAN_LAW_DB_PATH
+        self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
+        self.db_path:   Path = configs.paths.AMERICAN_LAW_DB_PATH
 
-        self._latest_response = None
+        self._latest_response: Optional[str] = None
 
         self.logger.info(f"Initialized AsyncOpenAI client: ")
         self.logger.debug(f"LLM model: {self.model}, embedding model: {self.embedding_model}")
@@ -319,7 +270,7 @@ class AsyncOpenAIClient:
         return self._latest_response.usage.total_tokens if self._latest_response else 0
 
     async def chat_completion(self,
-        messages: List[Dict[str, str]] = None,
+        messages: list[dict[str, str]] = [],
         model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None
@@ -327,8 +278,17 @@ class AsyncOpenAIClient:
         """
         Generate a chat completion using the OpenAI API.
         
+        Args:
+            messages: List of message dictionaries for the chat completion
+            model: Optional LLM to use (defaults to configs model)
+            temperature: Optional temperature setting (defaults to configs temperature)
+            max_tokens: Optional max tokens setting (defaults to configs max tokens)
+
         Returns:
             Chat completion response
+
+        Raises:
+            RuntimeError: If there is an error generating the chat completion
         """
         # Reset the latest response if it's not None
         if self._latest_response is not None:
@@ -343,11 +303,10 @@ class AsyncOpenAIClient:
             self._latest_response = response
             return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"Error generating chat completion: {e}")
-            return ""
+            self.logger.exception(f"{type(e).__name__}  generating chat completion: {e}")
+            raise RuntimeError(f"Error generating chat completion: {e}") from e 
 
-
-    async def get_embeddings(self, texts: List[str] | str) -> List[List[float]] | None:
+    async def get_embeddings(self, texts: list[str] | str) -> list[list[float]] | None:
         """
         Generate embeddings for a list of text inputs using OpenAI's embedding model.
         
@@ -361,7 +320,7 @@ class AsyncOpenAIClient:
             return []
         if isinstance(texts, str):
             texts = [texts]
-        
+
         try:
             # Prepare texts by stripping whitespace and handling empty strings
             processed_texts = [text.strip() for text in texts]
@@ -377,15 +336,15 @@ class AsyncOpenAIClient:
             return embeddings if embeddings else []
 
         except Exception as e:
-            logger.error(f"Error generating embeddings: {e}")
-            raise
+            self.logger.exception(f"{type(e).__name__}  generating chat completion: {e}")
+            raise RuntimeError(f"Error generating embeddings: {e}") from e
 
     async def search_embeddings(
         self, 
         query: str, 
+        top_k: int = 5,
         gnis: Optional[str] = None, 
-        top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search for relevant documents using embeddings.
         
@@ -396,6 +355,10 @@ class AsyncOpenAIClient:
             
         Returns:
             List of relevant documents with similarity scores
+
+        Raises:
+            TypeError: If input types are incorrect
+            ValueError: If input values are invalid
         """
         # Input validation
         if not isinstance(query, str):
@@ -421,13 +384,13 @@ class AsyncOpenAIClient:
         try:
             query_embedding = await self.get_embeddings(query)
         except Exception as e:
-            logger.exception(f"Error generating embedding for query: {e}")
+            self.logger.exception(f"Error generating embedding for query: {e}")
             return []
 
         query_embedding = query_embedding[0] if query_embedding else None
 
         if not query_embedding:
-            logger.error("No embedding generated for the query.")
+            self.logger.error("No embedding generated for the query.")
             return []
 
         try:
@@ -496,10 +459,10 @@ class AsyncOpenAIClient:
             return results
             
         except Exception as e:
-            logger.error(f"Error searching embeddings with DuckDB: {e}")
+            self.logger.error(f"Error searching embeddings with DuckDB: {e}")
             return []
         
-    async def query_database(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def query_database(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         """
         Query the database for relevant laws using DuckDB.
         
@@ -511,10 +474,10 @@ class AsyncOpenAIClient:
             List of matching law records
         """
         try:
-            
-            # Connect to the database - DuckDB can also connect to SQLite files
+            # Connect to the database
+            # NOTE: DuckDB can also connect to SQLite files
             conn = duckdb.connect(self.db_path, read_only=True)
-            
+
             # Simple text search
             sql_query = f"""
                 SELECT id, cid, title, chapter, place_name, state_name, date, 
@@ -534,8 +497,8 @@ class AsyncOpenAIClient:
             return results
             
         except Exception as e:
-            logger.error(f"Error querying database with DuckDB: {e}")
-            return []
+            self.logger.error(f"Error querying database with DuckDB: {e}")
+            raise RuntimeError(f"Error querying database: {e}") from e
 
 
     async def generate_rag_response(
@@ -544,7 +507,7 @@ class AsyncOpenAIClient:
         use_embeddings: bool = True,
         top_k: int = 5,
         system_prompt: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate a response using RAG (Retrieval Augmented Generation).
         
@@ -621,7 +584,7 @@ class AsyncOpenAIClient:
             }
             
         except Exception as e:
-            logger.error(f"Error generating RAG response: {e}")
+            self.logger.error(f"Error generating RAG response: {e}")
             return {
                 "query": query,
                 "response": f"Error generating response: {str(e)}",

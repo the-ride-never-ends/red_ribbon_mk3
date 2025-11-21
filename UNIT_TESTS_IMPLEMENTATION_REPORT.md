@@ -212,3 +212,9 @@ The resources layer (QueryProcessor, RankingAlgorithm, VectorSearchEngine, Cache
 3. 🔄 Implement architecture tests in future sprint
 4. 🔄 Add integration tests for end-to-end scenarios
 5. 🔄 Set up continuous test coverage monitoring
+
+
+
+
+# NOTES:
+Error messages: What they did wrong, a rationale behind it, the way to fix it.
