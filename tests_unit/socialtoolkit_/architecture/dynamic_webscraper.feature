@@ -297,7 +297,9 @@ Feature: Dynamic Webscraper
 
     Scenario: Wait for element with custom timeout logs timeout value
       Given url "https://example.com"
-      When wait_for_element is called with selector "#dynamic-content" and timeout 10
+      And selector "#dynamic-content"
+      And timeout 10
+      When wait_for_element is called
       Then log message contains "(timeout: 10s)"
 
     Scenario: Wait for element without timeout uses default
@@ -312,7 +314,8 @@ Feature: Dynamic Webscraper
 
     Scenario: Wait for element with non-string selector raises TypeError
       Given url "https://example.com"
-      When wait_for_element is called with selector parameter that is not a string
+      And selector parameter is not a string
+      When wait_for_element is called
       Then a TypeError is raised
 
     Scenario: Wait for element with empty URL raises ValueError
@@ -322,7 +325,8 @@ Feature: Dynamic Webscraper
 
     Scenario: Wait for element with empty selector raises ValueError
       Given url "https://example.com"
-      When wait_for_element is called with selector parameter that is empty
+      And selector parameter is an empty string
+      When wait_for_element is called
       Then a ValueError is raised
 
     Scenario: Wait for element URL TypeError message indicates type requirement
@@ -332,7 +336,8 @@ Feature: Dynamic Webscraper
 
     Scenario: Wait for element selector TypeError message indicates type requirement
       Given url "https://example.com"
-      When wait_for_element is called with selector parameter that is not a string
+      And selector parameter is not a string
+      When wait_for_element is called
       Then error message contains "selector must be str"
 
     Scenario: Wait for element URL ValueError message indicates empty constraint
@@ -342,7 +347,8 @@ Feature: Dynamic Webscraper
 
     Scenario: Wait for element selector ValueError message indicates empty constraint
       Given url "https://example.com"
-      When wait_for_element is called with selector parameter that is empty
+      And selector parameter is an empty string
+      When wait_for_element is called
       Then error message contains "selector cannot be empty"
 
   Rule: DynamicWebscraper Initialization Validates Parameters
