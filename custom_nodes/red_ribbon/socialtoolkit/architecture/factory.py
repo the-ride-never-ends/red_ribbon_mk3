@@ -14,22 +14,25 @@ from .relevance_assessment import RelevanceAssessment, RelevanceAssessmentConfig
 from .prompt_decision_tree import PromptDecisionTree, PromptDecisionTreeConfigs
 from .variable_codebook import VariableCodebook, VariableCodebookConfigs
 
-from custom_nodes.red_ribbon.utils_.configs import Configs
-from custom_nodes.red_ribbon.utils_.common import get_cid
-from custom_nodes.red_ribbon.utils_ import make_logger
-from custom_nodes.red_ribbon.utils_.database import DatabaseAPI, make_duckdb_database
-from custom_nodes.red_ribbon.utils_.llm_ import LLM, make_llm
+
+from custom_nodes.red_ribbon.utils_ import (
+   configs, Configs, make_logger, logger, make_duckdb_database, make_llm, get_cid
+)
 from custom_nodes.red_ribbon._custom_errors import (
     ResourceError,
     ConfigurationError,
     InitializationError,
 )
 
+
 def _validate_configs(configs: BaseModel, name: str) -> None:
+    if not isinstance(name, str):
+        raise TypeError(f"Name must be a string, got {type(name).__name__}")
     if not isinstance(configs, BaseModel):
         raise TypeError(f"Configs for {name} must be a Pydantic BaseModel instance, got {type(configs).__name__}")
+
     try:
-        configs.model_validate()
+        configs.model_validate(configs.model_dump())
     except ValidationError as e:
         raise ConfigurationError(f"Invalid configuration object for {name}: {e}") from e
 
@@ -38,7 +41,7 @@ def _validate_resources(resources: dict[str, Any], name: str) -> None:
         raise TypeError(f"Resources for {name} must be a dictionary, got {type(resources).__name__}")
 
 
-def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Any]) -> Callable:
+def _initialize(Class: Callable, configs: BaseModel, resources: dict[str, Any]) -> Any:
     """
     Generic initializer for classes with resources and configs
     
@@ -92,20 +95,53 @@ def make_document_retrieval_from_websites(
     return _initialize(DocumentRetrievalFromWebsites, configs, resources,) 
 
 
+
 def make_document_storage(
     resources: dict[str, Any] = {},
-    configs: DocumentStorageConfigs = DocumentStorageConfigs(),
+    configs: Configs = configs,
 ) -> DocumentStorage:
     """Factory function to create DocumentStorage instance"""
-    return _initialize(DocumentStorage, configs, resources,) 
+    _resources = {
+        "logger": resources.get("logger"),
+        "db": resources.get("db"),
+        "get_cid": resources.get("get_cid"),
+    }
+    _resources.update(resources)
+    try:
+        return DocumentStorage(resources=resources, configs=configs)
+    except Exception as e:
+        raise e
 
 
 def make_top10_document_retrieval(
-    resources: dict[str, Any] = {},
-    configs: Top10DocumentRetrievalConfigs = Top10DocumentRetrievalConfigs(),
-) -> Top10DocumentRetrieval:
-    """Factory function to create Top10DocumentRetrieval instance"""
-    return _initialize(Top10DocumentRetrieval, configs, resources,) 
+    resources: dict[str, Callable] = {}, 
+    configs: Configs = configs
+    ) -> Top10DocumentRetrieval:
+    """
+    Factory function to create Top10DocumentRetrieval instance
+    
+    Args:
+        resources: Dictionary of resources
+        configs: Configuration for Top-10 Document Retrieval
+    
+    Returns:
+        Instance of Top10DocumentRetrieval
+    """
+    from ..resources.top10_document_retrieval._cosine_similarity import cosine_similarity
+    from ..resources.top10_document_retrieval._dot_product import dot_product
+    from ..resources.top10_document_retrieval._euclidean_distance import euclidean_distance
+
+    _resources = {
+        "logger": resources.get("logger", logger),
+        "database": resources.get("database", make_duckdb_database()),
+        "_encode_query": resources.get("_encode_query", None),
+        "_similarity_search": resources.get("_similarity_search", None),
+        "_retrieve_top_documents": resources.get("_retrieve_top_documents", None),
+        "_cosine_similarity": resources.get("_cosine_similarity", cosine_similarity),
+        "_dot_product": resources.get("_dot_product", dot_product),
+        "_euclidean_distance": resources.get("_euclidean_distance", euclidean_distance),
+    }
+    return Top10DocumentRetrieval(resources=_resources, configs=configs)
 
 
 def make_relevance_assessment(
@@ -126,7 +162,7 @@ def make_prompt_decision_tree(
 
 def make_socialtoolkit_pipeline(
     resources: dict[str, Any] = {},
-    configs: SocialtoolkitConfigs = SocialtoolkitConfigs(),
+    configs: Configs = configs,
 ) -> SocialtoolkitPipeline:
     """
     Factory function to create SocialtoolkitPipeline instance
@@ -150,10 +186,12 @@ def make_socialtoolkit_pipeline(
     try:
         kwargs = {
             "resources": {
-            "llm": resources.get("llm", make_llm()),
-            "db": resources.get("db", make_duckdb_database()),
-            "logger": resources.get("logger", make_logger("socialtoolkit_pipeline")),
-        }}
+                "llm": resources.get("llm", make_llm()),
+                "db": resources.get("db", make_duckdb_database()),
+                "logger": resources.get("logger", make_logger("socialtoolkit_pipeline")),
+            },
+            "configs": configs,
+        }
     except (ConfigurationError, ResourceError, InitializationError) as e:
         raise e
     except Exception as e:
@@ -174,8 +212,8 @@ def make_socialtoolkit_pipeline(
         raise ResourceError(f"Unexpected error initializing dependencies for {name}: {e}") from e
 
     try:
-        return SocialtoolkitPipeline(_resources, configs)
-    except KeyError:
+        return SocialtoolkitPipeline(configs=configs, resources=_resources)
+    except KeyError as e:
         raise ResourceError(f"Missing required resource for {name}: {e}") from e
     except AttributeError as e:
         raise ConfigurationError(f"Missing required configuration for {name}: {e}") from e

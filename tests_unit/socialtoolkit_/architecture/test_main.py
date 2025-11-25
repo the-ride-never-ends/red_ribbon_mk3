@@ -1,5 +1,7 @@
+# !/usr/bin/env python3
 from datetime import datetime
 import json
+import time
 
 
 import pytest
@@ -11,6 +13,16 @@ from custom_nodes.red_ribbon.socialtoolkit.socialtoolkit import (
     main,
     Configs
 )
+
+
+
+
+@pytest.fixture
+def benchmarks():
+    """Fixture for benchmarking tests."""
+    return {
+        "time_limit_seconds": 30,
+    }
 
 @pytest.fixture
 def temp_dir(tmp_path):
@@ -172,7 +184,7 @@ class TestMainHappyPath:
         assert file_size > zero, \
             f"Expected output file at '{expected_output_file_path}' to be >'{zero}', but got '{file_size}'."
 
-    @pytest.mark.parameterize("expected_field", [
+    @pytest.mark.parametrize("expected_field", [
         "input", "output", "citations", "timestamp"
     ])
     def test_when_main_called_then_has_expected_fields_in_output(self, expected_field, valid_config_file, expected_output_file_path):
@@ -186,7 +198,7 @@ class TestMainHappyPath:
         assert expected_field in file_text, \
             f"Expected output file at '{expected_output_file_path}' to have field '{expected_field}', but got '{file_text}'."
 
-    @pytest.mark.parameterize("expected_field", [
+    @pytest.mark.parametrize("expected_field", [
         "input", "output", "citations"
     ])
     def test_when_main_called_then_has_expected_values_in_output(
@@ -224,6 +236,24 @@ class TestMainUnhappyPathBadConfig:
         """
         main_return = main()
         assert not expected_output_file_path.exists(), f"Did not expect output file at '{expected_output_file_path}', but it exists."
+
+
+class TestMainSpeed:
+
+    def test_when_main_called_then_executes_within_time_limit(self, valid_config_file, benchmarks):
+        """
+        GIVEN a valid Socialtoolkit pipeline configuration
+        WHEN main() is called with this configuration
+        THEN it should execute within the time limit
+        """
+        time_limit_seconds = benchmarks["time_limit_seconds"]
+        start_time = time.monotonic()
+        main_return = main()
+        end_time = time.monotonic()
+        elapsed_time = end_time - start_time
+        assert elapsed_time <= time_limit_seconds, \
+            f"Expected main() to execute within '{time_limit_seconds}' seconds, but took '{elapsed_time}' seconds."
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

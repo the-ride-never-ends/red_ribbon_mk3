@@ -14,7 +14,7 @@ import numpy as np
 
 
 # Set up logging
-from custom_nodes.red_ribbon.utils_ import Configs
+from custom_nodes.red_ribbon.utils_.configs import Configs
 
 
 def _validate_string(value: Any, name: str) -> str:

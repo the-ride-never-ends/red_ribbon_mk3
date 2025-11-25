@@ -2,12 +2,13 @@
 OpenAI Client implementation for American Law database.
 Provides integration with OpenAI APIs and RAG components for legal research.
 """
+import logging
 from pathlib import Path
 from typing import Callable, List, Literal, Dict, Any, Never, Optional
 
 
 import duckdb
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from pydantic import (
     AfterValidator as AV, 
     BaseModel, 
@@ -23,10 +24,14 @@ from pydantic import (
 import tiktoken
 
 
-from custom_nodes.red_ribbon.utils_.logger import logger
-from custom_nodes.red_ribbon.utils_.configs import configs, Configs
+from custom_nodes.red_ribbon.utils_.logger import logger as global_logger
+from custom_nodes.red_ribbon.utils_.configs import configs as global_configs, Configs
 from .._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
 from .._constants import MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS
+
+
+def _get_token_usage(response: Any) -> int:
+    return response.usage.total_tokens if response.usage and response.usage.total_tokens else 0
 
 
 def _calc_cost(x: int, cost_per_1M: Optional[float] = None) -> float:
@@ -69,15 +74,15 @@ def calculate_cost(prompt: str, data: str, output: str, model: str) -> Optional[
     """
     # Initialize the tokenizer for the GPT model
     if model not in MODEL_USAGE_COSTS_USD_PER_MILLION_TOKENS:
-        logger.error(f"Model {model} not found in usage costs.")
+        global_logger.error(f"Model {model} not found in usage costs.")
         return None
 
     if model not in tiktoken.model.MODEL_PREFIX_TO_ENCODING.keys() or model not in tiktoken.model.MODEL_TO_ENCODING.keys():
-        logger.error(f"Model {model} not found in tiktoken.")
+        global_logger.error(f"Model {model} not found in tiktoken.")
         return None
 
     try:
-        tokenizer: Callable = tiktoken.encoding_for_model(model)
+        tokenizer: tiktoken.Encoding = tiktoken.encoding_for_model(model)
 
         # Counting the total tokens for request and response separately
         input_tokens: int = len(tokenizer.encode(prompt + data))
@@ -92,10 +97,12 @@ def calculate_cost(prompt: str, data: str, output: str, model: str) -> Optional[
         input_cost: float = _calc_cost(input_tokens, cost_per_1M_input_tokens)
         total_cost: float = round(input_cost + output_cost, 2)
         
-        logger.debug(f"Total Cost: {total_cost} Cost breakdown:\n'input_tokens': {input_tokens}\n'output_tokens': {output_tokens}\n'input_cost': {input_cost}, 'output_cost': {output_cost}")
+        global_logger.debug(
+            f"Total Cost: {total_cost} Cost breakdown:\n'input_tokens': {input_tokens}\n'output_tokens': {output_tokens}\n'input_cost': {input_cost}, 'output_cost': {output_cost}"
+        )
         return total_cost
     except Exception as e:
-        logger.error(f"Error calculating cost: {e}")
+        global_logger.error(f"Error calculating cost: {e}")
         return None
 
 
@@ -119,7 +126,7 @@ class LLMOutput(BaseModel):
     context_used: PositiveInt
     response_parser: Callable
 
-    _configs: Configs = PrivateAttr(default=configs)
+    _configs: Configs = PrivateAttr(default=global_configs)
 
     @computed_field # type: ignore[prop-decorator]
     @property
@@ -132,8 +139,8 @@ class LLMOutput(BaseModel):
         """
         if self.llm_response is None:
             return 0
-        cost = calculate_cost(self.system_prompt, self.user_message, self.llm_response, self._configs.OPENAI_MODEL)
-        return cost if cost is not None else 0
+        args = (self.system_prompt, self.user_message, self.llm_response, self._configs.OPENAI_MODEL)
+        return calculate_cost(*args) or 0
 
 
     @computed_field # type: ignore[prop-decorator]
@@ -167,7 +174,7 @@ class LLMInput(BaseModel):
         response_parser (Callable): Function to parse the LLM response (default: identity function)
         format_dict (Optional[dict]): Dictionary for response formatting (default: None)
     """
-    client: OpenAI
+    client: Any
     user_message: str = Field(..., ge=1)
     system_prompt: str = "You are a helpful assistant."
     use_rag: bool = False
@@ -176,7 +183,8 @@ class LLMInput(BaseModel):
     response_parser: Callable = lambda x: x # This should be a partial function.
     format_dict: Optional[dict] = None
 
-    _configs: Configs = PrivateAttr(default=configs)
+    _configs: Configs = PrivateAttr(default=global_configs)
+    _logger: logging.Logger = PrivateAttr(default=global_logger)
 
     @computed_field # type: ignore[prop-decorator]
     @property
@@ -202,7 +210,7 @@ class LLMInput(BaseModel):
                 ]
             )
         except Exception as e:
-            logger.error(f"{type(e)} generating response: {e}")
+            self._logger.error(f"{type(e).__name__} generating response: {e}")
             return "Error generating response. Please try again."
 
         if _response.choices[0].message.content:
@@ -210,7 +218,7 @@ class LLMInput(BaseModel):
                 llm_response=_response.choices[0].message.content.strip(),
                 system_prompt=self.system_prompt.strip(),
                 user_message=self.user_message,
-                context_used=_response.usage.total_tokens,
+                context_used=_get_token_usage(_response),
                 response_parser=self.response_parser,
             )
         else:
@@ -235,13 +243,13 @@ class LLMInput(BaseModel):
                 model=self._configs.OPENAI_EMBEDDING_MODEL
             )
         except Exception as e:
-            logger.error(f"{type(e)} generating embedding: {e}")
+            self._logger.error(f"{type(e)} generating embedding: {e}")
             return []
 
         if embeddings.data[0].embedding:
             return embeddings.data[0].embedding
         else:
-            logger.error("No embedding generated. Please try again.")
+            self._logger.error("No embedding generated. Please try again.")
             return []
 
 
@@ -270,7 +278,8 @@ class OpenAIClient:
         embedding_dimensions: int = 1536,
         temperature: float = 0.2,
         max_tokens: int = 4096,
-        configs: Optional[Configs] = None
+        configs: Configs = global_configs,
+        logger: logging.Logger = global_logger
     ):
         """
         Initialize the OpenAI client for American Law dataset RAG.
@@ -286,6 +295,7 @@ class OpenAIClient:
             db_path: Path to the SQLite database
         """
         self.configs = configs
+        self.logger = logger
 
         self.api_key = api_key
         if not self.api_key:
@@ -302,7 +312,7 @@ class OpenAIClient:
         self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
         self.db_path:Path = configs.paths.AMERICAN_LAW_DB_PATH
 
-        logger.info(f"Initialized OpenAI client: LLM model: {model}, embedding model: {embedding_model}")
+        self.logger.info(f"Initialized OpenAI client: LLM model: {model}, embedding model: {embedding_model}")
 
 
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
@@ -333,7 +343,7 @@ class OpenAIClient:
             return embeddings
             
         except Exception as e:
-            logger.error(f"Error generating embeddings: {e}")
+            self.logger.error(f"Error generating embeddings: {e}")
             raise
 
 
@@ -439,7 +449,7 @@ class OpenAIClient:
             return results
             
         except Exception as e:
-            logger.error(f"Error searching embeddings with DuckDB: {e}")
+            self.logger.error(f"Error searching embeddings with DuckDB: {e}")
             return []
         
     def query_database(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
@@ -453,6 +463,7 @@ class OpenAIClient:
         Returns:
             List of matching law records
         """
+        results = []
         try:
             # Connect to the database - DuckDB can also connect to SQLite files
             with duckdb.connect(self.db_path, read_only=True) as conn:
@@ -467,10 +478,9 @@ class OpenAIClient:
                 """
                 # Execute query and fetch results
                 results = conn.execute(sql_query).fetchdf().to_dict('records')
-            return results
         except Exception as e:
-            logger.error(f"Error querying database with DuckDB: {e}")
-            return []
+            self.logger.error(f"Error querying database with DuckDB: {e}")
+        return []
 
 
     def generate_rag_response(
@@ -541,7 +551,6 @@ class OpenAIClient:
         # Generate response using OpenAI
         prompt: Prompt = load_prompt_from_yaml(
             "generate_rag_response", 
-            self.configs, 
             query=query, 
             context=context_text
         )
@@ -577,7 +586,7 @@ class OpenAIClient:
                 }
 
         except Exception as e:
-            logger.error(f"Error generating RAG response: {e}")
+            self.logger.error(f"Error generating RAG response: {e}")
             return {
                 "query": query,
                 "response": f"Error generating response: {str(e)}",

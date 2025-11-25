@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional, Type
 
 
 import openai
-from pydantic import BaseModel, NonNegativeInt, NonNegativeFloat
+from pydantic import BaseModel, NonNegativeInt, NonNegativeFloat, Field
 
 
 from .variable_codebook import VariableCodebook, Variable
@@ -15,7 +15,7 @@ from .document_retrieval_from_websites import DocumentRetrievalFromWebsites
 
 
 from .dataclasses import Document, Vector
-from custom_nodes.red_ribbon.utils_.llm_ import LLM
+from custom_nodes.red_ribbon.utils_ import LLM, make_llm, configs, Configs
 from ._errors import (
     UrlGenerationError,
     InitializationError,
@@ -28,17 +28,19 @@ from ._errors import (
     CodebookError,
 )
 
+
+
 # from configs import Configs
 OPEN_AI_API_KEY = "sk-1234567890abcdef1234567890abcdef"
 
 class SocialtoolkitConfigs(BaseModel):
     """Configuration for High Level Architecture workflow"""
-    approved_document_sources: Optional[list[str]] = None
-    llm_api_config: Optional[dict[str, Any]] = None
-    document_retrieval_threshold: NonNegativeInt = 10
-    relevance_threshold: NonNegativeFloat = 0.7
-    output_format: str = "json"
-    get_documents_from_web: bool = False
+    # approved_document_sources: list[str] = Field(default_factory=list)
+    # llm_api_config: dict[str, Any] = Field(default_factory=dict)
+    # document_retrieval_threshold: NonNegativeInt = 10
+    # relevance_threshold: NonNegativeFloat = 0.7
+    # output_format: str = "json"
+    # get_documents_from_web: bool = False
 
 
 class SocialtoolkitPipeline:
@@ -47,7 +49,7 @@ class SocialtoolkitPipeline:
     based on mermaid chart in README.md
     """
 
-    def __init__(self, *, resources: dict[str, Any], configs: SocialtoolkitConfigs) -> None:
+    def __init__(self, *, resources: dict[str, Any], configs: Configs) -> None:
         """
         Initialize with injected dependencies and configuration
         
@@ -59,11 +61,9 @@ class SocialtoolkitPipeline:
         self.configs = configs
         self.logger: logging.Logger = logging.getLogger(self.class_name)
 
-        self.approved_document_sources: list[str] = self.configs.approved_document_sources
-
-        self._web_scraper: Type = None
-        self._omni_converter: Type = None
-        self._db = None
+        self._web_scraper: Optional[Type] = None
+        self._omni_converter: Optional[Type] = None
+        self._db: Optional[Type] = None
 
         self.llm: LLM = resources["llm"]
 
@@ -74,14 +74,9 @@ class SocialtoolkitPipeline:
         self.prompt_decision_tree:             PromptDecisionTree            = resources["prompt_decision_tree"]
         self.variable_codebook:                VariableCodebook              = resources["variable_codebook"]
 
-        # Initialize services
-        # TODO Get this openai shit out of here!
-        self.llm_api: LLM
-
+        # Initialize LLM if not provided
         if self.llm is None:
-            self.llm_api = openai.OpenAI(api_key=OPEN_AI_API_KEY)
-        else:# Default to OpenAI API
-            self.llm_api = self.llm(resources, configs)
+            self.llm_api = make_llm()
 
         self.logger.info("Socialtoolkit initialized with services")
 
@@ -125,7 +120,7 @@ class SocialtoolkitPipeline:
         """
         self.logger.info(f"Starting high level control flow with input: {query}")
 
-        # Step 1: Get variable definition from codebook
+        # Step 1: Get variable definition from codebook # NOTE: Tests written
         get_var_action = "get_variable"
         try:
             var_result = self.variable_codebook.execute(get_var_action, llm=self.llm, query=query)
@@ -139,18 +134,18 @@ class SocialtoolkitPipeline:
 
         self.logger.debug(f"Extracted variable from query: {variable.model_dump()}")
 
-        if self.configs.approved_document_sources:
-            # Step 2: Get domain URLs from pre-approved sources
-            try:
+        if self.configs.get_from_internet:
+            # Step 2: Get domain URLs from pre-approved sources # NOTE: Tests written
+            try: 
                 urls: list[str] = self.document_retrieval_from_websites.get_urls(query)
             except Exception as e:
                 raise UrlGenerationError(f"Unexpected exception while generating URLs from approved sources: {e}") from e
 
-            # Step 3: Retrieve documents from websites
+            # Step 3: Retrieve documents from websites # NOTE: Tests written
             documents: list[dict[str, Any]]
             metadata: list[dict[str, Any]]
             vectors: list[dict[str, list[float]]]
-            try:
+            try: 
                 documents, metadata, vectors = self.document_retrieval_from_websites.retrieve_documents(urls)
             except Exception as e:
                 raise WebsiteDocumentRetrievalError(f"Unexpected exception while retrieving documents from websites: {e}") from e
@@ -162,7 +157,7 @@ class SocialtoolkitPipeline:
             if not documents or not metadata or not vectors:
                 self.logger.warning("No documents, metadata, or vectors retrieved from websites. Aborting storage step.")
             else:
-                # Step 4: Store documents in document storage
+                # Step 4: Store documents in document storage # TODO: File out test stubs
                 store_action = "store"
                 try:
                     store_result: dict[str, Any] = self.document_storage.execute(
@@ -176,12 +171,12 @@ class SocialtoolkitPipeline:
                 else:
                     self.logger.warning(f"Failed to store documents: {store_result['message']}")
 
-        # Step 5: Retrieve documents and document vectors
+        # Step 5: Retrieve documents and document vectors # TODO: File out test stubs
         retrieve_action = "retrieve"
         stored_docs: list[Document]
         stored_vectors: list[Vector]
         try:
-            retrieve_result = self.document_storage.execute(retrieve_action, query)
+            retrieve_result = self.document_storage.execute(retrieve_action, query=query)
         except Exception as e:
             raise DocumentStorageError(f"Unexpected exception while retrieving documents: {e}") from e
 
@@ -193,7 +188,7 @@ class SocialtoolkitPipeline:
             self.logger.warning(f"Failed to retrieve documents: {retrieve_result['message']}")
             return {}
 
-        # Step 6: Perform top-10 document retrieval
+        # Step 6: Perform top-10 document retrieval # NOTE: Tests written
         try:
             potentially_relevant_docs: dict[str, Document] = self.top10_document_retrieval.execute(
                 query, 
@@ -207,7 +202,7 @@ class SocialtoolkitPipeline:
             self.logger.warning(f"No potentially relevant documents found for query '{query}'")
             return {}
 
-        # Step 7: Perform relevance assessment
+        # Step 7: Perform relevance assessment # NOTE: Tests written
         try:
             relevant_documents: dict[str, Document] = self.relevance_assessment.execute(
                 potentially_relevant_docs,
@@ -220,7 +215,7 @@ class SocialtoolkitPipeline:
             self.logger.warning(f"No relevant documents found after relevance assessment for query '{query}'")
             return {}
 
-        # Step 8: Execute prompt decision tree
+        # Step 8: Execute prompt decision tree # NOTE: Tests written
         try:
             result: dict[str, str] = self.prompt_decision_tree.execute(
                 relevant_documents,

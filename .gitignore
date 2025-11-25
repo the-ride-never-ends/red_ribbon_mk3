@@ -24,3 +24,8 @@ custom_nodes/red_ribbon/data/
 mypy_check*
 custom_nodes/red_ribbon/utils_/deprecated/
 .mypy_cache/
+open_ai_key.zshrc
+.env
+notebooks
+custom_nodes/red_ribbon/configs.yaml
+custom_nodes/red_ribbon/configs/private_configs.yaml

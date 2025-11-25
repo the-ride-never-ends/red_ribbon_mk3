@@ -29,7 +29,7 @@ class Top10DocumentRetrievalConfigs(BaseModel):
     """Configuration for Top-10 Document Retrieval workflow"""
     retrieval_count: int = 10  # Number of documents to retrieve
     similarity_threshold: float = 0.6  # Minimum similarity score
-    ranking_method: RankingMethod = RankingMethod.COSINE_SIMILARITY.value
+    ranking_method: RankingMethod = RankingMethod.COSINE_SIMILARITY
     use_filter: bool = False  # Whether to filter results
     filter_criteria: dict[str, Any] = {}
     use_reranking: bool = False  # Whether to use re-ranking
@@ -74,7 +74,7 @@ class Top10DocumentRetrieval:
         # Extract needed services from resources
         # self.encoder_service = resources["encoder_service"]
         # self.similarity_search_service = resources["similarity_search_service"]
-        # self.document_storage = resources["document_storage_service"]
+        # self.document_storage = resources["document_storage"]
         
         # Methods
         self._encode_query = self.resources["_encode_query"]
@@ -93,7 +93,7 @@ class Top10DocumentRetrieval:
         return self.__class__.__name__.lower()
 
     def run(self, 
-            input_data_point: str = None, 
+            input_data_point: str = "", 
             documents: Optional[list[Any]] = None, 
             document_vectors: Optional[list[Any]] = None
             ) -> dict[str, Document]:
@@ -115,10 +115,10 @@ class Top10DocumentRetrieval:
         return self.execute(input_data_point, documents, document_vectors)
 
     def execute(self, 
-                input_data_point: str = None, 
+                input_data_point: str = "", 
                 documents: Optional[list[Any]] = None, 
                 document_vectors: Optional[list[Any]] = None
-                ) -> dict[str, Document]:
+                ) -> dict[str, Any]:
         """
         Execute the document retrieval flow.
 
@@ -135,11 +135,11 @@ class Top10DocumentRetrieval:
                 "top_doc_ids": (list[str]) List of top document IDs
         """
         self.logger.info(f"Starting top-10 document retrieval for: {input_data_point}")
-        
+
         try:
             # Step 1: Encode the query
             query_vector = self._encode_query(input_data_point)
-            
+
             # Step 2: Get vector embeddings and document IDs from storage if not provided
             if documents is None or document_vectors is None:
                 try:
@@ -186,9 +186,8 @@ class Top10DocumentRetrieval:
         Returns:
             List of potentially relevant documents
         """
-        with self.db.enter() as db:
-            result = self._retrieve_top_documents(input_data_point, documents, document_vectors, db)
-        
+        result = self._retrieve_top_documents(input_data_point, documents, document_vectors, self.db)
+
         self.run(input_data_point, documents, document_vectors)
         return result["relevant_documents"]
 
@@ -204,9 +203,9 @@ class Top10DocumentRetrieval:
         sql = """
 SELECT * FROM document_vectors;
 """
-        return self.db.execute()
+        return self.db.execute(sql)
 
-    def _run_ranking_method(self, query_vector: list[float], vector: dict[str, list[float]]) -> Callable:
+    def _run_ranking_method(self, query_vector: list[float], vector: dict[str, list[float]]) -> float:
         match self.ranking_method:
                 # Calculate similarity score based on the configured method
             case "cosine_similarity":
@@ -308,7 +307,7 @@ SELECT * FROM document_vectors;
         # Return top N results
         return filtered_results[:n_results]
     
-    def retrieve_relevant_documents(self, documents: list[Any], top_doc_ids: list[str]) -> list[Any]:
+    def retrieve_relevant_documents(self, documents: list[Document], top_doc_ids: list[str]) -> list[Document]:
         """
         Retrieve potentially relevant documents
         
@@ -322,7 +321,7 @@ SELECT * FROM document_vectors;
         self.logger.debug("Retrieving potentially relevant documents")
         
         # Create a map of document ID to document for faster lookup
-        doc_map = {doc("id"): doc for doc in documents}
+        doc_map = {doc.cid: doc for doc in documents}
         
         # Retrieve documents by ID
         return [
@@ -330,7 +329,7 @@ SELECT * FROM document_vectors;
             if doc_id in doc_map
         ]
 
-    def _vector_functions(self, vec1: list[float], vec2: list[float], func: Callable) -> list[float]:
+    def _vector_functions(self, vec1: list[float], vec2: list[float], func: Callable[...,float]) -> float:
         if not vec1 or not vec2:
             return 0.0
         try:
@@ -351,32 +350,3 @@ SELECT * FROM document_vectors;
         """Calculate Euclidean distance between two vectors"""
         return self._vector_functions(vec1, vec2, self._euclidean_distance)
 
-def make_top10_document_retrieval(
-    resources: dict[str, Callable] = {}, 
-    configs: Top10DocumentRetrievalConfigs = Top10DocumentRetrievalConfigs()
-    ) -> Top10DocumentRetrieval:
-    """
-    Factory function to create Top10DocumentRetrieval instance
-    
-    Args:
-        resources: Dictionary of resources
-        configs: Configuration for Top-10 Document Retrieval
-    
-    Returns:
-        Instance of Top10DocumentRetrieval
-    """
-    from ..resources.top10_document_retrieval._cosine_similarity import cosine_similarity
-    from ..resources.top10_document_retrieval._dot_product import dot_product
-    from ..resources.top10_document_retrieval._euclidean_distance import euclidean_distance
-
-    _resources = {
-        "logger": resources.get("logger", logger),
-        "database": resources.get("database", make_duckdb_database()),
-        "_encode_query": resources.get("_encode_query", None),
-        "_similarity_search": resources.get("_similarity_search", None),
-        "_retrieve_top_documents": resources.get("_retrieve_top_documents", None),
-        "_cosine_similarity": resources.get("_cosine_similarity", cosine_similarity),
-        "_dot_product": resources.get("_dot_product", dot_product),
-        "_euclidean_distance": resources.get("_euclidean_distance", euclidean_distance),
-    }
-    return Top10DocumentRetrieval(resources=_resources, configs=configs)

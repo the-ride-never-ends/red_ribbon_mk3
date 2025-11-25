@@ -13,31 +13,21 @@ Feature: Prompt Decision Tree
 """
 # NOTE: Current test function count: 34
 import copy
-import logging
 
-from unittest.mock import Mock, MagicMock, AsyncMock
 
 import pytest
+
 
 from custom_nodes.red_ribbon.socialtoolkit.architecture.prompt_decision_tree import (
     PromptDecisionTree, 
     PromptDecisionTreeConfigs,
 )
 from custom_nodes.red_ribbon._custom_errors import LLMError
-from custom_nodes.red_ribbon.utils_.common import get_cid
-
-from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import VariableCodebook
+from custom_nodes.red_ribbon.utils_ import get_cid
 from custom_nodes.red_ribbon.socialtoolkit.architecture.dataclasses import Document, Section
 
 
-from .conftest import (
-    FixtureError,
-    mock_logger,
-    mock_database,
-    mock_llm,
-    variable_codebook_fixture,
-)
-
+from tests_unit.socialtoolkit_.architecture.conftest import FixtureError
 from openai import AsyncClient
 
 

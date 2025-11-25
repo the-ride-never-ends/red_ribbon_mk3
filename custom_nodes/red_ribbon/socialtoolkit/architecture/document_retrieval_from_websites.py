@@ -1,15 +1,23 @@
 
+from datetime import datetime
 from enum import Enum
 import logging
-from typing import Dict, List, Any, Callable, Optional, Tuple, Union
-from datetime import datetime
+import re
+from typing import Any, Annotated as Ann, Callable, Optional, Union
+import queue
 
-
-from pydantic import BaseModel, Field, HttpUrl
+try:
+    from requests import Timeout
+except ImportError:
+    Timeout = TimeoutError
+from pydantic import AfterValidator as AV, BaseModel, Field, HttpUrl, ValidationError
 
 from custom_nodes.red_ribbon.utils_ import (
     logger, DatabaseAPI, LLM
 )
+from custom_nodes.red_ribbon._custom_errors import DatabaseError
+from .document_storage import DocumentStorage
+
 
 class WebpageType(str, Enum):
     STATIC = "static"
@@ -29,8 +37,18 @@ class DocumentRetrievalConfigs(BaseModel):
     max_depth: int = 1
 
 
+def _validate_url_completeness(urls: list[HttpUrl]) -> list[HttpUrl]:
+    # Complete URL regex pattern
+    complete_url_pattern = r'^(http|https)://[^\s/$.?#].[^\s]*$'
+    for url in urls:
+        _url = str(url)
+        if not re.match(complete_url_pattern, _url):
+            raise ValueError(f"URL '{url}' is not a complete URL with scheme")
+    return urls
+
+
 class ValidUrls(BaseModel):
-    urls: list[HttpUrl]
+    urls: Ann[list[HttpUrl], AV(_validate_url_completeness)]
 
 
 class DocumentRetrievalFromWebsites:
@@ -38,7 +56,7 @@ class DocumentRetrievalFromWebsites:
     Document Retrieval from Websites for data extraction system
     based on mermaid chart in README.md
     """
-    
+
     def __init__(self, *, 
                  resources: dict[str, Any],
                 configs: DocumentRetrievalConfigs
@@ -62,7 +80,7 @@ class DocumentRetrievalFromWebsites:
         self.data_extractor = resources["data_extractor"]
         self.vector_generator = resources["vector_generator"]
         self.metadata_generator = resources["metadata_generator"]
-        self.document_storage = resources["document_storage_service"]
+        self.document_storage: DocumentStorage = resources["document_storage"]
         self.url_path_generator = resources["url_path_generator"]
         self._get_cid: Callable = resources["get_cid"]
 
@@ -79,7 +97,7 @@ class DocumentRetrievalFromWebsites:
 
     def execute(self, 
         domain_urls: list[str]
-        ) -> Dict[str, Union[list[Any], list[dict[str, Any]], list[dict[str, list[float]]]]]:
+        ) -> dict[str, Union[list[Any], list[dict[str, Any]], list[dict[str, list[float]]]]]:
         """
         Execute the document retrieval flow based on the mermaid chart
         
@@ -88,17 +106,32 @@ class DocumentRetrievalFromWebsites:
             
         Returns:
             Dictionary containing retrieved documents, metadata, and vectors
+
+        Raises:
+            ValueError: If domain_urls are invalid
         """
-        self.logger.info(f"Starting document retrieval from {len(domain_urls)} domains")
+        if not isinstance(domain_urls, list):
+            raise TypeError(f"domain_urls must be a list, got {type(domain_urls).__name__}")
+        for url in domain_urls:
+            if not isinstance(url, str):
+                raise TypeError(f"Each domain URL must be a string, got {type(url).__name__}")
+
         try:
             _ = ValidUrls.model_validate({"urls": domain_urls})
+        except ValidationError as e:
+            raise ValueError(f"Invalid domain URLs provided: {e.errors()}") from e
         except Exception as e:
-            self.logger.error(f"Invalid domain URLs provided: {e}")
-            raise ValueError(f"Invalid domain URLs provided: {e}") from e
+            msg = f"Unexpected error validating domain URLS: {e}"
+            self.logger.exception(msg)
+            raise RuntimeError(msg) from e
+
+        self.logger.info(f"Starting document retrieval from {len(domain_urls)} domains")
 
         all_documents: list[dict[str, Any]] = []
         all_metadata = []
         all_vectors = []
+
+        raw_datum = []
 
         for domain_url in domain_urls:
             # Step 1: Generate URLs from domain URL
@@ -106,34 +139,61 @@ class DocumentRetrievalFromWebsites:
 
             self.logger.info(f"Generated {len(urls)} URLs from domain {domain_url}")
             self.logger.debug(f"Generated URLs: {urls}")
+            url_queue = queue.Queue()
 
+            # Initialize queue with URLs and retry counter
             for url in urls:
+                url_queue.put_nowait((url, 0))  # (url, retry_count)
+
+            while url_queue.qsize() > 0:
                 # Step 2: Determine webpage type and parse accordingly
+                url, retry_count = url_queue.get_nowait()
                 webpage_type: WebpageType = self._determine_webpage_type(url)
+                parser: Callable = lambda url: None
 
                 match webpage_type:
                     case WebpageType.STATIC:
-                        raw_data = self.static_parser.parse(url)
+                        parser = self.static_parser.parse
                     case WebpageType.DYNAMIC:
-                        raw_data = self.dynamic_parser.parse(url)
+                        parser = self.dynamic_parser.parse
                     case _:
                         self.logger.warning(f"Unknown webpage type for URL: {url}")
                         raise ValueError(f"Unknown webpage type for URL: {url}")
 
-                # Step 3: Extract structured data from raw data
-                raw_strings = self.data_extractor.extract(raw_data)
+                try:
+                    raw_data = parser(url)
+                    raw_datum.append((url, raw_data))
+                except (Timeout, TimeoutError) as e:
+                    if retry_count < self.configs.max_retries:
+                        url_queue.put_nowait((url, retry_count + 1))
+                        self.logger.warning(f"Timeout parsing URL '{url}': {e}. Retry {retry_count + 1}/{self.configs.max_retries}")
+                    else:
+                        msg = f"Max retries ({self.configs.max_retries}) exceeded for URL '{url}' due to timeout. Skipping...\n{e}"
+                        self.logger.error(msg)
+                        continue
+                except Exception as e:
+                    msg = f"Unexpected Error parsing URL '{url}': {e}"
+                    self.logger.exception(msg)
+                    raise e
 
-                # Step 4: Generate documents, vectors, and metadata
-                documents = self._create_documents(raw_strings, url)
-                document_vectors = self.vector_generator.generate(documents)
-                document_metadata = self.metadata_generator.generate(documents, url)
+        for (url, raw_data) in raw_datum:
+            # Step 3: Extract structured data from raw data
+            raw_strings = self.data_extractor.extract(raw_data)
 
-                all_documents.extend(documents)
-                all_vectors.extend(document_vectors)
-                all_metadata.extend(document_metadata)
+            # Step 4: Generate documents, vectors, and metadata
+            documents = self._create_documents(raw_strings, url)
+            document_vectors = self.vector_generator.generate(documents)
+            document_metadata = self.metadata_generator.generate(documents, url)
+
+            all_documents.extend(documents)
+            all_vectors.extend(document_vectors)
+            all_metadata.extend(document_metadata)
 
         # Step 5: Store documents, vectors, and metadata
-        self.document_storage.store(all_documents, all_metadata, all_vectors)
+        try:
+            self.document_storage.store(all_documents, all_metadata, all_vectors)
+        except Exception as e:
+            raise DatabaseError(f"Failed to store documents: {e}") from e
 
         self.logger.info(f"Retrieved and stored {len(all_documents)} documents")
         return {

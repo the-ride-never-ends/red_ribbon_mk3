@@ -125,10 +125,10 @@ def valid_variable_args_with_optionals(valid_variable_args):
     return output_dict
 
 
-@pytest.fixture
-def make_variable_factory(valid_variable_args):
+def make_variable_factory(overrides: dict = {}):
     """Factory for creating Variable instances with overrides."""
-    def _make_variable(overrides: dict = {}) -> Variable:
+    @pytest.fixture
+    def _make_variable(valid_variable_args) -> Variable:
         var_data = valid_variable_args.copy()
 
         if not isinstance(overrides, dict):
@@ -143,7 +143,7 @@ def make_variable_factory(valid_variable_args):
     return _make_variable
 
 
-valid_variable = pytest.fixture(make_variable_factory())
+valid_variable = make_variable_factory()
 
 
 @pytest.fixture
@@ -280,7 +280,9 @@ class TestControlFlowMethodReturnsDictionarywithRequiredKeys:
         result = relevance_assessment.run(documents_small, variable_def)
         assert expected_cid in result, f"Expected CID '{expected_cid}' in result but got {list(result.keys())}"
 
-    def test_when_calling_control_flow_then_contains_key_values_are_expected_types():
+    def test_when_calling_control_flow_then_contains_key_values_are_expected_types(
+            self, relevance_assessment, make_expected_cid, documents_small, variable_def
+    ):
         """
         GIVEN a list of potentially relevant documents
         WHEN run is called with documents and variable definition

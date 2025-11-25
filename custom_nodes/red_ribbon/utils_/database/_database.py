@@ -12,10 +12,11 @@ from queue import Queue
 from threading import Lock
 import time
 import traceback
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Generator, Iterable, Optional
 
 
 from custom_nodes.red_ribbon.utils_.configs import Configs
+from custom_nodes.red_ribbon._custom_errors import DatabaseError
 
 
 class Database:
@@ -330,7 +331,7 @@ class Database:
 
     def execute(self,
                 query: str,
-                params: Optional[ Tuple | Dict[str, Any]] = None
+                params: Optional[ tuple | dict[str, Any] | list ] = None
                 ) -> Any:
         """
         Execute a database query.
@@ -343,8 +344,21 @@ class Database:
             The result of the query execution
             
         Raises:
+            TypeError: If query is not a string, or params is not a tuple, list, or dict
+            ValueError: If query string is empty
             Exception: If no database connection is established
         """
+        if not isinstance(query, str):
+            raise TypeError(f"Query must be a string, got {type(query).__name__}.")
+        
+        query = query.strip()
+        if not query:
+            raise ValueError("Query string is empty.")
+
+        if params is not None:
+            if not isinstance(params, Iterable) and not isinstance(params, dict):
+                raise TypeError(f"Params must be a tuple, list, or dict, got {type(params).__name__}.")
+
         with self.transaction_context_manager() as conn:
             try:
                 if params:
@@ -355,14 +369,14 @@ class Database:
                 self.logger.exception(f"Error executing query: {e}")
                 self.logger.debug(f"Query: {query}")
                 self.logger.debug(f"Params: {params}")
-                raise
+                raise DatabaseError(f"Error executing query: {e}") from e
 
     def fetch(self, 
             query: str, 
-            params: Optional[ Tuple | Dict[str, Any]] = None, 
+            params: Optional[ tuple | dict[str, Any]] = None, 
             num_results: int = 1,
             return_format: Optional[str] = None,
-            ) -> List[Dict[str, Any]] | None:
+            ) -> list[dict[str, Any]] | None:
         """
         Fetch a specified number of results from a query.
         
@@ -392,9 +406,9 @@ class Database:
 
     def fetch_all(self, 
                   query: str, 
-                  params: Optional[ Tuple | Dict[str, Any]] = None, 
+                  params: Optional[ tuple | dict[str, Any]] = None, 
                   return_format: Optional[str] = None
-                  ) -> List[Dict[str, Any]] | None:
+                  ) -> list[dict[str, Any]] | None:
         """
         Fetch all results from a query.
         
@@ -421,7 +435,7 @@ class Database:
     def execute_script(
         self, 
         script: Optional[str] = None,
-        params: Optional[Tuple | Dict[str, Any]] = None,
+        params: Optional[tuple | dict[str, Any]] = None,
         path: Optional[str] = None
         ) -> Any | None:
         """

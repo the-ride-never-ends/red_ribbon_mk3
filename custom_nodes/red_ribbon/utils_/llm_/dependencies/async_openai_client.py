@@ -18,11 +18,64 @@ from pydantic import (
     PrivateAttr, 
 )
 
-from custom_nodes.red_ribbon.utils_ import logger, configs, Configs
+from custom_nodes.red_ribbon.utils_.logger import logger
 from .._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
 
 
-from .openai_client import calculate_cost
+from .openai_client import calculate_cost, LLMOutput
+
+def _strip_if_not_none(response: Optional[Any]) -> str:
+    if response is not None:
+        return response.choices[0].message.content.strip()
+    return ""
+
+def _total_tokens_if_not_none(response: Optional[Any]) -> int:
+    if response is not None:
+        return response.usage.total_tokens
+    return 0
+
+class AsyncLLMOutput(BaseModel):
+    system_prompt: str
+    user_message: str
+    context_used: int
+    model: str
+    response_parser: Callable
+    response: Optional[str] = None
+
+    @computed_field # type: ignore[prop-decorator]
+    @property
+    def cost(self) -> float:
+        if self.response is None:
+            return 0
+        args = (self.system_prompt, self.user_message, self.response, self.model)
+        return calculate_cost(*args) or 0
+
+    async def get_parsed_response(self) -> Any:
+        """Asynchronously parse the response using the provided parser"""
+        return self.response_parser(self.response)
+
+
+# class LLMOutput(BaseModel):
+#     response: str
+#     system_prompt: str
+#     user_message: str
+#     context_used: int
+#     response_parser: Callable
+
+#     _configs: Configs = PrivateAttr(default=configs)
+
+#     @computed_field # type: ignore[prop-decorator]
+#     @property
+#     def cost(self) -> float:
+#         if self.response is not None:
+#             return calculate_cost(self.system_prompt, self.user_message, self.response, self._configs.OPENAI_MODEL)
+#         else: 
+#             return 0
+
+#     def response(self) -> Any:
+#         return self.response_parser(self.response)
+
+
 
 
 class DuckDbSqlDatabase(BaseModel):
@@ -31,7 +84,7 @@ class DuckDbSqlDatabase(BaseModel):
     """
     db_path: FilePath
 
-    _conn: duckdb.DuckDBPyConnection = PrivateAttr(default=None)
+    _conn: Optional[duckdb.DuckDBPyConnection] = PrivateAttr(default=None)
     _query: str = PrivateAttr(default="")
 
     def __enter__(self) -> 'DuckDbSqlDatabase':
@@ -67,7 +120,7 @@ class DuckDbSqlDatabase(BaseModel):
                     case "df":
                         return cursor.fetchdf()
                     case "dict":
-                        return cursor.fetchdf().to_dict('records')
+                        return cursor.fetchdf().to_dict('records') # type: ignore[return-value]
                     case "tuple":
                         return cursor.fetchall()
                     case _: # This route is for database alterations like CREATE TABLE
@@ -78,141 +131,115 @@ class DuckDbSqlDatabase(BaseModel):
             self._conn.close()
 
 
-class AsyncLLMInput(BaseModel):
-    client: Any
-    user_message: str # NOTE For RAG, the found documents should be passed here.
-    system_prompt: str = "You are a helpful assistant."
-    use_rag: bool = False
-    max_tokens: int = 4096
-    temperature: float = 0 # Deterministic output
-    response_parser: Callable = lambda x: x # This should be a partial function.
-    formatting: Optional[str] = None
-    db_path: Optional[FilePath] = None
+# class AsyncLLMInput(BaseModel):
+#     client: Any
+#     user_message: str # NOTE For RAG, the found documents should be passed here.
+#     system_prompt: str = "You are a helpful assistant."
+#     use_rag: bool = False
+#     max_tokens: int = 4096
+#     temperature: float = 0 # Deterministic output
+#     response_parser: Callable = lambda x: x # This should be a partial function.
+    
+#     formatting: Optional[str] = None
+#     _configs: Configs = PrivateAttr(default=configs)
+#     _logger: logging.Logger = PrivateAttr(default=logger)
+#     _db_path: Optional[FilePath] = None
 
+#     @property
+#     def db_path(self) -> FilePath:
+#         if self._db_path is None:
+#             self._db_path = self._configs.paths.AMERICAN_LAW_DB_PATH
+#         return self._db_path
 
-    _configs: Configs = PrivateAttr(default=configs)
+#     async def get_response(self) -> Optional[AsyncLLMOutput]:
+#         if self.use_rag:
+#             # Get an embedding of user_message
+#             try:
+#                 user_message_embedding = await self._get_embedding(self.user_message)
+#             except Exception as e:
+#                 raise RuntimeError(f"Error generating embedding for RAG: {e}") from e
 
+#             with DuckDbSqlDatabase(db_path=self.db_path) as db:
+#                 # Use RAG to find relevant documents
+#                 context = await self._use_rag(user_message_embedding, db)
+#                 if context:
+#                     self._logger.info("RAG context found, updating prompts.")
+#                     self.user_message = context[0]
+#                     self.system_prompt = context[1]
 
-    async def get_response(self) -> Optional[Any]:
-        if self.use_rag:
-            # Get an embedding of user_message
-            user_message_embedding = await self._get_embedding(self.user_message)
-            with DuckDbSqlDatabase(db_path=self.db_path) as db:
-                # Use RAG to find relevant documents
-                context = await self._use_rag(user_message_embedding, self.system_prompt)
-                if context:
-                    self.user_message = context[0]
-                    self.system_prompt = context[1]
-                else:
-                    return "No relevant documents found."
+#         try:
+#             _response = await self.client.chat.completions.create(
+#                 model=self._configs.OPENAI_MODEL,
+#                 temperature=self.temperature,
+#                 max_tokens=self.max_tokens,
+#                 messages=[
+#                     {"role": "system", "content": self.system_prompt.strip()},
+#                     {"role": "user", "content": self.user_message}
+#                 ]
+#             )
+#         except Exception as e:
+#             logger.error(f"{type(e)} generating response: {e}")
+#             return None
 
-        try:
-            _response = await self.client.chat.completions.create(
-                model=self._configs.OPENAI_MODEL,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                messages=[
-                    {"role": "system", "content": self.system_prompt.strip()},
-                    {"role": "user", "content": self.user_message}
-                ]
-            )
-        except Exception as e:
-            logger.error(f"{type(e)} generating response: {e}")
-            return "Error generating response. Please try again."
+#         if _response.choices[0].message.content:
+#             return AsyncLLMOutput(
+#                 response=_response.choices[0].message.content.strip(),
+#                 system_prompt=self.system_prompt.strip(),
+#                 user_message=self.user_message,
+#                 context_used=_response.usage.total_tokens,
+#                 model=self._configs.OPENAI_MODEL,
+#                 response_parser=self.response_parser,
+#             )
+#         else:
+#             return None
 
-        if _response.choices[0].message.content:
-            return AsyncLLMOutput(
-                response=_response.choices[0].message.content.strip(),
-                system_prompt=self.system_prompt.strip(),
-                user_message=self.user_message,
-                context_used=_response.usage.total_tokens,
-                model=self._configs.OPENAI_MODEL,
-                response_parser=self.response_parser,
-            )
-        else:
-            return "No response generated. Please try again."
+#     async def _get_embedding(self, message: str) -> list[float]:
+#         """
+#         Generate an embedding of the input message.
 
-    async def _get_embedding(self, message: str) -> list[float]:
-        """
-        Generate an embedding of the input message.
-
-        Args:
-            message: Message to generate an embedding for
+#         Args:
+#             message: Message to generate an embedding for
         
-        Returns:
-            Embedding vector
-        """
-        # Strip the user message to remove newlines and leading/trailing whitespace
-        message = message.strip('\n').strip()
+#         Returns:
+#             Embedding vector
+#         """
+#         # Strip the user message to remove newlines and leading/trailing whitespace
+#         message = message.strip('\n').strip()
 
-        try:
-            response = await self.client.embeddings.create(
-                input=message,
-                model=self._configs.OPENAI_EMBEDDING_MODEL
-            )
-        except Exception as e:
-            logger.error(f"{type(e)} generating embedding: {e}")
-            return []
+#         try:
+#             response = await self.client.embeddings.create(
+#                 input=message,
+#                 model=self._configs.OPENAI_EMBEDDING_MODEL
+#             )
+#         except Exception as e:
+#             logger.error(f"{type(e)} generating embedding: {e}")
+#             return []
 
-        if response.data[0].embedding:
-            return response.data[0].embedding
-        else:
-            logger.error("No embedding generated. Please try again.")
-            return []
+#         if response.data[0].embedding:
+#             return response.data[0].embedding
+#         else:
+#             logger.error("No embedding generated. Please try again.")
+#             return []
 
-    async def _use_rag(self, user_message: str, system_message: str) -> Optional[tuple[str, str]]:
-        """
-        Use RAG to find relevant documents and generate a response.
+#     async def _use_rag(self, user_message_embedding: list[float], db: DuckDbSqlDatabase) -> Optional[tuple[str, str]]:
+#         """
+#         Use RAG to find relevant documents.
         
-        Args:
-            user_message: The user's message
-            system_message: The system prompt
-        """
+#         Args:
+#             user_message_embedding: Embedding vector of the user message
+#             db: Connection to a DuckDB vector database
+
+#         Returns:
+#             Tuple: (updated user prompt, updated system prompt), or None if no documents found
+
+#         Raises:
+#             DatabaseError: If there is an error querying the database
+#             RuntimeError: If there is an unexpected error during RAG processing
+#         """
         
 
 
-class AsyncLLMOutput(BaseModel):
-    response: str
-    system_prompt: str
-    user_message: str
-    context_used: int
-    model: str
-    response_parser: Callable
 
-    _configs: Configs = PrivateAttr(default=configs)
-
-    @computed_field # type: ignore[prop-decorator]
-    @property
-    def cost(self) -> float:
-        if self.response is not None:
-            return calculate_cost(self.system_prompt, self.user_message, self.response, self.model)
-        else: 
-            return 0
-
-    async def get_parsed_response(self) -> Any:
-        """Asynchronously parse the response using the provided parser"""
-        return self.response_parser(self.response)
-
-
-class LLMOutput(BaseModel):
-    response: str
-    system_prompt: str
-    user_message: str
-    context_used: int
-    response_parser: Callable
-
-    _configs: Configs = PrivateAttr(default=configs)
-
-    @computed_field # type: ignore[prop-decorator]
-    @property
-    def cost(self) -> float:
-        if self.response is not None:
-            return calculate_cost(self.system_prompt, self.user_message, self.response, self._configs.OPENAI_MODEL)
-        else: 
-            return 0
-
-    def response(self) -> Any:
-        return self.response_parser(self.response)
 
 
 class AsyncOpenAIClient:
@@ -221,7 +248,7 @@ class AsyncOpenAIClient:
     Handles embeddings integration and semantic search against the law database.
     """
     
-    def __init__(self, *, resources: dict[str, Any], configs: Configs) -> None:
+    def __init__(self, *, resources: dict[str, Any], configs: Any) -> None:
         """
         Initialize the OpenAI client for American Law dataset RAG.
         
@@ -254,7 +281,7 @@ class AsyncOpenAIClient:
         self.data_path: Path = configs.paths.AMERICAN_LAW_DATA_DIR
         self.db_path:   Path = configs.paths.AMERICAN_LAW_DB_PATH
 
-        self._latest_response: Optional[str] = None
+        self._latest_response: Optional[Any] = None
 
         self.logger.info(f"Initialized AsyncOpenAI client: ")
         self.logger.debug(f"LLM model: {self.model}, embedding model: {self.embedding_model}")
@@ -301,7 +328,7 @@ class AsyncOpenAIClient:
                 messages=messages
             )
             self._latest_response = response
-            return response.choices[0].message.content.strip()
+            return _strip_if_not_none(response)
         except Exception as e:
             self.logger.exception(f"{type(e).__name__}  generating chat completion: {e}")
             raise RuntimeError(f"Error generating chat completion: {e}") from e 
@@ -370,7 +397,7 @@ class AsyncOpenAIClient:
         if gnis is not None and not isinstance(gnis, str):
             raise TypeError(f"GNIS must be a string if provided, got {type(gnis).__name__} instead.")
         else:
-            if not gnis.strip():
+            if gnis and not gnis.strip():
                 raise ValueError("GNIS must be a non-empty string if provided.")
 
         if not isinstance(top_k, int):
@@ -473,6 +500,7 @@ class AsyncOpenAIClient:
         Returns:
             List of matching law records
         """
+        results = []
         try:
             # Connect to the database
             # NOTE: DuckDB can also connect to SQLite files
@@ -489,12 +517,12 @@ class AsyncOpenAIClient:
             """
             # Execute query and fetch results
             result_df = conn.execute(sql_query).fetchdf()
-            
+
             # Convert DataFrame to list of dictionaries
-            results = result_df.to_dict('records')
-            
+            results = result_df.to_dict('records') # type: ignore[return-value]
+
             conn.close()
-            return results
+            return results # type: ignore[return-value]
             
         except Exception as e:
             self.logger.error(f"Error querying database with DuckDB: {e}")
@@ -558,7 +586,7 @@ class AsyncOpenAIClient:
             """
 
         # Generate response using OpenAI
-        prompt: Prompt = load_prompt_from_yaml("generate_rag_response", self.configs, query=query, context=context_text)
+        prompt: Prompt = load_prompt_from_yaml("generate_rag_response", query=query, context=context_text)
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -570,7 +598,7 @@ class AsyncOpenAIClient:
                 ]
             )
             
-            generated_response = response.choices[0].message.content.strip()
+            generated_response = _strip_if_not_none(response)
             
             # Append the citations
             generated_response += f"\n\n{references.strip()}"
@@ -580,7 +608,7 @@ class AsyncOpenAIClient:
                 "response": generated_response,
                 "context_used": [doc.get('bluebook_citation', 'No citation') for doc in context_docs],
                 "model_used": self.model,
-                "total_tokens": response.usage.total_tokens
+                "total_tokens": _total_tokens_if_not_none(response)
             }
             
         except Exception as e:

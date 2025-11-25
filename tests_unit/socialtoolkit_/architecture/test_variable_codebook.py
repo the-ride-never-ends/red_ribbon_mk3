@@ -22,7 +22,7 @@ import pytest
 from tests_unit.socialtoolkit_.architecture.conftest import (
     variable_codebook_fixture,
     mock_llm,
-    mock_database,
+    mock_db,
     mock_logger,
     mock_resources,
     mock_configs,

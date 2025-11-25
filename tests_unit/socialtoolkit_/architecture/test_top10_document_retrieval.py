@@ -15,9 +15,9 @@ import pytest
 from typing import Any
 from unittest.mock import MagicMock
 
+from custom_nodes.red_ribbon.socialtoolkit.architecture import make_top10_document_retrieval
 from custom_nodes.red_ribbon.socialtoolkit.architecture.top10_document_retrieval import (
     Top10DocumentRetrieval,
-    make_top10_document_retrieval,
 )
 from custom_nodes.red_ribbon.utils_ import DatabaseAPI
 from .conftest import FixtureError
@@ -354,8 +354,8 @@ class TestDocumentsAreRankedbySimilarityScoreinDescendingOrder:
         """
         result = top10_retrieval.execute(constants["TEST_QUERY"], documents=documents[num_docs])
 
-        first_doc_id = result[constants["KEY_TOP_DOC_IDS"]][0]
-        first_score = result[constants["KEY_SCORES"]][first_doc_id]
+        first_score = result[constants["KEY_SCORES"]]
+
         all_scores = tuple(result[constants["KEY_SCORES"]].values())
 
         assert first_score == max(all_scores), \
@@ -418,7 +418,7 @@ class TestSimilarityScoresRespectConfiguredThreshold:
 
     # NOTE: Done
     def test_when_execute_is_called_with_threshold_configured_then_at_least_minimum_documents_returned(
-        self, num_docs, top10_retrieval_similarity_threshold_is_point_six, documents, constants):
+        self, valid_args, num_docs, top10_retrieval_similarity_threshold_is_point_six, documents, constants):
         """
         GIVEN similarity_threshold is configured
         WHEN execute is called with a query

@@ -4,6 +4,7 @@ DuckDB-specific implementation for the Database class.
 This module provides DuckDB-specific implementations of database operations
 for use with the Database class through dependency injection.
 """
+import logging
 from typing import Any, Callable, Dict, List, Never, Optional, Tuple
 
 
@@ -113,7 +114,7 @@ class DuckDbDatabase:
     _read_only = False # Default to non read-only mode
     FETCH_METHODS = ['records', 'dict', 'tuple', 'dataframe']
 
-    logger = logger
+    logger: logging.Logger = logger
 
     def __init__(self) -> None:
         # Only create an instance to change class attributes like the logger.

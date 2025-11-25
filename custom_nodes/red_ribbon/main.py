@@ -81,7 +81,7 @@ ClassInstance = TypeVar('ClassInstance')
 
 class RedRibbon:
     """Main interface for the Red Ribbon package"""
-    _instance: 'RedRibbon' = None
+    _instance: 'RedRibbon' = None # type: ignore
     _initialized: bool = False
 
     def __new__(cls, *args, **kwargs) -> 'RedRibbon':

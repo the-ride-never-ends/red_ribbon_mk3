@@ -17,16 +17,17 @@ from custom_nodes.red_ribbon.socialtoolkit.architecture import (
     make_relevance_assessment,
 )
 from custom_nodes.red_ribbon.socialtoolkit.architecture.variable_codebook import Variable, VariableCodebookConfigs
+from custom_nodes.red_ribbon.socialtoolkit.architecture.document_storage import DocumentStorage
 
 
-from custom_nodes.red_ribbon.utils_ import LLM, logger, DatabaseAPI, Configs, configs as real_configs
+from custom_nodes.red_ribbon.utils_ import LLM, logger, DatabaseAPI, Configs, configs as real_configs, get_cid
 
 
 
 
 class FixtureError(Exception):
     """Custom exception for fixture errors."""
-    def __init__(self, msg: str):
+    def __init__(self, msg: str = ""):
         msg = f"{msg}\n*********\nTRACEBACK\n*********\n{traceback.format_exc()}"
         super().__init__(msg)
 
@@ -64,11 +65,11 @@ def make_mock_db(attributes: Optional[dict] = None) -> Callable:
 
     def _make_mock_db():
         try:
-            mock_database = MagicMock(spec=DatabaseAPI)
+            mock_db = MagicMock(spec=DatabaseAPI)
             if attributes is not None:
                 for attr, value in attributes.items():
-                    setattr(mock_database, attr, value)
-            return mock_database
+                    setattr(mock_db, attr, value)
+            return mock_db
         except Exception as e:
             raise FixtureError(f"Failed to create mock DatabaseAPI: {e}") from e
 
@@ -79,32 +80,40 @@ def make_mock_db(attributes: Optional[dict] = None) -> Callable:
 
 
 mock_llm = pytest.fixture(make_mock_llm())
-mock_database = pytest.fixture(make_mock_db())
-
-@pytest.fixture
-def mock_storage_service():
-    """Creates a mocked storage service for testing."""
-    mock_storage_service = MagicMock()
-    return mock_storage_service
+mock_db = pytest.fixture(make_mock_db())
 
 
 @pytest.fixture
-def mock_configs() -> VariableCodebookConfigs:
-    """Creates a VariableCodebookConfigs instance for testing."""
+def mock_configs() -> Configs:
+    """Creates a Configs instance for testing."""
     try:
-        mock_configs = VariableCodebookConfigs()
+        mock_configs = Configs()
         return mock_configs
     except Exception as e:
         raise FixtureError(f"Failed to create mock Configs: {e}") from e
 
 @pytest.fixture
-def mock_resources(mock_llm, mock_database, mock_logger, mock_storage_service):
+def mock_document_storage(mock_logger, mock_db, mock_configs):
+    """Creates a mocked storage service for testing."""
+    mock_resources = {
+        "logger": mock_logger,
+        "db": mock_db,
+        "get_cid": get_cid,
+    }
+    try:
+        return make_document_storage(resources=mock_resources, configs=mock_configs)
+    except Exception as e:
+        raise FixtureError(f"Failed to create mock DocumentStorage: {e}") from e
+
+
+@pytest.fixture
+def mock_resources(mock_llm, mock_db, mock_logger, mock_document_storage):
     """Creates a mocked resources dictionary for testing."""
     return {
         "llm": mock_llm,
-        "db": mock_database,
+        "db": mock_db,
         "logger": mock_logger,
-        "storage_service": mock_storage_service,
+        "document_storage": mock_document_storage,
     }
 
 
@@ -127,10 +136,6 @@ def saved_variable_file(variable_fixture, tmp_path) -> Path:
         if not file_path.exists():
             raise FixtureError(f"Variable file was not created at {file_path}")
         return file_path
-
-
-
-
 
 
 @pytest.fixture

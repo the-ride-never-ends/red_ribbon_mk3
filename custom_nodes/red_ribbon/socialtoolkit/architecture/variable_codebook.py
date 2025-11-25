@@ -528,6 +528,12 @@ class PromptDecisionTree(BaseModel):
         #     self.graph.add_edge(edge.from_node, edge.to_node, condition=edge.condition)
 
 
+    def __len__(self) -> int:
+        """Length is total number of nodes and edges"""
+        return len(self.nodes + self.edges)
+
+
+
 class Variable(BaseModel):
     """
     Model representing a complete variable definition in the codebook system.
@@ -570,8 +576,12 @@ class Variable(BaseModel):
     item_name: str = Field(..., description="Internal name for the variable", examples=["sales_tax_city"])
     description: str = Field(..., description="Detailed description of the variable", examples=["A tax levied on the sales of all goods and services by the municipal government."])
     units: str = Field(..., description="Units of measurement for the variable", examples=["Double (Percent)"])
+    prompt_decision_tree: PromptDecisionTree = Field(..., description="Prompt decision tree for extracting the variable")
     assumptions: Optional[Assumptions] = Field(None, description="Assumptions associated with the variable")
-    prompt_decision_tree: Optional[PromptDecisionTree] = Field(None, description="Prompt decision tree for extracting the variable")
+
+    def __len__(self) -> int:
+        """Length is total number of nodes in the prompt decision tree."""
+        return len(self.prompt_decision_tree) if self.prompt_decision_tree else 0
 
 
 class CodeBook(BaseModel):
@@ -896,9 +906,9 @@ class VariableCodebook:
             >>> new_var = Variable(label="Income Tax", item_name="income_tax", ...)
             >>> result = codebook.run("add_variable", variable=new_var)
         """
-        variable_name: str
-        input_data_point: str
-        variable: Variable
+        variable_name: str = kwargs.pop("variable_name")
+        input_data_point: str = kwargs.pop("variable_name")
+        variable: Variable = kwargs.pop("variable")
 
         self.logger.info(f"Starting variable codebook operation: {action}")
 
@@ -907,13 +917,10 @@ class VariableCodebook:
         try:
             match action:
                 case "get_variable" | "get_prompt_sequence" | "get_assumptions":
-                    variable_name = kwargs.pop("variable_name")
                     _validate_string(variable_name, "variable_name")
                 case "add_variable":
-                    variable = kwargs.pop("variable")
                     _validate_base_model(variable, Variable, "variable")
                 case "update_variable":
-                    variable_name = kwargs.pop("variable_name")
                     _validate_string(variable_name, "variable_name")
                     _validate_base_model(variable, Variable, "variable")
                 case _:

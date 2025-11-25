@@ -24,6 +24,16 @@ class RelevanceAssessmentConfigs(BaseModel):
     use_hallucination_filter: bool = True  # Whether to filter for hallucinations
 
 
+
+class CitatedPageExtractor:
+
+    def __init__(self):
+        pass
+
+    def extract(self, docs: list[Document], page_numbers: dict[str, list[int]]) -> list[dict[str, Document]]:
+        raise NotImplementedError("CitatedPageExtractor.extract() must be implemented by subclasses.")
+
+
 class RelevanceAssessment:
     """
     Relevance Assessment system based on mermaid flowchart in README.md
@@ -57,7 +67,7 @@ class RelevanceAssessment:
         return self.__class__.__name__.lower()
 
     def execute(self,
-               potentially_relevant_docs: list[Document],
+               potentially_relevant_docs: dict[str, Document],
                variable: Variable,
                llm: Optional[LLM] = None
               ) -> dict[str, Document]:
@@ -147,7 +157,7 @@ class RelevanceAssessment:
         self.logger.info(f"Starting relevance assessment for {len(potentially_relevant_docs)} documents")
 
         # Step 1: Assess document relevance
-        assessment_results: list[Document] = self._assess_document_relevance(
+        list_of_docs: list[Document] = self._assess_document_relevance(
             potentially_relevant_docs, 
             variable, 
             llm
@@ -155,11 +165,11 @@ class RelevanceAssessment:
 
         # Step 2: Filter for hallucinations if configured
         if self.configs.use_hallucination_filter:
-            assessment_results = self._filter_hallucinations(assessment_results, llm)
+            list_of_docs = self._filter_hallucinations(list_of_docs, llm)
         
         # Step 3: Score relevance
-        relevance_scores = self._score_relevance(assessment_results, potentially_relevant_docs)
-        
+        relevance_scores = self._score_relevance(list_of_docs, potentially_relevant_docs)
+
         # Step 4: Apply threshold to separate relevant from irrelevant
         relevant_pages, discarded_pages = self._apply_threshold(relevance_scores)
 
@@ -192,6 +202,7 @@ class RelevanceAssessment:
     def assess(self, 
                potentially_relevant_docs: list[Document], 
               prompt_sequence: list[str], 
+              variable: Variable,
               llm: LLM
               ) -> list[Document]:
         """
@@ -205,18 +216,14 @@ class RelevanceAssessment:
         Returns:
             list of relevant documents
         """
-        # Get variable definition from prompt sequence
-        variable = {
-            "prompt_sequence": prompt_sequence,
-            "description": "Tax information for business operations"  # Default description if not available
-        }
-        
-        result = self.run(potentially_relevant_docs, variable, llm)
-        return result["relevant_pages"]
-    
-    def _assess_document_relevance(self, docs: list[Document], 
+        return self.run(potentially_relevant_docs, variable, llm)
+
+
+    def _assess_document_relevance(self, 
+                                  docs: list[Document], 
                                  variable: Variable, 
-                                 llm: Any) -> list[dict[str, Any]]:
+                                 llm: LLM
+                                 ) -> list[dict[str, Any]]:
         """
         Assess document relevance using LLM
         
@@ -228,7 +235,7 @@ class RelevanceAssessment:
         Returns:
             list of assessment results
         """
-        assessment_results = []
+        list_of_docs = []
         
         for doc in docs:
             # Create assessment prompt
@@ -236,16 +243,19 @@ class RelevanceAssessment:
             
             # Get LLM assessment
             try:
-                llm_response = llm.generate(assessment_prompt, max_tokens=1000)
+                llm_response = self.llm.generate(assessment_prompt, max_tokens=1000)['response']
                 
+                if "Error" in llm_response:
+                    raise LLMError(f"LLM generation failed: {llm_response}")
+
                 # Parse assessment results
                 assessment = self._parse_assessment(llm_response, doc)
-                assessment_results.append(assessment)
+                list_of_docs.append(assessment)
                 
             except Exception as e:
-                self.logger.error(f"Error assessing document {doc.get('id')}: {e}")
+                self.logger.error(f"Error assessing document {doc.cid}: {e}")
                 # Add failed assessment
-                assessment_results.append({
+                list_of_docs.append({
                     "doc_id": doc.get("id"),
                     "relevant": False,
                     "confidence": 0.0,
@@ -253,7 +263,7 @@ class RelevanceAssessment:
                     "error": str(e)
                 })
         
-        return assessment_results
+        return list_of_docs
     
     def _filter_hallucinations(self, assessments: list[dict[str, Any]], 
                              llm: Any) -> list[dict[str, Any]]:
@@ -280,7 +290,7 @@ class RelevanceAssessment:
             
             try:
                 # Get LLM hallucination check
-                hallucination_response = llm.generate(hallucination_prompt, max_tokens=500)
+                hallucination_response = self.llm.generate(hallucination_prompt, max_tokens=500)
                 
                 # Parse hallucination check
                 is_hallucination = self._parse_hallucination_check(hallucination_response)
@@ -405,17 +415,17 @@ class RelevanceAssessment:
 
         # Fallback implementation
         cited_pages = []
-        
+
         # Create a dict mapping document ID to original document
-        doc_map = {doc.get("id"): doc for doc in docs}
-        
+        doc_map = {doc.cid: doc for doc in docs}
+
         for doc_id, page_nums in page_numbers.items():
             doc = doc_map.get(doc_id)
-            
+
             if not doc:
                 self.logger.warning(f"Document not found for ID: {doc_id}")
                 continue
-                
+
             # Extract content for each page
             for page_num in page_nums:
                 # In this simplified implementation, we assume the whole document is the content
@@ -427,9 +437,9 @@ class RelevanceAssessment:
                     "title": doc.get("title", ""),
                     "url": doc.get("url", "")
                 })
-        
+
         return cited_pages
-    
+
     def _create_assessment_prompt(self, doc: dict[str, Any], 
                                 variable: dict[str, Any]) -> str:
         """

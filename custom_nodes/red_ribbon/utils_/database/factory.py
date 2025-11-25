@@ -5,8 +5,8 @@ This module provides a singleton instance of the Database class, which is read-o
 from typing import Callable
 
 
-from custom_nodes.red_ribbon.utils_.configs import configs as project_configs, Configs
-from custom_nodes.red_ribbon.utils_.logger import logger as module_logger
+from custom_nodes.red_ribbon.utils_.configs import configs as global_configs, Configs
+from custom_nodes.red_ribbon.utils_.logger import logger as global_logger
 from ._database import Database
 from .dependencies.duckdb_database import DuckDbDatabase
 
@@ -19,7 +19,7 @@ class InitializationError(Exception):
         super().__init__(message)
 
 
-def make_duckdb_database(resources: dict[str, Callable] = {}, configs: Configs = project_configs) -> Database:
+def make_duckdb_database(resources: dict[str, Callable] = {}, configs: Configs = global_configs) -> Database:
     """
     Factory function to create a new Database instance.
     
@@ -34,14 +34,12 @@ def make_duckdb_database(resources: dict[str, Callable] = {}, configs: Configs =
     Returns:
         Database: A new instance of the Database class.
     """
-    assert project_configs is not None, "Global configs must be initialized."
+    assert global_configs is not None, "Global configs must be initialized."
     assert configs is not None, "Configs must be provided or available globally."
-    # Export resources dictionary for use with Database class
-    configs = configs.database
 
     _resources = resources
     db = DuckDbDatabase()
-    db.logger = logger = _resources.pop("logger", module_logger)
+    db.logger = logger = _resources.pop("logger", global_logger) # type: ignore
 
     duckdb_resources = {
         "begin": _resources.pop("begin", db.begin),
@@ -59,6 +57,7 @@ def make_duckdb_database(resources: dict[str, Callable] = {}, configs: Configs =
         "rollback": _resources.pop("rollback", db.rollback),
         "read_only": _resources.pop("read_only", True),  # Set read_only to True for read-only access
         "logger": logger,
+        "db_type": "duckdb",
     }
 
     for key in _resources.keys():
@@ -68,5 +67,4 @@ def make_duckdb_database(resources: dict[str, Callable] = {}, configs: Configs =
     try:
         return Database(configs=configs, resources=duckdb_resources)
     except Exception as e:
-        logger.error(f"Error initializing Database: {e}")
         raise InitializationError(f"Failed to initialize Database: {e}") from e

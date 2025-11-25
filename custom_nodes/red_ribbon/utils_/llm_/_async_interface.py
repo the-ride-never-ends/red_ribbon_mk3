@@ -9,8 +9,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from custom_nodes.red_ribbon.utils_.logger import logger
 from custom_nodes.red_ribbon.utils_.configs import Configs
-from .dependencies.async_openai_client import AsyncOpenAIClient
 from ._embeddings_manager import EmbeddingsManager
+from .dependencies.async_openai_client import AsyncOpenAIClient
 
 
 async def validate_and_correct_sql_query_string(sql_query: str, fix_broken_queries: bool = True) -> Optional[str]:

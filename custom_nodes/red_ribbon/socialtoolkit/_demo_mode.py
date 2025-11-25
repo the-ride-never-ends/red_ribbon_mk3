@@ -66,12 +66,12 @@ _DEMO_RELEVANT_URLS: dict[str, list[str]] = {
     ],
 }
 
-
+ANSWER: str = "6%"  # Default answer
 _VECTOR_LENGTH: int = 3072 # NOTE: See: https://platform.openai.com/docs/guides/embeddings
 _SELECTED_DOMAIN_URLS: list[str] = []
 
 
-def _mock_internet_check(links: list) -> None:
+def _mock_internet_check(links: list) -> int:
     print("Getting laws from the web...")
     #random_sleep()
     print("Checking government websites...")
@@ -211,7 +211,7 @@ def demo_relevance_assessment(ai: Any, laws: dict) -> str:
 def demo_database_enter() -> str:
     print("Logging into database...")
     random_sleep()
-    database_api = "mock_database"
+    database_api = "mock_db"
     print("Login successful.")
     return database_api
 
@@ -226,7 +226,6 @@ def demo_prompt_decision_tree() -> str:
 
 def demo_variable_codebook(question: str, documents: list[str]) -> str:
     global ANSWER
-    ANSWER: str
     print("Loading AI instructions...")
     random_sleep(2,3)
     match question:
@@ -291,7 +290,7 @@ def demo_main(text: str):
         "question": text,
         "documents": [],
     }
-    question = demo_relevance_assessment(mock_data)
+    question = demo_relevance_assessment(mock_data,{})
     demo_variable_codebook(question, mock_data['documents'])
     demo_prompt_decision_tree()
 

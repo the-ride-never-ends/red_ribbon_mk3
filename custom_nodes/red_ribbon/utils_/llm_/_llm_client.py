@@ -30,8 +30,11 @@ from pydantic import (
     NonNegativeFloat,
     NonNegativeInt,
 )
+import tiktoken
 
-from custom_nodes.red_ribbon.utils_ import logger, configs, Configs
+
+from custom_nodes.red_ribbon.utils_.logger import logger
+from custom_nodes.red_ribbon.utils_.configs import Configs
 from ._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
 from ._get_api_cost import get_api_cost
 from ._embeddings_manager import EmbeddingsManager
@@ -157,8 +160,8 @@ class OpenAiEmbeddingGeneration(BaseModel):
         >>> len(embeddings)
         2
     """
-    client: OpenAI = Field(..., exclude=True)
-    async_client: AsyncOpenAI = Field(..., exclude=True)
+    client: Any = Field(..., exclude=True)
+    async_client: Any = Field(..., exclude=True)
     embedding_model: EmbeddingModel = Field(default="text-embedding-3-small", ge=1)
     texts: Ann[Union[list[str], str], AV(_validate_strings)]
 
@@ -275,8 +278,8 @@ class OpenAiLLMGeneration(BaseModel):
         >>> print(result.response)
         'The capital of France is Paris.'
     """
-    client: OpenAI = Field(..., exclude=True)
-    async_client: AsyncOpenAI = Field(..., exclude=True)
+    client: Any = Field(..., exclude=True)
+    async_client: Any = Field(..., exclude=True)
     configs: Configs = Field(...,exclude=True)
     user_message: Ann[str, AV(_strip)] = Field(
         min_length=1, default="Write a test response telling the user that the LLM client is working."
@@ -386,6 +389,8 @@ class OpenAiClient:
             self.logger.warning(f"Messages flagged by moderation: {texts}")
             return True
         return False
+
+
 
     def moderate(self, texts: str | list[str]) -> bool:
         """
@@ -534,7 +539,7 @@ class OpenAiClient:
                             model: Optional[ChatModel] = None,
                             temperature: Optional[float] = None,
                             max_tokens: Optional[int] = None,
-                            ) -> Optional[Any]:
+                            ) -> OpenAiLLMOutput:
         """
         Asynchronously generate a response using the OpenAI API.
 
@@ -564,7 +569,7 @@ class OpenAiClient:
             max_tokens=max_tokens,
         )
         llm_output = await llm_generation.async_generate()
-        return llm_output.response
+        return llm_output
 
 
     def get_response(self,
@@ -574,7 +579,7 @@ class OpenAiClient:
                     model: Optional[ChatModel] = None,
                     temperature: Optional[float] = None,
                     max_tokens: Optional[int] = None,
-                    ) -> Optional[str]:
+                    ) -> OpenAiLLMOutput:
         """
         Generate a response using the OpenAI API.
 
@@ -604,7 +609,7 @@ class OpenAiClient:
             max_tokens=max_tokens,
         )
         llm_output = llm_generation.generate()
-        return llm_output.response
+        return llm_output
 
 
 class AsyncOpenAiClient:

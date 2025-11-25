@@ -64,6 +64,13 @@ class Paths(BaseModel):
     class ConfigDict:
         frozen = True  # Make the model immutable (read-only)
 
+try:
+    _PATHS = Paths()
+except ValidationError as e:
+    raise ConfigurationError(f"_Paths failed to validate in _configs.py: {e}") from e
+except Exception as e:
+    raise ConfigurationError(f"Unexpected error while initializing global paths in _configs.py: {e}") from e
+
 
 class VariableCodebookConfigs(BaseModel):
     variable_file_paths: dict[str, str] = Field(default_factory=dict)
@@ -77,6 +84,7 @@ class VariableCodebookConfigs(BaseModel):
 
     def get(self, key: str, default: Any = None) -> Optional[Any]:
         return get_value_with_default_from_base_model(self, key, default)
+
 
 
 # NOTE: All lower-case field names are considered mutable.
@@ -110,11 +118,13 @@ class Configs(BaseModel):
         timeout (Optional[PositiveInt]): Database timeout in seconds.
     """
     database:          DatabaseConfigs = Field(default_factory=DatabaseConfigs)
-    paths:             Paths = Field(default_factory=Paths)
+    paths:             Paths = Field(default=_PATHS)
     variable_codebook: VariableCodebookConfigs = Field(default_factory=VariableCodebookConfigs)
 
 
+    # Pipeline Configurations
     INPUT_DATAPOINT: str = "sales tax info"  # Example input data point
+    get_from_internet: bool = True  # Whether to retrieve documents from the internet
 
     # Top-10 Document Retrieval
     RETRIEVAL_COUNT: PositiveInt = 10  # Number of documents to retrieve
@@ -123,7 +133,7 @@ class Configs(BaseModel):
     USE_FILTER: bool = False  # Whether to filter results
     FILTER_CRITERIA: dict[str, Any] = Field(default_factory=dict)
     USE_RERANKING: bool = False  # Whether to use re-ranking
-    OUTPUT_DIR: DirectoryPath = paths.LLM_OUTPUTS_DIR  # Directory to save outputs
+    OUTPUT_DIR: DirectoryPath = _PATHS.LLM_OUTPUTS_DIR  # Directory to save outputs
 
     # LLM
     OPENAI_API_KEY:                   SecretStr = Field(default_factory=lambda: SecretStr(os.environ.get("OPENAI_API_KEY", "")), min_length=1)

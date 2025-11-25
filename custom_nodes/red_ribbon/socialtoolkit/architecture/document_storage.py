@@ -1,47 +1,48 @@
 
-from typing import Dict, List, Any, Optional, Tuple
-from enum import Enum
-from uuid import UUID, uuid4
 from datetime import datetime
+from enum import Enum, StrEnum
 import logging
-import hashlib
+from typing import Any, Callable, Optional
+from uuid import uuid4
 
 
 from pydantic import BaseModel
 
 
+from custom_nodes.red_ribbon.utils_.database import DatabaseAPI, make_duckdb_database
 from custom_nodes.red_ribbon.utils_.common import get_cid
+from custom_nodes.red_ribbon.utils_.configs import configs as global_configs, Configs
+from custom_nodes.red_ribbon.utils_.logger import logger as global_logger
 from .dataclasses import Document, Vector
 
 
-logger = logging.getLogger(__name__)
 # from configs import Configs
 
 
-class DocumentStatus(str, Enum):
+class DocumentStatus(StrEnum):
     NEW = "new"
     PROCESSING = "processing"
     COMPLETE = "complete"
     ERROR = "error"
 
-class VersionStatus(str, Enum):
+class VersionStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
     SUPERSEDED = "superseded"
 
-class SourceType(str, Enum):
+class SourceType(StrEnum):
     PRIMARY = "primary"
     SECONDARY = "secondary"
     TERTIARY = "tertiary"
 
-class StorageType(str, Enum):
+class StorageType(StrEnum):
     SQL = "sql"
     PARQUET = "parquet"
     CACHE = "cache"
 
 class DocumentStorageConfigs(BaseModel):
     """Configuration for Document Storage"""
-    database_connection_string: str
+    database_connection_string: str = "sqlite:///documents.db" # TODO: Change to actual default
     cache_enabled: bool = True
     cache_ttl_seconds: int = 3600
     batch_size: int = 100
@@ -58,7 +59,7 @@ class DocumentStorage:
     Manages the storage and retrieval of documents, versions, metadata, and vectors
     """
     
-    def __init__(self, *, resources: Dict[str, Any], configs: DocumentStorageConfigs):
+    def __init__(self, *, resources: dict[str, Any], configs: Configs) -> None:
         """
         Initialize with injected dependencies and configuration
         
@@ -70,18 +71,18 @@ class DocumentStorage:
         self.configs = configs
 
         # Extract needed services from resources
-        self.db = resources["db"]
-        self.vector_store = resources["vector_store_service"]
-        self.get_cid = resources["get_cid"]
+        self.db: DatabaseAPI = resources["db"]
+        self.get_cid: Callable = resources["get_cid"]
+        self.logger: logging.Logger = resources["logger"]
 
-        logger.info("DocumentStorage initialized with services")
+        self.logger.info("DocumentStorage initialized with services")
 
     @property
     def class_name(self) -> str:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def execute(self, action: str, **kwargs) -> Dict[str, Any]:
+    def execute(self, action: str, **kwargs) -> dict[str, Any]:
         """
         Execute document storage operations based on the action
         
@@ -95,19 +96,19 @@ class DocumentStorage:
         if not isinstance(action, str):
             raise TypeError(f"Action must be a string, got {type(action).__name__}")
 
-        logger.info(f"Starting document storage operation: {action}")
+        self.logger.info(f"Starting document storage operation: {action}")
         if self.db is None: # This route should be called if the node is from ComfyUI
-            self.db = kwargs.get("db")
+            self.db = kwargs.get("db") # type: ignore
         if self.db is None:
-            raise ValueError("Database connection is not initialized")
+            raise ValueError("self.db was not set at instantiation nor provided in kwargs")
 
         try:
             match action:
                 case "store":
-                    return self.store_documents(
-                        kwargs["documents"], 
-                        kwargs["metadata"], 
-                        kwargs["vectors"]
+                    return self._store_documents(
+                        documents=kwargs["documents"], 
+                        metadata=kwargs["metadata"], 
+                        vectors=kwargs["vectors"]
                     )
                 case "retrieve":
                     return self.retrieve_documents(
@@ -119,25 +120,25 @@ class DocumentStorage:
                     )
                 case "delete":
                     return self.delete_documents(
-                        kwargs["doc_ids"]
+                        kwargs["cids"]
                     )
-                case "get_vectors":
-                    return self.get_vectors(
-                        kwargs["doc_ids"]
+                case "_get_vectors":
+                    return self._get_vectors(
+                        kwargs["cids"]
                     )
                 case _:
                     msg = f"Unknown action: {action}"
-                    logger.error(msg)
+                    self.logger.error(msg)
                     raise ValueError(msg)
         except Exception as e:
-            logger.error(f"Unexpected error executing action '{action}': {e}")
+            self.logger.error(f"Unexpected error executing action '{action}': {e}")
             raise e
 
     def store(self, 
               documents: list[dict[str, Any]], 
               metadata: list[dict[str, Any]], 
               vectors: list[dict[str, list[float]]]
-              ) -> Dict[str, Any]:
+              ) -> dict[str, Any]:
         """
         Store documents, metadata, and vectors
 
@@ -152,12 +153,12 @@ class DocumentStorage:
         return self.execute("store", documents=documents, metadata=metadata, vectors=vectors)
 
 
-    def store_documents(self, 
+    def _store_documents(self, 
                         *,
                         documents: list[dict[str, Any]], 
                         metadata: list[Any], 
                         vectors: list[Any]
-                        ) -> Dict[str, Any]:
+                        ) -> dict[str, Any]:
         """
         Store documents, metadata, and vectors in the database
         
@@ -171,41 +172,41 @@ class DocumentStorage:
             source_ids = self._store_sources(documents)
 
             # 2. Store documents
-            doc_ids = self._store_document_entries(documents, source_ids)
+            cids = self._store_document_entries(documents, source_ids)
 
             # 3. Create versions for documents
-            version_ids = self._create_versions(doc_ids)
+            version_cids = self._create_versions(cids)
 
             # 4. Store metadata
-            self._store_metadata(metadata, doc_ids)
+            self._store_metadata(metadata, cids)
 
             # 5. Store content
-            content_ids = self._store_content(documents, version_ids)
+            cids = self._store_content(documents, version_cids)
 
             # 6. Create version-content associations
-            self._create_version_content_links(version_ids, content_ids)
+            self._create_version_content_links(version_cids, cids)
 
             # 7. Store vectors
-            self._store_vectors(vectors, content_ids)
+            self._store_vectors(vectors, cids)
 
             return {
                 "success": True,
                 "message": "Documents stored successfully",
-                "doc_ids": doc_ids,
-                "version_ids": version_ids,
-                "content_ids": content_ids
+                "cids": cids,
+                "version_cids": version_cids,
+                "cids": cids
             }
         except Exception as e:
-            logger.error(f"Error storing documents: {e}")
+            self.logger.error(f"Error storing documents: {e}")
             return {
                 "success": False,
                 "message": str(e),
-                "doc_ids": [],
-                "version_ids": [],
-                "content_ids": []
+                "cids": [],
+                "version_cids": [],
+                "cids": []
             }
 
-    def retrieve_documents(self, *, query: str) -> Dict[str, Any]:
+    def retrieve_documents(self, *, query: str) -> dict[str, Any]:
         """
         Retrieve documents from the database
         
@@ -242,7 +243,7 @@ class DocumentStorage:
                 "documents": documents
             }
         except Exception as e:
-            logger.error(f"Error retrieving documents: {e}")
+            self.logger.error(f"Error retrieving documents: {e}")
             return {
                 "success": False,
                 "message": str(e),
@@ -250,7 +251,7 @@ class DocumentStorage:
             }
 
     # TODO: Implement these methods
-    def update_documents(self, documents: list[Any]) -> Dict[str, Any]:
+    def update_documents(self, documents: list[Any]) -> dict[str, Any]:
         """
         Update existing documents
 
@@ -259,12 +260,12 @@ class DocumentStorage:
         """
         raise NotImplementedError("Update documents not yet implemented")
 
-    def delete_documents(self, doc_ids: list[str]) -> Dict[str, Any]:
+    def delete_documents(self, cids: list[str]) -> dict[str, Any]:
         """
         Delete documents by ID from the database.
 
         Args:
-            doc_ids: List of CIDs of documents to delete
+            cids: List of CIDs of documents to delete
 
         Returns:
             A dictionary containing the following:
@@ -272,21 +273,21 @@ class DocumentStorage:
             - message (str): Number of documents deleted, or an error message.
 
         Raises:
-            TypeError: If doc_ids is not a list of strings.
-            ValueError: If doc_ids list is empty, or if any ID is not found in the database.
+            TypeError: If cids is not a list of strings.
+            ValueError: If cids list is empty, or if any ID is not found in the database.
             DatabaseError: If there is an error executing the delete operation.
 
         Example:
-            >>> doc_ids = ["bafkreig4k3pl6q...", "bafkreihdwdcef7...", ...]
-            >>> result = document_storage.delete_documents(doc_ids)
+            >>> cids = ["bafkreig4k3pl6q...", "bafkreihdwdcef7...", ...]
+            >>> result = document_storage.delete_documents(cids)
             >>> print(result)
             >>> {
             ... "result": True,
             ... "message": "Deleted 2 documents successfully."
             ... }
             >>> # Error case
-            >>> doc_ids = ["nonexistentid1", "nonexistentid2"]
-            >>> result = document_storage.delete_documents(doc_ids)
+            >>> cids = ["nonexistentid1", "nonexistentid2"]
+            >>> result = document_storage.delete_documents(cids)
             >>> print(result)
             >>> {
             ... "result": False,
@@ -295,26 +296,26 @@ class DocumentStorage:
         """
         raise NotImplementedError("Delete documents not yet implemented")
 
-    def get_vectors(self, doc_ids: list[str]) -> Dict[str, Any]:
+    def _get_vectors(self, cids: list[str]) -> dict[str, Any]:
         """Get vectors for the specified document IDs"""
         try:
             # Get content IDs for the documents
             content_ids_query = """
-                SELECT c.content_id FROM Contents c
-                JOIN VersionsContents vc ON c.content_id = vc.content_id
-                JOIN Versions v ON vc.version_id = v.version_id
-                JOIN Documents d ON v.document_id = d.document_id
-                WHERE d.document_id IN ({}) AND v.current_version = 1
-            """.format(','.join(['?']*len(doc_ids)))
+                SELECT c.cid FROM Contents c
+                JOIN VersionsContents vc ON c.cid = vc.cid
+                JOIN Versions v ON vc.version_cid = v.version_cid
+                JOIN Documents d ON v.document_cid = d.document_cid
+                WHERE d.document_cid IN ({}) AND v.current_version = 1
+            """.format(','.join(['?']*len(cids)))
             
-            content_ids_result = self.db.execute(content_ids_query, doc_ids)
-            content_ids = [r["content_id"] for r in content_ids_result]
+            content_ids_result = self.db.execute(content_ids_query, (cids))
+            cids = [r["cid"] for r in content_ids_result]
             
             # Get vectors for the content
             vectors_query = f"""
-                SELECT * FROM Vectors WHERE content_id IN ({','.join(['?']*len(content_ids))})
+                SELECT * FROM Vectors WHERE cid IN ({','.join(['?']*len(cids))})
             """
-            vectors = self.db.execute(vectors_query, content_ids)
+            vectors = self.db.execute(vectors_query, cids)
             msg = f"Retrieved {len(vectors)} vectors for documents"
             
             return {
@@ -323,7 +324,7 @@ class DocumentStorage:
                 "vectors": vectors
             }
         except Exception as e:
-            logger.error(f"Error retrieving vectors: {e}")
+            self.logger.error(f"Error retrieving vectors: {e}")
             return {
                 "success": False,
                 "message": str(e),
@@ -331,7 +332,8 @@ class DocumentStorage:
             }
     
     # Helper methods for database operations
-    def _store_sources(self, documents: list[Any]) -> Dict[str, str]:
+    # TODO: Something doesn't seem right here. Check carefully.
+    def _store_sources(self, documents: list[Any]) -> dict[str, str]:
         """Store sources and return a mapping of URL to source_id"""
         source_map = {}
         for doc in documents:
@@ -343,74 +345,74 @@ class DocumentStorage:
                 
                 # Check if source already exists
                 query = "SELECT id FROM Sources WHERE id = ?"
-                result = self.db.execute(query, [domain])
+                result = self.db.execute(query, (source_id))
                 
                 if not result:
                     # Insert new source
                     insert_query = "INSERT INTO Sources (id) VALUES (?)"
-                    self.db.execute(insert_query, [domain])
+                    self.db.execute(insert_query, (source_id))
                 
                 source_map[domain] = domain  # Source ID is the domain
         
         return source_map
     
-    def _store_document_entries(self, documents: list[Any], source_ids: Dict[str, str]) -> list[str]:
+    def _store_document_entries(self, documents: list[Any], source_ids: dict[str, str]) -> list[str]:
         """Store document entries and return document IDs"""
-        doc_ids = []
+        cids = []
         
         for doc in documents:
             url = doc["url"]
             domain = self._extract_domain(url)
             source_id = source_ids.get(domain)
             
-            document_id = self.get_cid()
+            document_cid = self.get_cid()
             document_type = self._determine_document_type(url)
             
             # Insert document
             insert_query = """
                 INSERT INTO Documents (
-                    document_id, source_id, url, document_type,
+                    document_cid, source_id, url, document_type,
                     status, priority
                 ) VALUES (?, ?, ?, ?, ?, ?)
             """
             
-            params = [
-                document_id, 
+            params = (
+                document_cid, 
                 source_id, 
                 url, 
                 document_type,
                 DocumentStatus.NEW.value,
                 5  # Default priority
-            ]
+            )
             
             self.db.execute(insert_query, params)
-            doc_ids.append(document_id)
+            cids.append(document_cid)
         
-        return doc_ids
+        return cids
     
-    def _create_versions(self, doc_ids: list[str]) -> list[str]:
+    def _create_versions(self, cids: list[str]) -> list[str]:
         """Create initial versions for documents"""
-        version_ids = []
+        version_cids = []
         
-        for document_id in doc_ids:
-            version_id = self.get_cid()
+        for document_cid in cids:
+            version_cid = self.get_cid()
             
             # Insert version
             insert_query = """
                 INSERT INTO Versions (
-                    version_id, document_id, current_version,
+                    version_cid, document_cid, current_version,
                     version_number, status, processed_at
                 ) VALUES (?, ?, ?, ?, ?, ?)
             """
             
-            params = [
-                version_id,
-                document_id,
+            params = (
+                version_cid,
+                document_cid,
                 True,  # Current version
                 "1.0",  # Initial version
                 VersionStatus.ACTIVE.value,
                 datetime.now()
-            ]
+            )
             
             self.db.execute(insert_query, params)
             
@@ -418,62 +420,62 @@ class DocumentStorage:
             update_query = """
                 UPDATE Documents
                 SET current_version_id = ?, status = ?
-                WHERE document_id = ?
+                WHERE document_cid = ?
             """
             
-            update_params = [
-                version_id,
+            update_params = (
+                version_cid,
                 DocumentStatus.COMPLETE.value,
-                document_id
-            ]
+                document_cid
+            )
             
             self.db.execute(update_query, update_params)
-            version_ids.append(version_id)
+            version_cids.append(version_cid)
         
-        return version_ids
+        return version_cids
     
-    def _store_metadata(self, metadata_list: list[Any], doc_ids: list[str]) -> None:
+    def _store_metadata(self, metadata_list: list[Any], cids: list[str]) -> None:
         """Store metadata for documents"""
         for i, metadata in enumerate(metadata_list):
-            if i >= len(doc_ids):
+            if i >= len(cids):
                 break
                 
-            document_id = doc_ids[i]
+            document_cid = cids[i]
             metadata_id = self.get_cid()
             
             # Insert metadata
             insert_query = """
                 INSERT INTO Metadatas (
-                    metadata_id, document_id, other_metadata,
+                    metadata_id, document_cid, other_metadata,
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?)
             """
             
-            params = [
+            params = (
                 metadata_id,
-                document_id,
+                document_cid,
                 metadata["metadata"],
                 datetime.now(),
                 datetime.now()
-            ]
+            )
             
             self.db.execute(insert_query, params)
     
-    def _store_content(self, documents: list[Any], version_ids: list[str]) -> list[str]:
+    def _store_content(self, documents: list[Any], version_cids: list[str]) -> list[str]:
         """Store content for document versions"""
-        content_ids = []
+        cids = []
         
         for i, doc in enumerate(documents):
-            if i >= len(version_ids):
+            if i >= len(version_cids):
                 break
                 
-            version_id = version_ids[i]
-            content_id = self.get_cid()
+            version_cid = version_cids[i]
+            cid = self.get_cid()
             
             # Insert content
             insert_query = """
                 INSERT INTO Contents (
-                    content_id, version_id, raw_content,
+                    cid, version_cid, raw_content,
                     processed_content, hash
                 ) VALUES (?, ?, ?, ?, ?)
             """
@@ -482,65 +484,65 @@ class DocumentStorage:
             processed_content = content  # In reality, this might go through processing TODO: FUCKING IMPLEMENT THIS
             content_hash = self._generate_hash(content)
             
-            params = [
-                content_id,
-                version_id,
+            params = (
+                cid,
+                version_cid,
                 content,
                 processed_content,
                 content_hash
-            ]
+            )
             
             self.db.execute(insert_query, params)
-            content_ids.append(content_id)
+            cids.append(cid)
         
-        return content_ids
+        return cids
     
-    def _create_version_content_links(self, version_ids: list[str], content_ids: list[str]) -> None:
+    def _create_version_content_links(self, version_cids: list[str], cids: list[str]) -> None:
         """Create links between versions and content"""
-        for i, version_id in enumerate(version_ids):
-            if i >= len(content_ids):
+        for i, version_cid in enumerate(version_cids):
+            if i >= len(cids):
                 break
                 
-            content_id = content_ids[i]
+            cid = cids[i]
             
             # Insert version-content link
             insert_query = """
                 INSERT INTO VersionsContents (
-                    version_id, content_id, created_at, source_type
+                    version_cid, cid, created_at, source_type
                 ) VALUES (?, ?, ?, ?)
             """
             
-            params = [
-                version_id,
-                content_id,
+            params = (
+                version_cid,
+                cid,
                 datetime.now(),
                 SourceType.PRIMARY.value
-            ]
+            )
             
             self.db.execute(insert_query, params)
     
-    def _store_vectors(self, vectors: list[Any], content_ids: list[str]) -> None:
+    def _store_vectors(self, vectors: list[Any], cids: list[str]) -> None:
         """Store vectors for content"""
         for i, vector in enumerate(vectors):
-            if i >= len(content_ids):
+            if i >= len(cids):
                 break
                 
-            content_id = content_ids[i]
+            cid = cids[i]
             vector_id = self.get_cid()
             
             # Insert vector
             insert_query = """
                 INSERT INTO Vectors (
-                    vector_id, content_id, vector_embedding, embedding_type
+                    vector_id, cid, vector_embedding, embedding_type
                 ) VALUES (?, ?, ?, ?)
             """
             
-            params = [
+            params = (
                 vector_id,
-                content_id,
+                cid,
                 vector["embedding"],
                 vector["embedding_type"]
-            ]
+            )
             
             self.db.execute(insert_query, params)
 
@@ -569,20 +571,3 @@ class DocumentStorage:
         import hashlib
         return hashlib.sha256(content.encode()).hexdigest()
 
-
-def make_document_storage(
-    resources: dict[str, Any] = {},
-    configs: DocumentStorageConfigs = DocumentStorageConfigs(),
-) -> DocumentStorage:
-    """Factory function to create DocumentStorage instance"""
-    _resources = {
-        "db": resources.get("db"),
-        "cache_service": resources.get("cache_service"),
-        "vector_store_service": resources.get("vector_store_service"),
-        "get_cid": get_cid,
-    }
-    _resources.update(resources)
-    try:
-        return DocumentStorage(resources=resources, configs=configs)
-    except Exception as e:
-        raise e

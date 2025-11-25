@@ -1,5 +1,6 @@
 """Custom error definitions for the main Red Ribbon package."""
 
+
 class InitializationError(RuntimeError):
     """
     Custom exception for initialization errors.
@@ -62,3 +63,15 @@ class LLMError(Exception):
 
     def __str__(self) -> str:
         return f"LLMError: {self.message}"
+
+
+class DatabaseError(Exception):
+    """
+    Custom exception for Database-related errors.
+    """
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self) -> str:
+        return f"DatabaseError: {self.message}"

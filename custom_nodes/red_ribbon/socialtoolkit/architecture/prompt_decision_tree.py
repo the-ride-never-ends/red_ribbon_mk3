@@ -8,7 +8,7 @@ import json
 
 
 import networkx as nx
-from pydantic import BaseModel, PositiveFloat, Field, PositiveInt, NonNegativeInt, NonNegativeFloat
+from pydantic import BaseModel, DirectoryPath, PositiveFloat, Field, PositiveInt, NonNegativeInt, NonNegativeFloat
 
 
 from .dataclasses import Document, Section
@@ -26,6 +26,7 @@ class PromptDecisionTreeConfigs(BaseModel):
     confidence_threshold: NonNegativeFloat = Field(default=0.7, ge=0.0, le=1.0)
     context_window_size: PositiveInt = 8192  # Maximum context window size for LLM
     enable_human_review: bool = True
+    review_folder: DirectoryPath = Path("./review_requests")
 
 
 class PromptDecisionTreeNodeType(str, Enum):
@@ -93,7 +94,7 @@ class PromptDecisionTree:
     """
 
     def __init__(self, *,
-                 resources: dict[str, Callable], 
+                 resources: dict[str, Any], 
                  configs: PromptDecisionTreeConfigs
                 ):
         """
@@ -123,7 +124,7 @@ class PromptDecisionTree:
         """Get class name for this service"""
         return self.__class__.__name__.lower()
 
-    def run(self, relevant_sections: list[Section], variable: Variable) -> dict[str, Any]:
+    def run(self, relevant_sections: dict[str, Document], variable: Variable) -> dict[str, Any]:
         """
         Execute the prompt decision tree and return detailed results.
         
@@ -156,11 +157,11 @@ class PromptDecisionTree:
             raise ValueError("relevant_sections cannot be empty")
 
         for idx, section in enumerate(relevant_sections):
-            if not isinstance(section, Section):
-                raise TypeError(f"section {idx} must be type Section, got {type(section).__name__}")
+            if not isinstance(section, Document):
+                raise TypeError(f"Document {idx} must be type Document, got {type(section).__name__}")
             else:
                 try:
-                    Section.model_validate(section)
+                    Document.model_validate(section)
                 except Exception as e:
                     raise ValueError(f"Invalid Section data for section {idx}: {e}") from e
 
@@ -178,12 +179,12 @@ class PromptDecisionTree:
         self.logger.info(f"Completed prompt decision tree execution. Result Status: {result['success']}")
         return result
 
-    def execute(self, relevant_sections: list[Any], variable: Variable) -> dict:
+    def execute(self, relevant_sections: dict[str, Document], variable: Variable) -> dict:
         """
         Public method to execute prompt decision tree
         
         Args:
-            relevant_sections: List of relevant document pages
+            relevant_sections: A dictionary of relevant document pages
             variable: Pydantic model containing a variable codebook entry 
             llm_api: LLM API instance
             
@@ -210,7 +211,7 @@ class PromptDecisionTree:
         """
         return self.run(relevant_sections, variable)
     
-    def _format_pages(self, pages: list[Section]) -> str:
+    def _format_pages(self, documents: dict[str, Document]) -> str: # TODO: Figure out to turn dict[str, Document] into list[Section]
         """
         Format pages into a single document
         
@@ -222,42 +223,48 @@ class PromptDecisionTree:
         """
         concatenated_text = ""
 
-        for idx, page in enumerate(pages, start=1):
-            title = getattr(page, "title", f"Relevant Document {idx}")
-            citation = page.bluebook_citation
-            assert citation is not None, "Bluebook citation is required in each page."
+        sections_list = [
+            doc.section_list for doc in documents.values()
+        ]
 
-            html = page.html
-            assert html is not None, "HTML content is required in each page."
-            content = self.extract_text_from_html(html)
-            
-            page_text = f"""
-<document {idx}>
-# {title}
-## Citation: {citation}
-## Content:
-{content}
-</doc>
-"""
-            concatenated_text += page_text
+        for sections_list in sections_list:
+            for idx, page in enumerate(sections_list, start=1):
 
-        # Tokenize the text to see if it's within context window
-        tokens = self.llm.tokenizer.tokenize(concatenated_text)  # type: ignore[attr-defined]
-        if tokens > self.configs.context_window_size:
-            self.logger.warning(
-                f"Concatenated document exceeds context window size "
-                f"({len(tokens)} tokens > {self.configs.context_window_size} tokens). "
-                f"Truncating to fit."
-            )
-            # Truncate to fit context window
-            truncated_tokens = tokens[:self.configs.context_window_size]
-            concatenated_text = self.llm.tokenizer.decode(truncated_tokens)  # type: ignore[attr-defined]
+                title = getattr(page, "title", f"Relevant Document {idx}")
+                citation = page.bluebook_citation
+                assert citation is not None, "Bluebook citation is required in each page."
+
+                html = page.html
+                assert html is not None, "HTML content is required in each page."
+                content = self.extract_text_from_html(html)
+                
+                page_text = f"""
+    <document {idx}>
+    # {title}
+    ## Citation: {citation}
+    ## Content:
+    {content}
+    </doc>
+    """
+                concatenated_text += page_text
+
+            # Tokenize the text to see if it's within context window
+            tokens = self.llm.tokenizer.tokenize(concatenated_text)  # type: ignore[attr-defined]
+            if tokens > self.configs.context_window_size:
+                self.logger.warning(
+                    f"Concatenated document exceeds context window size "
+                    f"({len(tokens)} tokens > {self.configs.context_window_size} tokens). "
+                    f"Truncating to fit."
+                )
+                # Truncate to fit context window
+                truncated_tokens = tokens[:self.configs.context_window_size]
+                concatenated_text = self.llm.tokenizer.decode(truncated_tokens)  # type: ignore[attr-defined]
 
         return concatenated_text.strip()
     
     def _execute_decision_tree(self, 
                              document_text: str, 
-                             variable: list[str], 
+                             variable: Variable, 
                              ) -> dict[str, Any]:  # type: ignore[return]
         """
         Execute the prompt decision tree
@@ -292,7 +299,7 @@ class PromptDecisionTree:
                 prompt = self._generate_node_prompt(current_node, document_text)
 
                 # Get response from LLM#
-                llm_response = self.llm.generate(prompt, max_tokens=self.max_tokens_per_prompt)  # type: ignore[attr-defined]
+                llm_response = self.llm.generate(prompt, max_tokens=self.max_tokens_per_prompt)
                 responses.append({
                     "node_id": current_node.id,
                     "prompt": prompt,
@@ -342,7 +349,7 @@ class PromptDecisionTree:
             })
             return output_dict
 
-    def _create_decision_tree(self, variable: list[str]) -> list[PromptDecisionTreeNode]:
+    def _create_decision_tree(self, variable: Variable) -> list[PromptDecisionTreeNode]:
         """
         Create a decision tree from a prompt sequence
         
@@ -350,35 +357,14 @@ class PromptDecisionTree:
         In a real system, this would create a proper tree structure with branches.
         
         Args:
-            variable: List of prompts
+            variable: Variable containing the prompt sequence
             
         Returns:
             List of nodes in the decision tree
         """
-        nodes = []
-        
-        for i, prompt in enumerate(variable):
-            # Create a node for each prompt
-            node = PromptDecisionTreeNode(
-                id=f"node_{i}",
-                type=PromptDecisionTreeNodeType.QUESTION,
-                prompt=prompt,
-                is_final=(i == len(variable) - 1)  # Last node is final
-            )
-            
-            # Add edges if not the last node
-            if i < len(variable) - 1:
-                node.edges = [
-                    PromptDecisionTreeEdge(
-                        condition="default",
-                        next_node_id=f"node_{i+1}"
-                    )
-                ]
-                
-            nodes.append(node)
-        
-        return nodes
-    
+        raise NotImplementedError("Decision tree creation not implemented.")
+
+
     def _generate_node_prompt(self, node: PromptDecisionTreeNode, document_text: str) -> str:
         """
         Generate a prompt for a node in the decision tree

@@ -8,7 +8,11 @@ import re
 from typing import Dict, Any, Callable, Optional, Union
 
 
-from custom_nodes.red_ribbon.utils_ import logger as module_logger, Configs
+import tiktoken
+
+
+from custom_nodes.red_ribbon.utils_.logger import logger as global_logger
+from custom_nodes.red_ribbon.utils_.configs import Configs
 from ._llm_client import OpenAiClient, OpenAiLLMOutput
 from ._embeddings_manager import EmbeddingsManager
 from ._load_prompt_from_yaml import load_prompt_from_yaml, Prompt
@@ -24,33 +28,33 @@ def _validate_sql(sql_query: str, fix_broken_queries: bool = True) -> Optional[s
     Returns:
         bool: True if valid, False otherwise
     """
-    module_logger.debug(f"Validating SQL query: {sql_query}")
+    global_logger.debug(f"Validating SQL query: {sql_query}")
 
     # Check if it's an empty string
     if not sql_query.strip():
-        module_logger.warning("Empty SQL query string provided.")
+        global_logger.warning("Empty SQL query string provided.")
         return None
     
     # Check if it any markdown patterns.
     if "```sql" in sql_query or "```" in sql_query:
-        module_logger.warning("SQL query contains markdown code blocks.")
+        global_logger.warning("SQL query contains markdown code blocks.")
         if fix_broken_queries:
             # Remove markdown code blocks
             sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
-            module_logger.info("Removed markdown code blocks from SQL query.")
-            module_logger.debug(f"Cleaned SQL query after markdown removal: {sql_query}")
+            global_logger.info("Removed markdown code blocks from SQL query.")
+            global_logger.debug(f"Cleaned SQL query after markdown removal: {sql_query}")
         else:
-            module_logger.error("SQL query contains markdown code blocks and fix_broken_queries is False.")
+            global_logger.error("SQL query contains markdown code blocks and fix_broken_queries is False.")
             return None
 
     # Check if it's got SELECT in it
     if not re.search(r'^\s*SELECT\s', sql_query, re.IGNORECASE):
-        module_logger.warning("SQL query does not start with SELECT.")
+        global_logger.warning("SQL query does not start with SELECT.")
         return None
 
     # Check if it's got doubled elements like SELECT SELECT or LIMIT 10 LIMIT 20
     sql_query = re.sub(r'\b(SELECT|LIMIT)\s+\1', r'\1', sql_query, flags=re.IGNORECASE).strip()
-    module_logger.debug(f"Cleaned SQL query after doubled elements removal: {sql_query}")
+    global_logger.debug(f"Cleaned SQL query after doubled elements removal: {sql_query}")
     return sql_query if sql_query else None
 
 
@@ -82,9 +86,30 @@ class LLMInterface:
         self.logger: logging.Logger = resources['logger']
         self.openai_client: OpenAiClient = resources['openai_client']
         self.embeddings_manager: EmbeddingsManager = resources['embeddings_manager']
+        self.clean_html: Callable[[str], str] = resources.get('clean_html', lambda x: x) # TODO Implement HTML cleaner
+
+        self.encoding = tiktoken.encoding_for_model(self.openai_client.model)
 
         self.logger.info(f"Initialized LLMInterface successfully.")
         self.logger.debug(f"LLMInterface attributes\n '{dir(self)}'")
+
+
+    def tokenize(self, text: str) -> list[int]:
+        """Tokenize text using tiktoken for the specified model."""
+        if not isinstance(text, str):
+            raise TypeError(f"'text' must be a string, got {type(text).__name__}")
+        if not text:
+            return []
+        return self.encoding.encode(text)
+
+
+    def decode_tokens(self, tokens: list[int]) -> str:
+        """Decode tokens back into text using tiktoken for the specified model."""
+        if not isinstance(tokens, list):
+            raise TypeError(f"'tokens' must be a list of integers, got {type(tokens).__name__}")
+        if not all(isinstance(token, int) for token in tokens):
+            raise TypeError("'tokens' list must only contain integers.")
+        return self.encoding.decode(tokens)
 
 
     def generate(self, 
@@ -93,7 +118,7 @@ class LLMInterface:
                  temperature: Optional[float] = None, 
                  max_tokens: Optional[int] = None,
                  response_parser: Optional[Callable[[str], Any]] = None
-                 ) -> dict[str, Union[str, int]]:
+                 ) -> dict[str, Any]:
         try:
             llm_output: OpenAiLLMOutput = self.openai_client.get_response(
                 user_message=user_message,
@@ -173,7 +198,7 @@ class LLMInterface:
             return self.generate_rag_response(
                 query=query,
                 use_embeddings=use_embeddings,
-                document_limit=document_limit,
+                top_k=document_limit,
                 system_prompt=custom_system_prompt
             )
         else:
@@ -503,11 +528,13 @@ Return ONLY the SQL query without any explanations."""
             else:
                 self.logger.info(f"SQL query validated successfully")
 
+            total_tokens = response.usage.total_tokens if response.usage else 0
+
             output_dict = {
                 "original_query": query,
                 "sql_query": sql_query if sql_query else "-- Error: No valid SQL query generated",
                 "model_used": self.openai_client.model,
-                "total_tokens": response.usage.total_tokens,
+                "total_tokens": total_tokens,
                 "error": None if sql_query else "Invalid SQL query generated"
             }
             return output_dict
@@ -519,8 +546,10 @@ Return ONLY the SQL query without any explanations."""
                 "sql_query": f"-- Error generating SQL query: {str(e)}",
                 "error": str(e)
             }
-        
-    async def generate_rag_response(
+
+
+
+    def generate_rag_response(
         self, 
         query: str, 
         use_embeddings: bool = True,
@@ -541,13 +570,8 @@ Return ONLY the SQL query without any explanations."""
         """
         # Retrieve relevant context
         context_docs = []
-        
-        if use_embeddings:
-            # Use embedding-based semantic search
-            context_docs = await self.search_embeddings(query, top_k=top_k)
-        else:
-            # Use database text search as fallback
-            context_docs = await self.query_database(query, limit=top_k)
+
+        context_docs = self.search_embeddings(query, top_k=top_k)
 
         # Build context for the prompt
         context_text = "Relevant legal information:\n\n"
@@ -578,20 +602,15 @@ Return ONLY the SQL query without any explanations."""
 
         # Generate response using OpenAI
         prompt: Prompt = load_prompt_from_yaml(
-            "generate_rag_response", self.configs, self.logger, query=query, context=context_text
+            "generate_rag_response", query=query, context=context_text
         )
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                messages=[
-                    {"role": "system", "content": system_prompt.strip()},
-                    {"role": "user", "content": f"Question: {query}\n\n{context_text}"}
-                ]
+            llm_response = self.generate(
+                user_message=f"Question: {query}\n\n{context_text}",
+                custom_system_prompt=system_prompt
             )
-            
-            generated_response = response.choices[0].message.content.strip()
+
+            generated_response = llm_response["response"]
             
             # Append the citations
             generated_response += f"\n\n{references.strip()}"
@@ -600,8 +619,8 @@ Return ONLY the SQL query without any explanations."""
                 "query": query,
                 "response": generated_response,
                 "context_used": [doc.get('bluebook_citation', 'No citation') for doc in context_docs],
-                "model_used": self.model,
-                "total_tokens": response.usage.total_tokens
+                "model_used": self.openai_client.model,
+                "total_tokens": llm_response["total_tokens"]
             }
             
         except Exception as e:
@@ -610,6 +629,7 @@ Return ONLY the SQL query without any explanations."""
                 "query": query,
                 "response": f"Error generating response: {str(e)}",
                 "context_used": [],
-                "model_used": self.model,
+                "model_used": self.openai_client.model,
                 "error": str(e)
             }
+
