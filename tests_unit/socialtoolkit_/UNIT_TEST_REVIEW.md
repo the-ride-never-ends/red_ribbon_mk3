@@ -3,7 +3,7 @@
 **Review Date:** 2025-12-13  
 **Reviewer:** Automated Code Review Agent  
 **Test Suite Version:** red_ribbon_mk3  
-**Total Test Files:** 17  
+**Total Files in Test Suite:** 22 (12 test files + 10 support files)
 **Total Lines of Test Code:** 8,722  
 **Total Test Functions:** 537
 
@@ -61,10 +61,10 @@ tests_unit/socialtoolkit_/
 | Architecture Layer | 7 | ~380 | 3,654 | ~60% |
 | Resource Layer | 4 | ~130 | 1,590 | ~70% |
 | Pipeline Integration | 1 | 0 | 15 | 0% |
-| Conftest & Support | 5 | ~27 | 3,463 | N/A |
-| **Total** | **17** | **~537** | **8,722** | **~56%** |
+| Conftest & Support | 10 | N/A | 3,463 | N/A |
+| **Total** | **22** | **~537** | **8,722** | **~56%** |
 
-*Note: Conftest and support files include shared fixtures and documentation files. Pipeline integration tests are not yet implemented.*
+*Note: Conftest & Support files include: conftest.py files (2), __init__.py files (3), documentation files (4 .md), and test data/assertions (variable_codebook_assertions.json). Pipeline integration test file is a placeholder only.*
 
 ---
 
@@ -471,7 +471,7 @@ def make_mock_llm(return_values: Optional[dict] = None) -> Callable:
 1. **Complete Stub Implementations**
    - Focus on `test_document_storage.py` (24% complete)
    - Focus on `test_query_processor.py` (24% complete)
-   - Focus on `test_socialtoolkit_pipeline.py` (7% complete)
+   - Implement `test_socialtoolkit_pipeline.py` (not yet started)
 
 2. **Add Integration Tests**
    - Test full pipeline execution with realistic data
