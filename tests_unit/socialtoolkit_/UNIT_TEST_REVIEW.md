@@ -4,8 +4,8 @@
 **Reviewer:** Automated Code Review Agent  
 **Test Suite Version:** red_ribbon_mk3  
 **Total Test Files:** 17  
-**Total Lines of Test Code:** 8,777  
-**Total Test Functions:** 552
+**Total Lines of Test Code:** 8,722  
+**Total Test Functions:** 537
 
 ---
 
@@ -60,11 +60,11 @@ tests_unit/socialtoolkit_/
 |-----------|-----------|----------------|-------|------------|
 | Architecture Layer | 7 | ~380 | 3,654 | ~60% |
 | Resource Layer | 4 | ~130 | 1,590 | ~70% |
-| Pipeline Integration | 1 | ~15 | 70 | ~20% |
+| Pipeline Integration | 1 | 0 | 15 | 0% |
 | Conftest & Support | 5 | ~27 | 3,463 | N/A |
-| **Total** | **17** | **~552** | **8,777** | **~55%** |
+| **Total** | **17** | **~537** | **8,722** | **~56%** |
 
-*Note: Conftest and support files include shared fixtures and documentation files.*
+*Note: Conftest and support files include shared fixtures and documentation files. Pipeline integration tests are not yet implemented.*
 
 ---
 
@@ -413,7 +413,7 @@ def make_mock_llm(return_values: Optional[dict] = None) -> Callable:
 | DocumentStorage | ~45% | ~35% | ⚠️ Needs Work |
 | RelevanceAssessment | ~50% | ~40% | ⚠️ Needs Work |
 | VariableCodebook | ~55% | ~45% | ⚠️ Needs Work |
-| Pipeline Integration | ~7% | ~10% | ❌ Insufficient |
+| Pipeline Integration | 0% | 0% | ❌ Not Implemented |
 
 ### Test Implementation Status
 
@@ -427,13 +427,17 @@ def make_mock_llm(return_values: Optional[dict] = None) -> Callable:
 - `test_relevance_assessment.py` - 25/51 tests (49%)
 - `test_main.py` - 8/15 tests (53%)
 
+- `test_socialtoolkit_pipeline.py` - 1/15 tests (7%)
+
 **Mostly Stubs (<40%):**
 - `test_document_storage.py` - 20/82 tests (24%)
 - `test_variable_codebook.py` - 30/76 tests (39%)
 - `test_document_retrieval_from_websites.py` - 15/54 tests (28%)
 - `test_vector_search_engine.py` - 8/24 tests (33%)
 - `test_query_processor.py` - 10/41 tests (24%)
-- `test_socialtoolkit_pipeline.py` - 1/15 tests (7%)
+
+**Not Yet Implemented (0%):**
+- `test_socialtoolkit_pipeline.py` - 0/0 tests (placeholder file only)
 
 ---
 
@@ -698,7 +702,7 @@ The SocialToolkit test suite is on a **strong foundation** and with focused effo
 
 | File | Lines | Tests | Implemented | Coverage | Notes |
 |------|-------|-------|-------------|----------|-------|
-| test_socialtoolkit_pipeline.py | 70 | 15 | 7% | ~7% | Critical gap |
+| test_socialtoolkit_pipeline.py | 15 | 0 | 0% | 0% | Not yet implemented |
 
 ---
 
