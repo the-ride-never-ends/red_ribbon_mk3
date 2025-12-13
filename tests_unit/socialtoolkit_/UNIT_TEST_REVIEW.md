@@ -427,8 +427,6 @@ def make_mock_llm(return_values: Optional[dict] = None) -> Callable:
 - `test_relevance_assessment.py` - 25/51 tests (49%)
 - `test_main.py` - 8/15 tests (53%)
 
-- `test_socialtoolkit_pipeline.py` - 1/15 tests (7%)
-
 **Mostly Stubs (<40%):**
 - `test_document_storage.py` - 20/82 tests (24%)
 - `test_variable_codebook.py` - 30/76 tests (39%)
