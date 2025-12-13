@@ -13,7 +13,7 @@
 
 The SocialToolkit unit test suite demonstrates a **highly structured and comprehensive approach** to testing a complex document retrieval and analysis system. The tests are organized following Behavior-Driven Development (BDD) principles with extensive Gherkin documentation, exhibiting strong alignment between specifications and implementation.
 
-### Overall Rating: **8.5/10**
+### Overall Rating: **8.1/10**
 
 **Strengths:**
 - Exceptional documentation and specification alignment
@@ -61,7 +61,10 @@ tests_unit/socialtoolkit_/
 | Architecture Layer | 7 | ~380 | 3,654 | ~60% |
 | Resource Layer | 4 | ~130 | 1,590 | ~70% |
 | Pipeline Integration | 1 | ~15 | 70 | ~20% |
-| **Total** | **12** | **~525** | **5,314** | **~55%** |
+| Conftest & Support | 5 | ~27 | 3,463 | N/A |
+| **Total** | **17** | **~552** | **8,777** | **~55%** |
+
+*Note: Conftest and support files include shared fixtures and documentation files.*
 
 ---
 
@@ -410,7 +413,7 @@ def make_mock_llm(return_values: Optional[dict] = None) -> Callable:
 | DocumentStorage | ~45% | ~35% | ⚠️ Needs Work |
 | RelevanceAssessment | ~50% | ~40% | ⚠️ Needs Work |
 | VariableCodebook | ~55% | ~45% | ⚠️ Needs Work |
-| Pipeline Integration | ~20% | ~15% | ❌ Insufficient |
+| Pipeline Integration | ~7% | ~10% | ❌ Insufficient |
 
 ### Test Implementation Status
 
@@ -695,7 +698,7 @@ The SocialToolkit test suite is on a **strong foundation** and with focused effo
 
 | File | Lines | Tests | Implemented | Coverage | Notes |
 |------|-------|-------|-------------|----------|-------|
-| test_socialtoolkit_pipeline.py | 70 | 15 | 7% | ~20% | Critical gap |
+| test_socialtoolkit_pipeline.py | 70 | 15 | 7% | ~7% | Critical gap |
 
 ---
 
