@@ -29,3 +29,5 @@ open_ai_key.zshrc
 notebooks
 custom_nodes/red_ribbon/configs.yaml
 custom_nodes/red_ribbon/configs/private_configs.yaml
+configs.yaml
+sql_configs.yaml

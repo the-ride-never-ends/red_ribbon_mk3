@@ -1,0 +1,10 @@
+IS_LEGAL_TEXT_PROMPT: 
+  key: legal_text
+  prompt: |
+    You extract structured data from text. Return your answer in JSON format (not markdown). 
+    Your JSON file must include exactly three keys:
+    - 'summary': A string that provides a short summary of the text.
+    - 'type': A string that best represents the type of document this text belongs to.
+    - '{key}': A boolean that is set to True if the type of the text (as you previously determined) 
+      is a legally-binding statute or code and False if the text is an excerpt from other non-legal 
+      text such as a news article, survey, summary, application, public notice, etc.

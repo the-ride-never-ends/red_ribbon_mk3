@@ -1,0 +1,41 @@
+NOT_WORDS:
+  - parking lot
+  - park land
+  - park system
+  - park district
+  - parkway
+  - national park
+  - state park
+  - amusement park
+  - park bench
+  - park ranger
+
+GOOD_KEYWORDS:
+  - parking
+  - space
+  - spot
+
+GOOD_ACRONYMS:
+  - psm
+  - psr
+  - pmin
+
+GOOD_ACRONYM_CONTEXTS:
+  - " {acronym} "
+  - " {acronym}\n"
+  - " {acronym}."
+  - "\n{acronym} "
+  - "\n{acronym}."
+  - "\n{acronym}\n"
+  - "({acronym} "
+  - " {acronym})"
+
+GOOD_PHRASES:
+  - parking requirement
+  - parking minimum
+  - parking spot
+  - parking space
+  - required parking
+  - minimum parking
+  - office space
+  - square feet

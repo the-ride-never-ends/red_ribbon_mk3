@@ -1,0 +1,47 @@
+NOT_WORDS:
+  - windy
+  - winds
+  - window
+  - windiest
+  - windbreak
+  - windshield
+  - wind blow
+  - wind erosion
+  - rewind
+  - mini wecs
+  - swecs
+  - private wecs
+  - pwecs
+  - wind direction
+  - wind movement
+  - wind attribute
+  - wind runway
+  - wind load
+  - wind orient
+  - wind damage
+
+GOOD_KEYWORDS:
+  - wind
+  - setback
+
+GOOD_ACRONYMS:
+  - wecs
+  - wes
+  - lwet
+  - uwet
+  - wef
+
+GOOD_ACRONYM_CONTEXTS:
+  - " {acronym} "
+  - " {acronym}\n"
+  - " {acronym}."
+  - "\n{acronym} "
+  - "\n{acronym}."
+  - "\n{acronym}\n"
+  - "({acronym} "
+  - " {acronym})"
+
+GOOD_PHRASES:
+  - wind energy conversion
+  - wind turbine
+  - wind tower

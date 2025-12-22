@@ -25,3 +25,8 @@ pytest>=7.8.0
 pytest-aiohttp
 pytest-asyncio
 gguf>=0.17.1
+
+#NREL-elm
+pdftotext
+pytest-mock
+psycopg2-binary
